@@ -1,95 +1,95 @@
 {
-  "generatedAt": "2026-11-02T15:46:32.114Z",
+  "generatedAt": "2026-11-02T15:55:32.675Z",
   "coverage": [
     {
       "capability": "auth",
       "label": "Sign-in and session",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 0,
         "write": 1
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 3,
+        "write": 3
       }
     },
     {
       "capability": "clients",
       "label": "Clients and homes",
-      "status": "not seen",
+      "status": "portal only",
       "official": {
         "read": 0,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 15,
+        "write": 1
       }
     },
     {
       "capability": "leads-quotes",
       "label": "Leads and quotes",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 2,
         "write": 4
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 5,
+        "write": 2
       }
     },
     {
       "capability": "jobs",
       "label": "Jobs",
-      "status": "not seen",
+      "status": "portal only",
       "official": {
         "read": 0,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 10,
+        "write": 5
       }
     },
     {
       "capability": "scheduling",
       "label": "Schedule and dispatch",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 1,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 10,
+        "write": 3
       }
     },
     {
       "capability": "teams",
       "label": "Teams",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 1,
         "write": 0
       },
       "portal": {
-        "read": 0,
+        "read": 8,
         "write": 0
       }
     },
     {
       "capability": "employees",
       "label": "Employees",
-      "status": "not seen",
+      "status": "portal only",
       "official": {
         "read": 0,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 11,
+        "write": 3
       }
     },
     {
@@ -134,40 +134,40 @@
     {
       "capability": "notes-messages",
       "label": "Notes and messages",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 3,
         "write": 1
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 4,
+        "write": 3
       }
     },
     {
       "capability": "reports",
       "label": "Reports and dashboard",
-      "status": "not seen",
+      "status": "portal only",
       "official": {
         "read": 0,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 5,
+        "write": 2
       }
     },
     {
       "capability": "settings",
       "label": "Settings and lookups",
-      "status": "official API",
+      "status": "both",
       "official": {
         "read": 4,
         "write": 0
       },
       "portal": {
-        "read": 0,
-        "write": 0
+        "read": 2,
+        "write": 2
       }
     }
   ],
@@ -412,16 +412,3598 @@
   },
   "portal": {
     "session": {
-      "cookies": [],
+      "cookies": [
+        {
+          "name": "__RequestVerificationToken",
+          "domain": "{tenant}.maidcentral.com",
+          "path": "/",
+          "httpOnly": true,
+          "secure": true,
+          "sameSite": "Lax",
+          "session": true
+        },
+        {
+          "name": "TwoFactorRememberBrowser",
+          "domain": "{tenant}.maidcentral.com",
+          "path": "/",
+          "httpOnly": true,
+          "secure": true,
+          "sameSite": "Lax",
+          "session": false
+        },
+        {
+          "name": "ASP.NET_SessionId",
+          "domain": "{tenant}.maidcentral.com",
+          "path": "/",
+          "httpOnly": true,
+          "secure": false,
+          "sameSite": "Lax",
+          "session": true
+        },
+        {
+          "name": ".AspNet.ApplicationCookie",
+          "domain": "{tenant}.maidcentral.com",
+          "path": "/",
+          "httpOnly": true,
+          "secure": true,
+          "sameSite": "Lax",
+          "session": false
+        }
+      ],
       "storageKeys": {
         "localStorage": [],
         "sessionStorage": []
       },
       "authSchemes": [],
       "tokenHeaders": [],
-      "loginRequests": []
+      "loginRequests": [
+        "GET {tenant}.maidcentral.com/Account/Login",
+        "POST {tenant}.maidcentral.com/Account/Login",
+        "GET {tenant}.maidcentral.com/Account/SendCode",
+        "POST {tenant}.maidcentral.com/Account/SendCode",
+        "GET {tenant}.maidcentral.com/Account/VerifyCode",
+        "POST {tenant}.maidcentral.com/Account/VerifyCode"
+      ]
     },
-    "pages": [],
-    "endpoints": []
+    "pages": [
+      {
+        "template": "/",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 5,
+          "tableColumns": 2,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Customer/EditTicket/",
+          "GET {tenant}.maidcentral.com/Home/CustomerServiceRequests/",
+          "GET {tenant}.maidcentral.com/Home/GetChartData/",
+          "GET {tenant}.maidcentral.com/Home/NewCustomersWidget",
+          "GET {tenant}.maidcentral.com/Home/OpenContactTickets",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/remove-icon-small.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/report/bidata",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Home",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 5,
+          "tableColumns": 2,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Customer/EditTicket/",
+          "GET {tenant}.maidcentral.com/Home/CustomerServiceRequests/",
+          "GET {tenant}.maidcentral.com/Home/GetChartData/",
+          "GET {tenant}.maidcentral.com/Home/NewCustomersWidget",
+          "GET {tenant}.maidcentral.com/Home/OpenContactTickets",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/remove-icon-small.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/report/bidata",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Home/SalesDashboard",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/SalesExternalFormQuotes",
+          "GET {tenant}.maidcentral.com/Home/SalesOpenNotes",
+          "GET {tenant}.maidcentral.com/Home/SalesQuotesAction",
+          "GET {tenant}.maidcentral.com/Home/SalesServiceRequests",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Estimate/SalesPipeline?=:date",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2",
+            "signalR": true
+          }
+        },
+        "forms": [
+          {
+            "method": "get",
+            "action": "",
+            "fields": []
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Estimate/GetOnlineLeads",
+          "POST {tenant}.maidcentral.com/Estimate/GetPipelineData (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/remove-icon-small.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/signalr/negotiate",
+          "GET {tenant}.maidcentral.com/signalr/start",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Communication",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "POST {tenant}.maidcentral.com/Communication/GetMessageThread (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Employee/Dashboard",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Customer/Search",
+            "fields": [
+              "Tags:text"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Employee/Worksheets",
+          "GET {tenant}.maidcentral.com/Job/CheckNextJobNotificationOnWay",
+          "POST {tenant}.maidcentral.com/Time/GetAllTimeChangeRequestsForEmployee (blocked: write)",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)",
+          "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
+        ]
+      },
+      {
+        "template": "/Dashboard/Index/:id",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 4,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2",
+            "signalR": true
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Employee/Create",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Employee/Create",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "Role:hidden",
+              "Prefix:text",
+              "FirstName:text",
+              "MiddleName:text",
+              "LastName:text",
+              "HireDate:text",
+              "DriversLicenseNumber:text",
+              "DriversLicenseNumberState:text",
+              "AddScheduleTag:checkbox",
+              "AddScheduleTag:hidden",
+              "EmergencyContactName:text",
+              "EmergencyContactPhone:text",
+              "FirstContactTypeId:select-one",
+              "FirstContactInfo:text",
+              "Email:email",
+              "RolesSelected:checkbox",
+              "mycustomfield:text",
+              "MailingAddress:id:text",
+              "MailingCountry:hidden",
+              "MailingCity:text",
+              "MailingRegion:text",
+              "MailingPostalCode:text",
+              "PhysicalSameAsMailing:checkbox",
+              "PhysicalSameAsMailing:hidden",
+              "myothercustomfield:text",
+              "PhysicalAddress:id:text",
+              "PhysicalCountry:hidden",
+              "PhysicalCity:text",
+              "PhysicalRegion:text",
+              "PhysicalPostalCode:text",
+              "FederalTaxCredits:text",
+              "StateTaxCredits:text",
+              "MaritalStatusId:select-one",
+              "Withholdings:text",
+              "DateOfBirth:text",
+              "ServiceCompanyGroupPolicyId:select-one",
+              "Salary:text",
+              "HourlyRate:text",
+              "MinimumWageRate:text",
+              "MaxHourlyRate:text"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)",
+          "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
+        ]
+      },
+      {
+        "template": "/Employee",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 1,
+          "tableColumns": 9,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "get",
+            "action": "/Employee",
+            "fields": [
+              "TagsSelected:checkbox",
+              "SkillsSelected:checkbox",
+              "ShowTerminated:checkbox",
+              "ShowTerminated:hidden"
+            ]
+          },
+          {
+            "method": "post",
+            "action": "/Employee/LockEmployeeAccount",
+            "fields": [
+              "__RequestVerificationToken:hidden"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Employee/Time#monitor-tab",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 20,
+          "tableColumns": 23,
+          "framework": {
+            "knockout": true,
+            "jquery": "1.11.2",
+            "kendo": true
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Time/ExportTimeClockData",
+            "fields": [
+              "StartDate:text",
+              "EndDate:text",
+              "ExportTypes:checkbox"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Employee/EmployeeMonitorData",
+          "GET {tenant}.maidcentral.com/Employee/EmployeeMonitorTeams",
+          "POST {tenant}.maidcentral.com/Event/Events (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST {tenant}.maidcentral.com/report/getTimeChangeRequests (blocked: write)",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)",
+          "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
+        ]
+      },
+      {
+        "template": "/Company/BroadcastMessage",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Company/BroadcastMessage",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "ConfirmedToSend:hidden",
+              "ServiceCompaniesSelected[:id]:hidden",
+              "Medium:radio",
+              "Subject:text",
+              "From:email",
+              "Message:textarea"
+            ]
+          }
+        ],
+        "requests": [
+          "POST {tenant}.maidcentral.com/Company/BroadcastMessage (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/plugins/tinymce/plugins/importcss/plugin.min.js (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Schedule",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 5,
+          "tableColumns": 23,
+          "framework": {
+            "knockout": true,
+            "jquery": "1.11.2",
+            "kendo": true
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/remove-icon-small.png (blocked: unsafe-get)",
+          "POST {tenant}.maidcentral.com/Job/CustomerEmployeeFlags/ (blocked: write)",
+          "POST {tenant}.maidcentral.com/Schedule/AbsentEmployees/ (blocked: write)",
+          "GET {tenant}.maidcentral.com/Schedule/GetSchedulerItemDetails",
+          "GET {tenant}.maidcentral.com/Schedule/Read",
+          "GET {tenant}.maidcentral.com/Schedule/ReadEmployees",
+          "GET {tenant}.maidcentral.com/Schedule/ReadTeamPositions",
+          "GET {tenant}.maidcentral.com/Schedule/ReadTeams",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Company/ScheduleExceptions",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 4,
+          "tableColumns": 9,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Employee/ScheduleRequests",
+            "fields": [
+              "StartDate:text",
+              "EndDate:text"
+            ]
+          },
+          {
+            "method": "post",
+            "action": "/Company/ScheduleExceptions",
+            "fields": [
+              "DefaultAvailableDays:hidden",
+              "btnUpdateDates:submit",
+              "Model.StartDate:text",
+              "Model.EndDate:text",
+              "Model.Exceptions[:id].EmployeeScheduleExceptionId:hidden",
+              "Model.Exceptions[:id].ScheduleDate:hidden",
+              "Model.Exceptions[:id].BlackoutDay:checkbox",
+              "Model.Exceptions[:id].BlackoutDay:hidden",
+              "Model.Exceptions[:id].Note:text"
+            ]
+          }
+        ],
+        "requests": [
+          "POST {tenant}.maidcentral.com/Company/ScheduleExceptionCalendar (blocked: write)",
+          "GET {tenant}.maidcentral.com/Employee/CalendarDayAvailability",
+          "GET {tenant}.maidcentral.com/Employee/ScheduleRequests",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Customer/Create",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Customer/Create",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "CustomerQuoteDetailLineId:hidden",
+              "CustomerFirstName:text",
+              "CustomerMiddleName:text",
+              "CustomerLastName:text",
+              "CustomerTagsSelected:checkbox",
+              "CustomerCompanyName:text",
+              "BillingTermsId:select-one",
+              "CustomerSourceId:select-one",
+              "EmailInvoice:checkbox",
+              "EmailInvoice:hidden",
+              "mycustomfield:text",
+              "BillingAddress:id:text",
+              "BillingCountry:hidden",
+              "BillingCity:text",
+              "BillingState:text",
+              "BillingZip:text",
+              "FirstContactTypeId:select-one",
+              "FirstContactInfo:text",
+              "SecondContactTypeId:select-one",
+              "SecondContactInfo:text",
+              "HomeAddressSameAsBilling:checkbox",
+              "HomeAddressSameAsBilling:hidden",
+              "myothercustomfield:text",
+              "HomeAddress:id:text",
+              "HomeCountry:hidden",
+              "HomeCity:text",
+              "HomeState:text",
+              "HomeZip:text",
+              "HomeSubdivision:text",
+              "HomeName:text",
+              "HomeLocationPhone:text",
+              "HomeServiceTagsSelected:checkbox",
+              "HomeSpecialInstructions:textarea",
+              "HomePetInstructions:textarea",
+              "HomeDirections:textarea",
+              "HomeSpecialEquipment:textarea",
+              "HomeWasteDisposal:textarea",
+              "HomeAcessInformation:textarea",
+              "HomeInternalMemo:textarea"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/syncfusion-icons-white.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/img/syncfusion-icons.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)",
+          "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
+        ]
+      },
+      {
+        "template": "/Customer/Search",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Customer/Search",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "Tags:text"
+            ]
+          },
+          {
+            "method": "post",
+            "action": "/Customer/AdvancedSearch",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "SearchTypeId:radio",
+              "CustomerSearchId:select-one",
+              "HomeSearchId:select-one",
+              "SearchValue:text"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Job/Schedule",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": true,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 5,
+          "tableColumns": 23,
+          "framework": {
+            "knockout": true,
+            "jquery": "1.11.2",
+            "kendo": true
+          }
+        },
+        "forms": [
+          {
+            "method": "post",
+            "action": "/ServiceSetInformation/PrintJobWorksheets",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "PrintDate:hidden",
+              "PrintStartTeam:select-one"
+            ]
+          }
+        ],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/img/remove-icon-small.png (blocked: unsafe-get)",
+          "GET {tenant}.maidcentral.com/Job/AdjustTeamSize",
+          "POST {tenant}.maidcentral.com/Job/CustomerEmployeeFlags/ (blocked: write)",
+          "POST {tenant}.maidcentral.com/Job/JobResendNotificationFlags/ (blocked: write)",
+          "POST {tenant}.maidcentral.com/Job/PreferExcludeFlags/ (blocked: write)",
+          "GET {tenant}.maidcentral.com/Job/ReadJobs",
+          "GET {tenant}.maidcentral.com/Job/ReadTeams",
+          "POST {tenant}.maidcentral.com/Job/ScheduleStats/ (blocked: write)",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Job/TeamMonitor",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 5,
+          "tableColumns": 23,
+          "framework": {
+            "knockout": true,
+            "jquery": "1.11.2",
+            "kendo": true
+          }
+        },
+        "forms": [],
+        "requests": [
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/Job/TeamMonitorData",
+          "GET {tenant}.maidcentral.com/Job/TeamMonitorTeams",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Job/Monthly",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 2,
+          "tableColumns": 7,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "POST {tenant}.maidcentral.com/Event/CreateOrEditEvent (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST {tenant}.maidcentral.com/Job/MonthlyData (blocked: write)",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      },
+      {
+        "template": "/Estimate#tab_1",
+        "heading": null,
+        "statuses": [
+          200
+        ],
+        "rendering": "server-rendered + XHR",
+        "signals": {
+          "antiForgeryField": false,
+          "webFormsViewState": false,
+          "metaTokens": [],
+          "tables": 0,
+          "tableColumns": 0,
+          "framework": {
+            "jquery": "1.11.2"
+          }
+        },
+        "forms": [],
+        "requests": [
+          "POST {tenant}.maidcentral.com/Estimate/Step1 (blocked: write)",
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "POST eastus-5.in.applicationinsights.azure.com//v2/track (blocked: write)"
+        ]
+      }
+    ],
+    "endpoints": [
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200,
+          302
+        ],
+        "responseKinds": [
+          "html",
+          "redirect"
+        ],
+        "pages": [
+          "/"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Account/Login",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "ReturnUrl": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Account/Login",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          302
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "ReturnUrl": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Account/SendCode",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "ReturnUrl": [
+            "<string>"
+          ],
+          "RememberMe": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Account/SendCode",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          302
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "ReturnUrl": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Account/VerifyCode",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "Provider": [
+            "<string>"
+          ],
+          "ReturnUrl": [
+            "<string>"
+          ],
+          "RememberMe": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Account/VerifyCode",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          302
+        ],
+        "responseKinds": [],
+        "pages": [],
+        "query": {
+          "ReturnUrl": [
+            "<string>"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": true,
+        "count": 1,
+        "capabilities": [
+          "auth"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Communication",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Communication"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "notes-messages"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Communication/GetMessageThread",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Communication"
+        ],
+        "query": {},
+        "requestShape": {
+          "id": "number",
+          "typeId": "number",
+          "contactInfo": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "notes-messages"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Company/BroadcastMessage",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Company/BroadcastMessage"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "notes-messages",
+          "settings"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Company/BroadcastMessage",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Company/BroadcastMessage"
+        ],
+        "query": {},
+        "requestShape": {
+          "__RequestVerificationToken": "string",
+          "ConfirmedToSend": "string",
+          "ServiceCompaniesSelected[:id]": "string",
+          "Medium": "string",
+          "Subject": "string",
+          "From": "string",
+          "Message": "string",
+          "X-Requested-With": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "notes-messages",
+          "settings"
+        ],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Company/ScheduleExceptionCalendar",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Company/ScheduleExceptions"
+        ],
+        "query": {},
+        "requestShape": {
+          "start": "string",
+          "end": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling",
+          "settings"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Company/ScheduleExceptions",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Company/ScheduleExceptions"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling",
+          "settings"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Customer",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          301
+        ],
+        "responseKinds": [
+          "redirect"
+        ],
+        "pages": [
+          "/Customer"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Customer/Create",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Customer/Create"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Customer/EditTicket/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "id": [
+            ":id"
+          ],
+          "typeId": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Customer/EditTicket",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "Id:hidden",
+              "TicketTypeId:hidden",
+              "OpenDate:text",
+              "CloseNotes:textarea",
+              "btnCloseTicket:submit"
+            ]
+          }
+        ],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Customer/Search",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Customer/Search"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Dashboard/Index/:id",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Dashboard/Index/:id"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "reports"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/CalendarDayAvailability",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Company/ScheduleExceptions"
+        ],
+        "query": {
+          "start": [
+            "<string>"
+          ],
+          "end": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling",
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/Create",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Create"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/Dashboard",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Dashboard"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees",
+          "reports"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/EmployeeMonitorData",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Employee/Time#monitor-tab"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "JobInformationTeamId": "number",
+            "JobInformationId": "number",
+            "ServiceSetInformationId": "number",
+            "EmployeeInformationId": "number",
+            "Title": "string",
+            "Start": "string",
+            "End": "string",
+            "StartTimezone": "null",
+            "EndTimezone": "null",
+            "IsAllDay": "boolean",
+            "Color": "string",
+            "TeamID": "number",
+            "AllowedTime": "number",
+            "JobStatusId": "number",
+            "EventInstructions": "null",
+            "ScheduleActualType": "number",
+            "FrequencyColor": "null",
+            "StatusColor": "null",
+            "JobTags": "null",
+            "FlagIcon": "null",
+            "LastScorecardIcon": "string",
+            "RgbTextColor": "null",
+            "EntityType": "number",
+            "IsRecurringEvent": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/EmployeeMonitorTeams",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Employee/Time#monitor-tab"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "undefined"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "TeamID": "number",
+            "value": "number",
+            "TeamName": "string",
+            "text": "string",
+            "Color": "null",
+            "RgbBackgroundColor": "null",
+            "RgbTextColor": "null",
+            "TeamMembers": "null",
+            "SizeException": "boolean",
+            "SortOrder": "number",
+            "SizeExceptionValue": "number",
+            "BillRate": "null",
+            "ScheduledHours": "number",
+            "CountJobs": "number",
+            "Employees": "null",
+            "AllowedHours": "number",
+            "ServiceCompanyOfficeId": "null",
+            "IsDisabled": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "teams",
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/GetEmployeeBreaks",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Time#breaks-tab"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/ScheduleRequests",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Company/ScheduleExceptions"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Employee/ScheduleRequests",
+            "fields": [
+              "StartDate:text",
+              "EndDate:text"
+            ]
+          }
+        ],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling",
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/Time",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Time"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/Worksheets",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Dashboard"
+        ],
+        "query": {
+          "Date": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Estimate",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Estimate"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Estimate/GetOnlineLeads",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Estimate/SalesPipeline?=:date"
+        ],
+        "query": {
+          "serviceCompanyId": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Estimate/GetPipelineData",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Estimate/SalesPipeline?=:date"
+        ],
+        "query": {},
+        "requestShape": {
+          "StartDate": "string",
+          "EndDate": "string",
+          "AssignedUserId": "null",
+          "StatusIds": [
+            "number"
+          ],
+          "TagIds": [],
+          "CustomerSourceId": "string",
+          "ServiceSetTypeGroupId": "null",
+          "ShowOnlyWithTickets": "boolean",
+          "ViewType": "string",
+          "SortBy": "string",
+          "SortDirection": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Estimate/SalesPipeline",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Estimate/SalesPipeline"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Estimate/Step1",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Estimate#tab_1"
+        ],
+        "query": {},
+        "requestShape": {
+          "CustomerInformationId": "string",
+          "HomeInformationId": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Event/CreateOrEditEvent",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Monthly"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Event/Events",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Employee/Time#monitor-tab"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/CustomerServiceRequests/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/GetChartData/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "JobData": [
+              {
+                "label": "string",
+                "data": [
+                  [
+                    "number"
+                  ]
+                ]
+              }
+            ],
+            "RevenueData": [
+              {
+                "label": "string",
+                "data": [
+                  [
+                    "number"
+                  ]
+                ]
+              }
+            ],
+            "HourData": [
+              {
+                "label": "string",
+                "data": [
+                  [
+                    "number"
+                  ]
+                ]
+              }
+            ],
+            "MixData": [
+              {
+                "label": "string",
+                "data": [
+                  [
+                    "number"
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/NewCustomersWidget",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/OpenContactTickets",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/SalesDashboard",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home/SalesDashboard"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "reports"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/SalesExternalFormQuotes",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home/SalesDashboard"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "leads-quotes"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/SalesOpenNotes",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home/SalesDashboard"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "notes-messages"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/SalesQuotesAction",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home/SalesDashboard"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "leads-quotes"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/SalesServiceRequests",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Home/SalesDashboard"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Home/Sidebar",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/",
+          "/Communication",
+          "/Company/BroadcastMessage",
+          "/Company/ScheduleExceptions",
+          "/Customer/Create",
+          "/Customer/Search",
+          "/Dashboard/Index/:id",
+          "/Employee",
+          "/Employee/Create",
+          "/Employee/Time#monitor-tab",
+          "/Estimate#tab_1",
+          "/Estimate/SalesPipeline?=:date",
+          "/Home",
+          "/Home/SalesDashboard",
+          "/Job/Monthly",
+          "/Job/Schedule",
+          "/Job/TeamMonitor",
+          "/Schedule"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": {
+          "count": "string",
+          "sidebar": "string"
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 29,
+        "capabilities": [
+          "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/img/remove-icon-small.png",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/",
+          "/Estimate/SalesPipeline?=:date",
+          "/Home",
+          "/Job/Schedule",
+          "/Schedule"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "unsafe-get",
+        "duringLogin": false,
+        "count": 5,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/img/syncfusion-icons-white.png",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Customer/Create"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "unsafe-get",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/img/syncfusion-icons.png",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Customer/Create"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "unsafe-get",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          301
+        ],
+        "responseKinds": [
+          "redirect"
+        ],
+        "pages": [
+          "/Job"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/AdjustTeamSize",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {
+          "Date": [
+            ":date"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Job/AdjustTeamSize",
+            "fields": [
+              "Date:hidden",
+              "<key>:hidden",
+              "<key>:text"
+            ]
+          }
+        ],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/CheckNextJobNotificationOnWay",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Employee/Dashboard"
+        ],
+        "query": {
+          "eid": [
+            ":id"
+          ],
+          "date": [
+            "<string>"
+          ],
+          "jobId": [
+            ""
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": {
+          "showModal": "boolean"
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "notes-messages"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Job/CustomerEmployeeFlags/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Schedule",
+          "/Schedule"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 5,
+        "capabilities": [
+          "clients",
+          "jobs",
+          "employees"
+        ],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Job/JobResendNotificationFlags/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "notes-messages"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/Monthly",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Job/Monthly"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Job/MonthlyData",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Monthly"
+        ],
+        "query": {},
+        "requestShape": {
+          "colorById": "string",
+          "start": "number",
+          "end": "number",
+          "serviceSetTypeGroupIds": [],
+          "teamIds": [],
+          "zoneIds": [],
+          "jobStatuses": [
+            "string"
+          ],
+          "serviceTypes": [],
+          "officeIds": [],
+          "customerTags": [],
+          "homeTags": [],
+          "serviceSetTags": [],
+          "jobTags": [],
+          "eventTags": []
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs"
+        ],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Job/PreferExcludeFlags/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/ReadJobs",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "JobInformationTeamId": "number",
+            "JobInformationId": "number",
+            "ServiceSetInformationId": "number",
+            "EmployeeInformationId": "number",
+            "Title": "string",
+            "Start": "string",
+            "End": "string",
+            "StartTimezone": "null",
+            "EndTimezone": "null",
+            "IsAllDay": "boolean",
+            "Color": "string",
+            "TeamID": "number",
+            "AllowedTime": "number",
+            "JobStatusId": "number",
+            "EventInstructions": "string",
+            "ScheduleActualType": "number",
+            "FrequencyColor": "string",
+            "StatusColor": "string",
+            "JobTags": "string",
+            "FlagIcon": "string",
+            "LastScorecardIcon": "string",
+            "RgbTextColor": "string",
+            "EntityType": "number",
+            "IsRecurringEvent": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/ReadTeams",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "TeamID": "number",
+            "value": "number",
+            "TeamName": "string",
+            "text": "string",
+            "Color": "string",
+            "RgbBackgroundColor": "string",
+            "RgbTextColor": "string",
+            "TeamMembers": "string",
+            "SizeException": "boolean",
+            "SortOrder": "number",
+            "SizeExceptionValue": "number",
+            "BillRate": "null",
+            "ScheduledHours": "number",
+            "CountJobs": "number",
+            "Employees": [
+              {
+                "EmployeeID": "number",
+                "EmployeeTeamScheduleId": "number",
+                "HireDate": "null",
+                "value": "number",
+                "text": "null",
+                "FirstName": "string",
+                "LastName": "string",
+                "FullName": "string",
+                "ScheduledTime": "string",
+                "Position": "string",
+                "PositionColor": "string",
+                "StartTime": "string",
+                "EndTime": "string",
+                "StartTimeString": "string",
+                "EndTimeString": "string"
+              }
+            ],
+            "AllowedHours": "number",
+            "ServiceCompanyOfficeId": "null",
+            "IsDisabled": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/Schedule",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "scheduling"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Job/ScheduleStats/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Job/Schedule"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "jobs",
+          "scheduling",
+          "reports"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/TeamMonitor",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Job/TeamMonitor"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "jobs",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/TeamMonitorData",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Job/TeamMonitor",
+          "/Job/TeamMonitor?Date=:date"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "<string>"
+          ],
+          "showJobClocks": [
+            "undefined",
+            "true"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "JobInformationTeamId": "number",
+            "JobInformationId": "number",
+            "ServiceSetInformationId": "number",
+            "EmployeeInformationId": "number",
+            "Title": "string",
+            "Start": "string",
+            "End": "string",
+            "StartTimezone": "null",
+            "EndTimezone": "null",
+            "IsAllDay": "boolean",
+            "Color": "string",
+            "TeamID": "number",
+            "AllowedTime": "number",
+            "JobStatusId": "number",
+            "EventInstructions": "null",
+            "ScheduleActualType": "number",
+            "FrequencyColor": "null",
+            "StatusColor": "null",
+            "JobTags": "null",
+            "FlagIcon": "null",
+            "LastScorecardIcon": "null",
+            "RgbTextColor": "null",
+            "EntityType": "number",
+            "IsRecurringEvent": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "jobs",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Job/TeamMonitorTeams",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Job/TeamMonitor",
+          "/Job/TeamMonitor?Date=:date"
+        ],
+        "query": {
+          "date": [
+            ":date",
+            "<string>"
+          ],
+          "view": [
+            "undefined",
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ],
+          "showJobClocks": [
+            "true"
+          ]
+        },
+        "responseShape": [
+          {
+            "TeamID": "number",
+            "value": "number",
+            "TeamName": "string",
+            "text": "string",
+            "Color": "string",
+            "RgbBackgroundColor": "string",
+            "RgbTextColor": "string",
+            "TeamMembers": "null",
+            "SizeException": "boolean",
+            "SortOrder": "number",
+            "SizeExceptionValue": "number",
+            "BillRate": "null",
+            "ScheduledHours": "number",
+            "CountJobs": "number",
+            "Employees": "null",
+            "AllowedHours": "number",
+            "ServiceCompanyOfficeId": "null",
+            "IsDisabled": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "jobs",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/plugins/tinymce/plugins/importcss/plugin.min.js",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Company/BroadcastMessage"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "unsafe-get",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/ProviderStatus/Current",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Company/BroadcastMessage",
+          "/Company/ScheduleExceptions",
+          "/Customer/Create",
+          "/Customer/Search",
+          "/Job/Monthly",
+          "/Job/Schedule",
+          "/Job/TeamMonitor"
+        ],
+        "query": {},
+        "responseShape": [],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 13,
+        "capabilities": [
+          "reports"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/report/bidata",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/",
+          "/Home"
+        ],
+        "query": {
+          "biTaskTypeIds[0]": [
+            ":id"
+          ],
+          "biTaskTypeIds[1]": [
+            ":id"
+          ],
+          "biTaskTypeIds[2]": [
+            ":id"
+          ],
+          "status": [
+            ":id"
+          ],
+          "maxResultCount": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": {
+          "TotalCount": "number",
+          "Items": [
+            {
+              "BiTaskId": "number",
+              "MainText": "string",
+              "SubText": "string",
+              "RecordType": "string",
+              "RecordId": "number",
+              "BiTaskTypeId": "number",
+              "DateCreated": "string",
+              "LatestHistory": "null",
+              "BiTaskType": {
+                "Name": "string",
+                "Description": "string",
+                "Icon": "string",
+                "Color": "string"
+              }
+            }
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "reports"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/report/getTimeChangeRequests",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Employee/Time#monitor-tab"
+        ],
+        "query": {
+          "minDateFilter": [
+            "<string>"
+          ],
+          "maxDateFilter": [
+            "<string>"
+          ],
+          "sorting": [
+            "<string>"
+          ],
+          "skipCount": [
+            ":id"
+          ],
+          "maxResultCount": [
+            ":id"
+          ]
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "reports"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule",
+        "kind": "page",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Schedule"
+        ],
+        "query": {},
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "scheduling"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/AbsentEmployees/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Schedule",
+          "/Schedule?Date=:date"
+        ],
+        "query": {},
+        "requestShape": {
+          "date": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 10,
+        "capabilities": [
+          "scheduling",
+          "employees"
+        ],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/GetSchedulerItemDetails",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Schedule"
+        ],
+        "query": {
+          "id": [
+            ":id"
+          ],
+          "returnType": [
+            ":id"
+          ],
+          "date": [
+            ":date"
+          ],
+          "CalendarUpdate": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "post",
+            "action": "/Schedule/EditSchedulerItemDetails",
+            "fields": [
+              "__RequestVerificationToken:hidden",
+              "EmployeeTeamScheduleId:hidden",
+              "EmployeeInformationId:select-one",
+              "ScheduleDate:text",
+              "StartTime:text",
+              "EndDate:text",
+              "EndTime:text",
+              "OutCode:select-one",
+              "TeamId:select-one",
+              "TeamPositionId:select-one",
+              "Late:checkbox",
+              "Late:hidden",
+              "Reason:textarea",
+              "command:submit"
+            ]
+          }
+        ],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "scheduling"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/Read",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Schedule",
+          "/Schedule?Date=:date"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "view": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "ScheduleID": "number",
+            "TeamID": "number",
+            "TeamPositionID": "null|string",
+            "EmployeeID": "number",
+            "Title": "string",
+            "Start": "string",
+            "End": "string",
+            "StartTimezone": "null",
+            "EndTimezone": "null",
+            "OutCode": "string",
+            "Reason": "null",
+            "Approved": "boolean",
+            "Excused": "boolean",
+            "Late": "boolean",
+            "Absent": "boolean",
+            "Available": "boolean",
+            "IsAllDay": "boolean",
+            "RecurrenceRule": "null",
+            "RecurrenceException": "null",
+            "RecurrenceID": "null",
+            "Color": "string",
+            "HireDate": "string"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/ReadEmployees",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Schedule"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "EmployeeID": "number",
+            "EmployeeTeamScheduleId": "number",
+            "HireDate": "string",
+            "value": "number",
+            "text": "string",
+            "FirstName": "null",
+            "LastName": "null",
+            "FullName": "null",
+            "ScheduledTime": "null",
+            "Position": "null",
+            "PositionColor": "null",
+            "StartTime": "null",
+            "EndTime": "null",
+            "StartTimeString": "null",
+            "EndTimeString": "null"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "scheduling",
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/ReadTeamPositions",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Schedule"
+        ],
+        "query": {
+          "date": [
+            ":date"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": [
+          {
+            "TeamPositionID": "number",
+            "value": "number",
+            "TeamPositionName": "string",
+            "text": "string",
+            "color": "string"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 3,
+        "capabilities": [
+          "scheduling",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Schedule/ReadTeams",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Schedule",
+          "/Schedule?Date=:date"
+        ],
+        "query": {
+          "date": [
+            ":date",
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ],
+          "view": [
+            "<string>"
+          ]
+        },
+        "responseShape": [
+          {
+            "TeamID": "number",
+            "value": "number",
+            "TeamName": "string",
+            "text": "string",
+            "Color": "null",
+            "RgbBackgroundColor": "null",
+            "RgbTextColor": "null",
+            "TeamMembers": "null",
+            "SizeException": "boolean",
+            "SortOrder": "number",
+            "SizeExceptionValue": "number",
+            "BillRate": "null",
+            "ScheduledHours": "number",
+            "CountJobs": "number",
+            "Employees": "null",
+            "AllowedHours": "number",
+            "ServiceCompanyOfficeId": "null",
+            "IsDisabled": "boolean"
+          }
+        ],
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "scheduling",
+          "teams"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/signalr/negotiate",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Estimate/SalesPipeline?=:date"
+        ],
+        "query": {
+          "clientProtocol": [
+            "<string>"
+          ],
+          "connectionData": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": {
+          "Url": "string",
+          "ConnectionToken": "string",
+          "ConnectionId": "string",
+          "KeepAliveTimeout": "number",
+          "DisconnectTimeout": "number",
+          "ConnectionTimeout": "number",
+          "TryWebSockets": "boolean",
+          "ProtocolVersion": "string",
+          "TransportConnectTimeout": "number",
+          "LongPollDelay": "number"
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/signalr/start",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Estimate/SalesPipeline?=:date"
+        ],
+        "query": {
+          "transport": [
+            "<string>"
+          ],
+          "clientProtocol": [
+            "<string>"
+          ],
+          "connectionToken": [
+            "<string>"
+          ],
+          "connectionData": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": {
+          "Response": "string"
+        },
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Time/GetAllTimeChangeRequestsForEmployee",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Employee/Dashboard"
+        ],
+        "query": {},
+        "requestShape": {
+          "employeeInformationId": "string",
+          "minDateFilter": "string",
+          "maxDateFilter": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": true
+      },
+      {
+        "method": "POST",
+        "endpoint": "eastus-5.in.applicationinsights.azure.com//v2/track",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/",
+          "/Account/Login?ReturnUrl=*",
+          "/Account/SendCode?RememberMe=*&ReturnUrl=*",
+          "/Account/VerifyCode?Provider=*&RememberMe=*&ReturnUrl=*",
+          "/Communication",
+          "/Company/BroadcastMessage",
+          "/Company/ScheduleExceptions",
+          "/Customer/Create",
+          "/Customer/Search",
+          "/Dashboard/Index/:id",
+          "/Employee",
+          "/Employee/Create",
+          "/Employee/Dashboard",
+          "/Employee/Time#monitor-tab",
+          "/Estimate#tab_1",
+          "/Estimate/SalesPipeline?=:date",
+          "/Home",
+          "/Home/SalesDashboard",
+          "/Job/Monthly",
+          "/Job/Schedule",
+          "/Job/TeamMonitor",
+          "/Schedule"
+        ],
+        "query": {},
+        "requestShape": [
+          {
+            "time": "string",
+            "iKey": "string",
+            "name": "string",
+            "sampleRate": "number",
+            "tags": {
+              "ai.device.id": "string",
+              "ai.device.type": "string",
+              "ai.operation.name": "string",
+              "ai.internal.sdkVersion": "string"
+            },
+            "data": {
+              "baseData": {
+                "ver": "number",
+                "exceptions": [
+                  {
+                    "typeName": "string",
+                    "message": "string",
+                    "hasFullStack": "boolean",
+                    "stack": "string",
+                    "parsedStack": []
+                  }
+                ],
+                "message": "string",
+                "properties": {
+                  "endpoint": "string"
+                }
+              },
+              "baseType": "string"
+            }
+          }
+        ],
+        "forms": [],
+        "blocked": "write",
+        "duringLogin": false,
+        "count": 33,
+        "capabilities": [],
+        "write": true
+      },
+      {
+        "method": "GET",
+        "endpoint": "maps.googleapis.com/maps/api/mapsjs/gen_204",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Customer/Create",
+          "/Employee/Create",
+          "/Employee/Dashboard",
+          "/Employee/Time#monitor-tab"
+        ],
+        "query": {
+          "csp_test": [
+            "true"
+          ]
+        },
+        "responseShape": {},
+        "forms": [],
+        "blocked": null,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [],
+        "write": false
+      }
+    ]
   }
 }
