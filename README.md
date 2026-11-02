@@ -23,6 +23,14 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |
 
+## Decisions so far
+
+| Decision | Detail |
+| --- | --- |
+| Hosting | Railway, in **its own Railway project**, completely separate from the Launch27 / UrbanMop project: its own services, Postgres databases (development / staging / production), variables and members. Nothing is shared with or referenced from the Launch27 project |
+| Portal address | Kept out of the repo (public); set as `MC_PORTAL_URL` |
+| Auth | Not decided yet: provisional recommendation in [docs/recon.md](docs/recon.md) |
+
 ## Setup
 
 Requires Node 22+.
