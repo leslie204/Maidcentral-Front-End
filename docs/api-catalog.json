@@ -1,0 +1,207 @@
+{
+  "generatedAt": "2026-11-02T15:33:19.437Z",
+  "coverage": [
+    {
+      "capability": "auth",
+      "label": "Sign-in and session",
+      "status": "official API",
+      "official": {
+        "read": 0,
+        "write": 1
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "clients",
+      "label": "Clients and homes",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "leads-quotes",
+      "label": "Leads and quotes",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "jobs",
+      "label": "Jobs",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "scheduling",
+      "label": "Schedule and dispatch",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "teams",
+      "label": "Teams",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "employees",
+      "label": "Employees",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "payroll",
+      "label": "Payroll and time",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "billing",
+      "label": "Invoices and payments",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "pricing",
+      "label": "Pricing and services",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "notes-messages",
+      "label": "Notes and messages",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "reports",
+      "label": "Reports and dashboard",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    {
+      "capability": "settings",
+      "label": "Settings and lookups",
+      "status": "not seen",
+      "official": {
+        "read": 0,
+        "write": 0
+      },
+      "portal": {
+        "read": 0,
+        "write": 0
+      }
+    }
+  ],
+  "official": {
+    "docs": "https://support.maidcentral.com/apidocs",
+    "production": "https://api.maidcentral.com",
+    "sandbox": "https://api.maidcentral.net",
+    "status": "Docs not yet read: support.maidcentral.com was blocked by the cloud session's network policy on 2026-11-02. Only /token is listed, from a public search result.",
+    "auth": "POST /token with username, password and grant_type (password or refresh_token); then Authorization: Bearer <token>.",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/token",
+        "purpose": "Get a bearer token for the API user (grant_type=password) or refresh it (grant_type=refresh_token)",
+        "capabilities": [
+          "auth"
+        ],
+        "verified": false,
+        "statuses": []
+      }
+    ]
+  },
+  "portal": {
+    "session": {
+      "cookies": [],
+      "storageKeys": {
+        "localStorage": [],
+        "sessionStorage": []
+      },
+      "authSchemes": [],
+      "tokenHeaders": [],
+      "loginRequests": []
+    },
+    "pages": [],
+    "endpoints": []
+  }
+}
