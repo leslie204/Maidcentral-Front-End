@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+# Raw captures contain client and employee data (names, addresses, phones, pay).
+# Never commit them.
+capture/output/
+capture/.auth/
+*.tsbuildinfo
+.data/

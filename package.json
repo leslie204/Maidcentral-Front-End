@@ -1,0 +1,26 @@
+{
+  "name": "maidcentral-front-end",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "capture"
+  ],
+  "scripts": {
+    "capture": "npm start -w capture --",
+    "catalog": "npm run catalog -w capture",
+    "probe": "npm run probe -w capture --",
+    "bundle-routes": "npm run bundle-routes -w capture",
+    "test": "npm test -w capture",
+    "test:e2e": "npm run test:e2e -w capture",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
