@@ -1,0 +1,18 @@
+# POST endpoints that only READ data, reviewed by hand. The MaidCentral portal (ASP.NET MVC)
+# loads calendars, grids and stats with POST requests. The crawler lets a POST through only
+# if it is an XHR/fetch to MaidCentral, its URL names no action (see safety.js), and either
+# its action name reads as a query (GetX, SearchX, ListX, LoadX, FindX, FetchX, LookupX) or
+# its path is listed here. Paths are case-insensitive; a trailing slash is ignored.
+#
+# Reviewed 2026-11-02 from the first 20-page crawl. Still blocked on purpose:
+#   /Company/BroadcastMessage   sends a message to staff
+#   /Event/CreateOrEditEvent    saves an event
+#   /Estimate/Step1             may create an estimate
+#   /Job/JobResendNotificationFlags   name contains "resend"
+/Event/Events
+/Job/CustomerEmployeeFlags
+/Job/PreferExcludeFlags
+/Job/ScheduleStats
+/Job/MonthlyData
+/Schedule/AbsentEmployees
+/Company/ScheduleExceptionCalendar

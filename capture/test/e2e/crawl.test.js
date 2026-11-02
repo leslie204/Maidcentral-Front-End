@@ -26,9 +26,11 @@ test('crawler captures the portal read-only and the catalog stays clean', { time
     );
     assert.equal(run.status, 0, `crawler failed:\n${run.stdout}\n${run.stderr}`);
 
-    // 1. Read-only: the only write the portal received is the login.
-    const writes = portal.log.filter((r) => r.method !== 'GET');
-    assert.deepEqual(writes.map((r) => `${r.method} ${r.path}`), ['POST /Account/Login']);
+    // 1. Read-only: the only POSTs the portal received are the login and reads sent as
+    //    POST (a query-named action and one from read-posts.txt). Each read ran once per
+    //    dashboard visit; "BroadcastMessage" and "activity/seen" never arrived.
+    const writes = [...new Set(portal.log.filter((r) => r.method !== 'GET').map((r) => `${r.method} ${r.path}`))];
+    assert.deepEqual(writes.sort(), ['POST /Account/Login', 'POST /Dashboard/GetPipelineData', 'POST /Job/MonthlyData']);
     const gets = portal.log.map((r) => r.path);
     for (const unsafe of ['/Account/LogOff', '/Clients/Delete/101', '/Jobs/Cancel?id=5', '/Payroll/Run', '/Reports/Jobs.csv']) {
       assert.ok(!gets.includes(unsafe), `crawler requested ${unsafe}`);
@@ -49,6 +51,8 @@ test('crawler captures the portal read-only and the catalog stays clean', { time
     assert.ok(requests.some((r) => r.htmlSummary?.forms?.[0]?.action === '/Job/Reschedule/77'), 'HTML partial not summarized');
     const blocked = requests.filter((r) => r.blocked).map((r) => `${r.method} ${new URL(r.url).pathname}`);
     assert.ok(blocked.includes('POST /api/activity/seen'), 'write on page load not logged as blocked');
+    assert.ok(blocked.includes('POST /Company/BroadcastMessage'), 'BroadcastMessage not blocked');
+    assert.ok(requests.some((r) => r.readPost && /GetPipelineData/.test(r.url) && r.responseBody), 'read via POST not captured');
     assert.ok(!requests.some((r) => r.phase === 'login' && r.requestBody), 'login body was recorded');
 
     const { skipped } = JSON.parse(fs.readFileSync(path.join(out, 'failures.json'), 'utf8'));
@@ -63,6 +67,7 @@ test('crawler captures the portal read-only and the catalog stays clean', { time
     assert.match(md, /POST 127\.0\.0\.1:\d+\/api\/activity\/seen` \[xhr\] \(blocked during capture: write\)/);
     assert.match(md, /`\/Clients\/Details\/:id`\n/, 'record page heading should be dropped');
     assert.match(md, /`\/Dashboard` — Dashboard/);
+    assert.match(md, /POST 127\.0\.0\.1:\d+\/Job\/MonthlyData` \[xhr\] \(read via POST\)/);
     assert.match(md, /Anti-forgery \/ CSRF headers: `requestverificationtoken`/);
     assert.match(md, /`Jobs\[:id\]\.TeamId:text`/);
     assert.match(md, /Cookies \(names only\): `session` httpOnly session/);
@@ -91,7 +96,7 @@ test('headless crawl gets past 2FA with the code file and remembers the browser'
     );
     assert.equal(run.status, 0, `crawler failed:\n${run.stdout}\n${run.stderr}`);
     assert.match(run.stdout, /Asked MaidCentral to send a verification code/);
-    const writes = portal.log.filter((r) => r.method !== 'GET');
+    const writes = portal.log.filter((r) => r.method !== 'GET' && r.path.startsWith('/Account/'));
     assert.deepEqual(writes.map((r) => `${r.method} ${r.path}`), ['POST /Account/Login', 'POST /Account/SendCode', 'POST /Account/VerifyCode']);
     assert.match(writes[2].body, /RememberBrowser=on/, '"Remember this browser" not ticked');
     assert.ok(!fs.existsSync(codeFile), 'code file not removed after use');

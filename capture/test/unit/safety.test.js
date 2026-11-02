@@ -50,3 +50,38 @@ test('buttons that save, send, charge or delete are never clicked', () => {
     assert.ok(!isUnsafeClick(d), d);
   }
 });
+
+test('POSTs that only read are let through; everything else that writes stays blocked', async () => {
+  const { parseReadPosts } = await import('../../safety.js');
+  const readPosts = parseReadPosts('# comment\n/Job/MonthlyData\n/Schedule/AbsentEmployees/  # trailing slash\n');
+  const post = (url, resourceType = 'xhr') => decideRequest({ method: 'POST', url, resourceType, phase: 'crawl', allowWrites: false, portalHost, readPosts }).action;
+  // Query-named actions and reviewed paths (case and trailing slash ignored).
+  assert.equal(post('https://acme.maidcentral.com/Estimate/GetPipelineData'), 'continue');
+  assert.equal(post('https://acme.maidcentral.com/report/getTimeChangeRequests?skipCount=0'), 'continue');
+  assert.equal(post('https://acme.maidcentral.com/Customer/SearchCustomers', 'fetch'), 'continue');
+  assert.equal(post('https://acme.maidcentral.com/job/monthlydata'), 'continue');
+  assert.equal(post('https://acme.maidcentral.com/Schedule/AbsentEmployees/'), 'continue');
+  // Still blocked: actions, look-alikes, form posts, other hosts, PUT/DELETE.
+  for (const url of [
+    'https://acme.maidcentral.com/Company/BroadcastMessage',
+    'https://acme.maidcentral.com/Event/CreateOrEditEvent',
+    'https://acme.maidcentral.com/Estimate/Step1',
+    'https://acme.maidcentral.com/Job/GetAndSendReminders',
+    'https://acme.maidcentral.com/Job/GetDeleteList',
+    'https://acme.maidcentral.com/Job/JobResendNotificationFlags/',
+    'https://acme.maidcentral.com/Payroll/GetPayrollRun',
+    'https://acme.maidcentral.com/Job/Getaway',
+    'https://acme.maidcentral.com/Job/Gettysburg',
+    'https://evil.example.com/Job/GetJobs',
+  ]) assert.equal(post(url), 'block', url);
+  assert.equal(post('https://acme.maidcentral.com/Job/GetJobs', 'document'), 'block');
+  assert.equal(decideRequest({ method: 'DELETE', url: 'https://acme.maidcentral.com/Job/GetJobs', resourceType: 'xhr', phase: 'crawl', allowWrites: false, portalHost, readPosts }).action, 'block');
+});
+
+test('static assets are never blocked as unsafe GETs', () => {
+  assert.equal(decide('GET', 'https://acme.maidcentral.com/img/remove-icon-small.png'), 'continue');
+  assert.equal(decide('GET', 'https://acme.maidcentral.com/img/syncfusion-icons.png'), 'continue');
+  assert.equal(decide('GET', 'https://acme.maidcentral.com/plugins/tinymce/plugins/importcss/plugin.min.js'), 'continue');
+  assert.equal(decide('GET', 'https://acme.maidcentral.com/Reports/Export.csv'), 'block');
+  assert.equal(decide('GET', 'https://acme.maidcentral.com/Job/Delete/5'), 'block');
+});

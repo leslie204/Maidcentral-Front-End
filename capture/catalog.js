@@ -184,6 +184,7 @@ function buildPortal(requests, visited, session, matchCapabilities) {
       responseShape: undefined,
       forms: [],
       blocked: null,
+      readPost: false,
       duringLogin: false,
       count: 0,
     };
@@ -195,6 +196,7 @@ function buildPortal(requests, visited, session, matchCapabilities) {
     for (const h of entry.tokenHeaders || []) ep.tokenHeaders.add(h);
     if (entry.responseKind) ep.responseKinds.add(entry.responseKind);
     if (entry.blocked) ep.blocked = entry.blocked;
+    if (entry.readPost) ep.readPost = true;
     for (const [name, value] of u.searchParams) {
       ep.query[name] ??= new Set();
       if (ep.query[name].size >= 5) continue;
@@ -221,7 +223,7 @@ function buildPortal(requests, visited, session, matchCapabilities) {
       pages: [...ep.pages].sort(),
       query: Object.fromEntries(Object.entries(ep.query).map(([k, v]) => [k, [...v]])),
       capabilities: matchCapabilities(ep.endpoint),
-      write: !['GET', 'HEAD', 'OPTIONS'].includes(ep.method),
+      write: !ep.readPost && !['GET', 'HEAD', 'OPTIONS'].includes(ep.method),
     }))
     .sort((a, b) => a.endpoint.localeCompare(b.endpoint) || a.method.localeCompare(b.method));
 
@@ -391,7 +393,7 @@ function toMarkdown({ generatedAt, coverage, official, portal }) {
 
   out.push('### Endpoints', '');
   for (const ep of portal.endpoints) {
-    const tag = ep.blocked ? ` (blocked during capture: ${ep.blocked})` : ep.duringLogin ? ' (login)' : '';
+    const tag = ep.blocked ? ` (blocked during capture: ${ep.blocked})` : ep.duringLogin ? ' (login)' : ep.readPost ? ' (read via POST)' : '';
     out.push(`#### \`${ep.method} ${ep.endpoint}\` ${ep.kind === 'page' ? '[page]' : '[xhr]'}${tag}`, '');
     out.push(`- Status: ${ep.statuses.join(', ') || 'n/a'} · Auth: ${ep.auth.join(', ') || 'cookie'}${ep.tokenHeaders.length ? ` · Token headers: ${ep.tokenHeaders.join(', ')}` : ''} · Returns: ${ep.responseKinds.join(', ') || 'n/a'} · Seen ${ep.count}×`);
     if (ep.capabilities.length) out.push(`- Capabilities: ${ep.capabilities.join(', ')}`);

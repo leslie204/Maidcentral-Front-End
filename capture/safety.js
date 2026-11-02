@@ -13,6 +13,35 @@ export function isWriteMethod(method) {
   return !READ_METHODS.has(String(method).toUpperCase());
 }
 
+// Reads sent as POST. ASP.NET MVC portals (MaidCentral included) load calendars, grids and
+// stats with POST requests, so blocking every POST leaves pages empty. A POST is let through
+// only when it is an XHR/fetch to MaidCentral, its URL names no action (isUnsafeUrl), and
+// either its action name reads as a query or its path is on the reviewed list
+// (read-posts.txt). Everything else that writes stays blocked.
+const READ_ACTION = /^(?:[Gg]et|[Ss]earch|[Ll]ist|[Ll]oad|[Ff]ind|[Ff]etch|[Ll]ookup)(?:[A-Z_]|$)/;
+
+export const normalizeReadPath = (p) => String(p).trim().replace(/\/+$/, '').toLowerCase();
+
+export function parseReadPosts(text) {
+  return String(text)
+    .split('\n')
+    .map((l) => l.replace(/#.*/, '').trim())
+    .filter(Boolean)
+    .map(normalizeReadPath);
+}
+
+export function isReadPost({ method, url, resourceType, portalHost, readPosts = [] }) {
+  if (String(method).toUpperCase() !== 'POST' || !['xhr', 'fetch'].includes(resourceType)) return false;
+  const u = new URL(url);
+  if (!isMaidCentralHost(u.host, portalHost) || isUnsafeUrl(url)) return false;
+  const action = u.pathname.replace(/\/+$/, '').split('/').pop();
+  return READ_ACTION.test(action) || readPosts.includes(normalizeReadPath(u.pathname));
+}
+
+// Images, fonts, styles and scripts can't change data, whatever their file name says
+// ("remove-icon.png", "syncfusion-icons.png").
+const STATIC_ASSET = /\.(css|js|mjs|map|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot)$/i;
+
 // Hosts that belong to MaidCentral (the tenant's portal, its API and shared login).
 export function isMaidCentralHost(host, portalHost) {
   const h = String(host).toLowerCase();
@@ -81,22 +110,23 @@ export function isLoginRequest(method, url) {
 }
 
 // Decides what happens to one request the page makes.
-export function decideRequest({ method, url, resourceType, phase, allowWrites, portalHost }) {
+export function decideRequest({ method, url, resourceType, phase, allowWrites, portalHost, readPosts = [] }) {
   if (allowWrites) return { action: 'continue' };
   if (isWriteMethod(method)) {
     if (phase === 'login' && (resourceType === 'document' || LOGIN_URL.test(new URL(url).pathname))) return { action: 'continue' };
+    if (isReadPost({ method, url, resourceType, portalHost, readPosts })) return { action: 'continue', readPost: true };
     return { action: 'block', reason: 'write' };
   }
   if (phase === 'login') return { action: 'continue' };
   const u = new URL(url);
-  if (isMaidCentralHost(u.host, portalHost) && isUnsafeUrl(url)) return { action: 'block', reason: 'unsafe-get' };
+  if (isMaidCentralHost(u.host, portalHost) && isUnsafeUrl(url) && !STATIC_ASSET.test(u.pathname)) return { action: 'block', reason: 'unsafe-get' };
   return { action: 'continue' };
 }
 
 // Analytics, chat and payment widgets the crawl doesn't need: answered with an empty
 // response so pages still load and nothing is reported to those services.
 export const STUB_HOSTS =
-  /(google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.(net|com)|hotjar|fullstory\.com|intercom(cdn)?\.io|intercom\.com|segment\.(io|com)|mixpanel\.com|hs-scripts\.com|hubspot|zdassets\.com|zendesk|drift\.com|crisp\.chat|tawk\.to|clarity\.ms|sentry\.io|sentry-cdn|nr-data\.net|newrelic\.com|logrocket|pendo\.io|appcues|bugsnag|rollbar|js\.stripe\.com|m\.stripe\.network|smartlook|mouseflow|heap(analytics)?\.|userway|olark|livechatinc|tidio|freshchat|gist\.build|beamer)/i;
+  /(google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.(net|com)|hotjar|fullstory\.com|intercom(cdn)?\.io|intercom\.com|segment\.(io|com)|mixpanel\.com|hs-scripts\.com|hubspot|zdassets\.com|zendesk|drift\.com|crisp\.chat|tawk\.to|clarity\.ms|sentry\.io|sentry-cdn|nr-data\.net|newrelic\.com|logrocket|pendo\.io|appcues|bugsnag|rollbar|applicationinsights\.azure\.com|monitor\.azure\.com|dc\.services\.visualstudio\.com|js\.stripe\.com|m\.stripe\.network|smartlook|mouseflow|heap(analytics)?\.|userway|olark|livechatinc|tidio|freshchat|gist\.build|beamer)/i;
 
 // Login detection. A verification-code box after login means 2FA: a person supplies the
 // code, in the browser window (--headed) or through the code file (headless).

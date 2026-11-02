@@ -74,8 +74,13 @@ export function startFakePortal({ twoFactor = false } = {}) {
     if (p === '/Dashboard') {
       return send(res, 200, layout('Dashboard', '<h1>Dashboard</h1><div id="stats"></div>', `
         fetch('/api/dashboard/stats').then(r => r.json()).then(s => document.getElementById('stats').textContent = s.jobsToday);
-        fetch('/api/activity/seen', { method: 'POST', headers: { 'content-type': 'application/json', RequestVerificationToken: 'tok' }, body: JSON.stringify({ page: 'dashboard' }) });`));
+        fetch('/api/activity/seen', { method: 'POST', headers: { 'content-type': 'application/json', RequestVerificationToken: 'tok' }, body: JSON.stringify({ page: 'dashboard' }) });
+        fetch('/Dashboard/GetPipelineData', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ StartDate: '11/02/2026' }) });
+        fetch('/Job/MonthlyData', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'start=1761955200' });
+        fetch('/Company/BroadcastMessage', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'Message=hello' });`));
     }
+    if (p === '/Dashboard/GetPipelineData' && req.method === 'POST') return send(res, 200, [{ LeadId: 4, Name: 'Jane Doe', Total: 180.25 }], 'application/json');
+    if (p === '/Job/MonthlyData' && req.method === 'POST') return send(res, 200, { events: [{ JobId: 7, Title: 'John Roe - 12 Elm Street' }] }, 'application/json');
     if (p === '/api/dashboard/stats') return send(res, 200, { jobsToday: 12, revenueToday: 1840.5, topClient: 'Jane Doe' }, 'application/json');
     if (p === '/Clients') {
       const rows = Object.entries(PEOPLE).map(([id, n]) => `<tr><td><a href="/Clients/Details/${id}">${n}</a></td><td><a href="/Clients/Delete/${id}">Delete</a></td></tr>`).join('');

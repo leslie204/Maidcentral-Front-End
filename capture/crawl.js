@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 import { pageTemplate, templateHost } from './routes.js';
-import { decideRequest, isLoginRequest, isMaidCentralHost, isSkippedLink, isUnsafeClick, STUB_HOSTS, PASSWORD_INPUT, TWO_FACTOR_INPUT } from './safety.js';
+import { decideRequest, isReadPost, parseReadPosts, isLoginRequest, isMaidCentralHost, isSkippedLink, isUnsafeClick, STUB_HOSTS, PASSWORD_INPUT, TWO_FACTOR_INPUT } from './safety.js';
 import { summarizeDom, hiddenLinks, clickCandidates, storageKeys } from './dom.js';
 import { buildCatalog } from './catalog.js';
 
@@ -36,6 +36,8 @@ const { values: args } = parseArgs({
     'max-clicks': { type: 'string', default: '12' },
     'allow-writes': { type: 'boolean', default: false },
     seeds: { type: 'string', default: path.join(HERE, 'seeds.txt') },
+    // Reviewed POST endpoints that only read data (see read-posts.txt and safety.js).
+    'read-posts': { type: 'string', default: path.join(HERE, 'read-posts.txt') },
     fresh: { type: 'boolean', default: false },
     output: { type: 'string', default: path.join(HERE, 'output') },
     docs: { type: 'string', default: path.join(HERE, '..', 'docs') },
@@ -61,6 +63,7 @@ const HAVE_CREDENTIALS = Boolean(process.env.MC_EMAIL && process.env.MC_PASSWORD
 const OUTPUT = path.resolve(args.output);
 const AUTH_STATE = path.resolve(args['auth-state']);
 const CODE_FILE = path.resolve(args['code-file']);
+const READ_POSTS = fs.existsSync(args['read-posts']) ? parseReadPosts(fs.readFileSync(args['read-posts'], 'utf8')) : [];
 
 if (ALLOW_WRITES) console.warn('!! --allow-writes: requests that change data WILL be sent to MaidCentral.');
 
@@ -89,7 +92,12 @@ await context.route('**/*', async (route) => {
   const req = route.request();
   const url = req.url();
   if (!/^https?:/.test(url)) return route.continue();
-  const decision = decideRequest({ method: req.method(), url, resourceType: req.resourceType(), phase, allowWrites: ALLOW_WRITES, portalHost: PORTAL_HOST });
+  // Telemetry, chat and analytics are answered locally first: nothing reaches them.
+  const reqHost = new URL(url).host;
+  if (!isMaidCentralHost(reqHost, PORTAL_HOST) && STUB_HOSTS.test(reqHost)) {
+    return route.fulfill({ status: 200, body: '', contentType: req.resourceType() === 'script' ? 'application/javascript' : 'text/plain' });
+  }
+  const decision = decideRequest({ method: req.method(), url, resourceType: req.resourceType(), phase, allowWrites: ALLOW_WRITES, portalHost: PORTAL_HOST, readPosts: READ_POSTS });
   if (decision.action === 'block') {
     record({
       page: pageOf(req),
@@ -105,10 +113,6 @@ await context.route('**/*', async (route) => {
     });
     console.log(`   blocked (${decision.reason}): ${req.method()} ${pageTemplate(url)}`);
     return route.abort('blockedbyclient');
-  }
-  const host = new URL(url).host;
-  if (!isMaidCentralHost(host, PORTAL_HOST) && STUB_HOSTS.test(host)) {
-    return route.fulfill({ status: 200, body: '', contentType: req.resourceType() === 'script' ? 'application/javascript' : 'text/plain' });
   }
   return route.continue();
 });
@@ -126,8 +130,10 @@ context.on('response', async (response) => {
 
   // While signing in, the sign-in requests themselves are marked 'login'; the page the
   // portal lands on afterwards is recorded like any other page.
-  const entryPhase = phase === 'login' && isLoginRequest(req.method(), url) ? 'login' : 'crawl';
+  const readPost = isReadPost({ method: req.method(), url, resourceType: type, portalHost: PORTAL_HOST, readPosts: READ_POSTS });
+  const entryPhase = phase === 'login' && !readPost && isLoginRequest(req.method(), url) ? 'login' : 'crawl';
   const entry = { page: pageOf(req), via, phase: entryPhase, method: req.method(), url, resourceType: type, status: response.status() };
+  if (readPost) entry.readPost = true;
   try {
     const headers = await req.allHeaders();
     entry.auth = headers.authorization ? headers.authorization.split(' ')[0] : null;
