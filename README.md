@@ -17,8 +17,8 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 
 | Phase | State |
 | --- | --- |
-| 0. Recon | **Blocked**: the cloud session can't reach MaidCentral yet. See [docs/recon.md](docs/recon.md) |
-| 1. Capture tool | Built and tested against a local fake portal; not yet run on the real portal |
+| 0. Recon | **In progress**: API docs read (23 endpoints, booking funnel and notes only). Probe and portal crawl wait on secrets and wider network access. See [docs/recon.md](docs/recon.md) |
+| 1. Capture tool | Built and tested against a local fake portal, including headless 2FA; not yet run on the real portal |
 | 2. Verify writes | Not started |
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |
@@ -29,7 +29,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | --- | --- |
 | Hosting | Railway, in **its own Railway project**, completely separate from the Launch27 / UrbanMop project: its own services, Postgres databases (development / staging / production), variables and members. Nothing is shared with or referenced from the Launch27 project |
 | Portal address | Kept out of the repo (public); set as `MC_PORTAL_URL` |
-| Auth | Not decided yet: provisional recommendation in [docs/recon.md](docs/recon.md) |
+| Auth | Not decided yet. The official API can't read clients, jobs, the schedule, employees or money, so most data must come from the portal session. Provisional recommendation (per-user portal login with 2FA relayed) in [docs/recon.md](docs/recon.md) |
 
 ## Setup
 
@@ -63,10 +63,16 @@ hand in `capture/official-api.json`.
 
 ```bash
 npm run capture                     # headless, logs in with MC_EMAIL / MC_PASSWORD
-npm run capture -- --headed         # watch it, or log in by hand (needed for 2FA)
+npm run capture -- --headed         # watch it, or log in by hand
 npm run bundle-routes               # list routes found in the portal's JavaScript
 npm run catalog                     # rebuild docs/ from capture/output/ without crawling
 ```
+
+**2FA** (required for MaidCentral office users): headless, the crawler clicks "Send code"
+if there is one, then waits up to 10 minutes for the code to be written to
+`capture/.auth/2fa-code` (`--code-file` to change), enters it and ticks "Remember this
+browser", so the saved login skips 2FA for 30 days. In a cloud session, point it at the
+pre-installed browser with `CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 
 It starts at `MC_PORTAL_URL`, follows every link it finds (including ones hidden in
 `onclick`/`data-url` attributes) plus `capture/seeds.txt`, visits at most
@@ -79,7 +85,7 @@ server-rendered. It also saves a screenshot of every page and the portal's JavaS
 
 Options: `--start /`, `--scope /` (allowed path prefixes), `--max-pages 300`,
 `--per-template 2`, `--max-clicks 12` (0 = no clicking), `--fresh` (ignore the saved login),
-`--allow-writes`.
+`--code-file`, `--allow-writes`.
 
 **Read-only by default** (`capture/safety.js`):
 

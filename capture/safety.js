@@ -98,8 +98,8 @@ export function decideRequest({ method, url, resourceType, phase, allowWrites, p
 export const STUB_HOSTS =
   /(google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.(net|com)|hotjar|fullstory\.com|intercom(cdn)?\.io|intercom\.com|segment\.(io|com)|mixpanel\.com|hs-scripts\.com|hubspot|zdassets\.com|zendesk|drift\.com|crisp\.chat|tawk\.to|clarity\.ms|sentry\.io|sentry-cdn|nr-data\.net|newrelic\.com|logrocket|pendo\.io|appcues|bugsnag|rollbar|js\.stripe\.com|m\.stripe\.network|smartlook|mouseflow|heap(analytics)?\.|userway|olark|livechatinc|tidio|freshchat|gist\.build|beamer)/i;
 
-// Login detection. A verification-code box after login means 2FA: a person has to
-// finish that with --headed.
+// Login detection. A verification-code box after login means 2FA: a person supplies the
+// code, in the browser window (--headed) or through the code file (headless).
 export const PASSWORD_INPUT = 'input[type="password"]';
 export const TWO_FACTOR_INPUT =
   'input[autocomplete="one-time-code"], input[name*="code" i]:not([type="hidden"]), input[id*="code" i]:not([type="hidden"]), input[name*="otp" i], input[name*="2fa" i], input[name*="mfa" i], input[name*="verif" i]:not([type="hidden"])';

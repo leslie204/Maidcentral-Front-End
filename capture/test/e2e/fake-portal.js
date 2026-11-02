@@ -2,6 +2,8 @@
 // anti-forgery field, server-rendered pages, JSON XHRs, an HTML partial, tabs, a modal,
 // and plenty of things the crawler must NOT do (log out, delete, cancel, run payroll,
 // post on page load). Every request it receives is logged for the test to check.
+// With { twoFactor: true }, login is followed by a MaidCentral-style 2FA page: "Send Code",
+// a code box and "Remember this browser".
 import http from 'node:http';
 
 const PEOPLE = { 101: 'Jane Doe', 102: 'John Roe', 103: 'Ali Khan' };
@@ -12,7 +14,10 @@ ${body}
 <div id="modal" style="display:none" class="modal"><form method="post" action="/Clients/Create"><input name="__RequestVerificationToken" type="hidden" value="tok"><input name="Client.FirstName"><button type="submit">Save</button></form><button data-dismiss="modal" onclick="document.getElementById('modal').style.display='none'">Close</button></div>
 <script>${script}</script></body></html>`;
 
-export function startFakePortal() {
+export const TWO_FACTOR_CODE = '246810';
+
+export function startFakePortal({ twoFactor = false } = {}) {
+  let codeSent = false;
   const log = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
@@ -39,8 +44,29 @@ export function startFakePortal() {
     }
     if (p === '/Account/Login' && req.method === 'POST') {
       const f = new URLSearchParams(body);
-      if (f.get('Email') === 'test@example.com' && f.get('Password') === 'pw') return redirect(res, '/Dashboard', { 'set-cookie': 'session=ok; HttpOnly; Path=/' });
+      if (f.get('Email') === 'test@example.com' && f.get('Password') === 'pw') {
+        if (twoFactor) return redirect(res, '/Account/VerifyCode', { 'set-cookie': 'mfa=pending; HttpOnly; Path=/' });
+        return redirect(res, '/Dashboard', { 'set-cookie': 'session=ok; HttpOnly; Path=/' });
+      }
       return redirect(res, '/Account/Login');
+    }
+    if (twoFactor && p === '/Account/VerifyCode' && req.method === 'GET') {
+      return send(res, 200, `<!doctype html><title>Verify</title>
+        <form method="post" action="/Account/SendCode"><button type="submit">Send Code</button></form>
+        <form method="post" action="/Account/VerifyCode"><input name="Code" autocomplete="off">
+        <input type="checkbox" id="RememberBrowser" name="RememberBrowser"><label for="RememberBrowser">Remember this browser</label>
+        <button type="submit">Verify</button></form>`);
+    }
+    if (twoFactor && p === '/Account/SendCode' && req.method === 'POST') {
+      codeSent = true;
+      return redirect(res, '/Account/VerifyCode');
+    }
+    if (twoFactor && p === '/Account/VerifyCode' && req.method === 'POST') {
+      const f = new URLSearchParams(body);
+      if (!codeSent || f.get('Code') !== TWO_FACTOR_CODE) return redirect(res, '/Account/VerifyCode');
+      const cookies = ['session=ok; HttpOnly; Path=/'];
+      if (f.get('RememberBrowser') === 'on') cookies.push('trusted=1; HttpOnly; Path=/; Max-Age=2592000');
+      return redirect(res, '/Dashboard', { 'set-cookie': cookies });
     }
     if (!loggedIn) return redirect(res, `/Account/Login?ReturnUrl=${encodeURIComponent(p)}`);
 

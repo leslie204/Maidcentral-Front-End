@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { startFakePortal } from './fake-portal.js';
+import { startFakePortal, TWO_FACTOR_CODE } from './fake-portal.js';
 
 const CAPTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -72,12 +72,45 @@ test('crawler captures the portal read-only and the catalog stays clean', { time
   }
 });
 
-function runNode(args, options) {
+test('headless crawl gets past 2FA with the code file and remembers the browser', { timeout: 120_000 }, async () => {
+  const portal = await startFakePortal({ twoFactor: true });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-e2e-2fa-'));
+  const codeFile = path.join(dir, '2fa-code');
+  const authState = path.join(dir, 'auth.json');
+  let written = false;
+  try {
+    const run = await runNode(
+      ['crawl.js', '--output', path.join(dir, 'output'), '--docs', path.join(dir, 'docs'), '--seeds', path.join(dir, 'none.txt'), '--auth-state', authState, '--code-file', codeFile, '--max-pages', '2', '--max-clicks', '0'],
+      { cwd: CAPTURE, env: { ...process.env, MC_PORTAL_URL: portal.url, MC_EMAIL: 'test@example.com', MC_PASSWORD: 'pw' } },
+      // A person reads the code from their email and writes it to the file.
+      (out) => {
+        if (written || !out.includes('Write it to')) return;
+        written = true;
+        fs.writeFileSync(codeFile, `${TWO_FACTOR_CODE}\n`);
+      },
+    );
+    assert.equal(run.status, 0, `crawler failed:\n${run.stdout}\n${run.stderr}`);
+    assert.match(run.stdout, /Asked MaidCentral to send a verification code/);
+    const writes = portal.log.filter((r) => r.method !== 'GET');
+    assert.deepEqual(writes.map((r) => `${r.method} ${r.path}`), ['POST /Account/Login', 'POST /Account/SendCode', 'POST /Account/VerifyCode']);
+    assert.match(writes[2].body, /RememberBrowser=on/, '"Remember this browser" not ticked');
+    assert.ok(!fs.existsSync(codeFile), 'code file not removed after use');
+    const cookies = JSON.parse(fs.readFileSync(authState, 'utf8')).cookies.map((c) => c.name);
+    assert.ok(cookies.includes('trusted') && cookies.includes('session'), `saved cookies: ${cookies}`);
+  } finally {
+    portal.close();
+  }
+});
+
+function runNode(args, options, onStdout = () => {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, options);
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (d) => (stdout += d));
+    child.stdout.on('data', (d) => {
+      stdout += d;
+      onStdout(stdout);
+    });
     child.stderr.on('data', (d) => (stderr += d));
     const timer = setTimeout(() => child.kill('SIGKILL'), 220_000);
     child.on('close', (status) => {

@@ -4,6 +4,7 @@
 //
 //   npm run capture                       # headless, logs in with MC_EMAIL / MC_PASSWORD
 //   npm run capture -- --headed           # watch it; log in by hand (2FA) if needed
+//   npm run capture                       # headless with 2FA: write the code to capture/.auth/2fa-code
 //   npm run capture -- --max-pages 50 --per-template 2
 //
 // Raw output (client/employee data, gitignored): capture/output/
@@ -39,6 +40,8 @@ const { values: args } = parseArgs({
     output: { type: 'string', default: path.join(HERE, 'output') },
     docs: { type: 'string', default: path.join(HERE, '..', 'docs') },
     'auth-state': { type: 'string', default: path.join(HERE, '.auth', 'state.json') },
+    // Headless 2FA: the crawler waits for the verification code to appear in this file.
+    'code-file': { type: 'string', default: path.join(HERE, '.auth', '2fa-code') },
   },
 });
 
@@ -57,6 +60,7 @@ const ALLOW_WRITES = args['allow-writes'];
 const HAVE_CREDENTIALS = Boolean(process.env.MC_EMAIL && process.env.MC_PASSWORD);
 const OUTPUT = path.resolve(args.output);
 const AUTH_STATE = path.resolve(args['auth-state']);
+const CODE_FILE = path.resolve(args['code-file']);
 
 if (ALLOW_WRITES) console.warn('!! --allow-writes: requests that change data WILL be sent to MaidCentral.');
 
@@ -222,6 +226,59 @@ async function onTwoFactorPage(p) {
   return /(log_?in|sign_?in|account|auth|verif|two|2fa|mfa|otp)/i.test(new URL(p.url()).pathname) && (await visibleCount(p, TWO_FACTOR_INPUT)) > 0;
 }
 
+// Headless 2FA. The code file is read once and deleted, so a wrong code can be replaced
+// by writing a new one.
+function readCode() {
+  try {
+    const code = fs.readFileSync(CODE_FILE, 'utf8').replace(/\s+/g, '');
+    fs.rmSync(CODE_FILE, { force: true });
+    return code || null;
+  } catch {
+    return null;
+  }
+}
+
+// Some 2FA pages only send the code after "Send code" is clicked. That's part of signing
+// in, so it's allowed here (the crawl itself never clicks "send"). Email is preferred
+// over text when both are offered.
+async function requestTwoFactorCode(p) {
+  const buttons = p.locator('button, input[type="submit"], input[type="button"], a').filter({ visible: true }).filter({ hasText: /send|get|email|text/i });
+  const values = p.locator('input[type="submit"], input[type="button"]').filter({ visible: true });
+  const candidates = [];
+  for (const loc of [buttons, values]) {
+    for (let i = 0; i < (await loc.count()); i++) {
+      const el = loc.nth(i);
+      const label = `${await el.innerText().catch(() => '')} ${await el.getAttribute('value').catch(() => '')}`.trim();
+      if (/(send|get|email|text).*code|code.*(send|email|text)/i.test(label)) candidates.push({ el, label });
+    }
+  }
+  if (!candidates.length) return false;
+  const pick = candidates.find((c) => /email/i.test(c.label)) || candidates[0];
+  await pick.el.click({ timeout: 5000 }).catch(() => {});
+  await settle(p);
+  return true;
+}
+
+async function enterTwoFactorCode(p, code) {
+  const boxes = p.locator(TWO_FACTOR_INPUT).filter({ visible: true });
+  const single = p.locator('input[maxlength="1"]').filter({ visible: true });
+  if ((await single.count()) >= code.length && (await boxes.count()) !== 1) {
+    for (let i = 0; i < code.length; i++) await single.nth(i).fill(code[i]);
+  } else {
+    await boxes.first().fill(code);
+  }
+  // "Remember this browser" keeps the saved session past 2FA for 30 days.
+  const remember = p.locator('input[type="checkbox"]').filter({ visible: true });
+  for (let i = 0; i < (await remember.count()); i++) {
+    const box = remember.nth(i);
+    const id = await box.getAttribute('id');
+    const label = [await box.getAttribute('name'), id, id ? await p.locator(`label[for="${id}"]`).innerText().catch(() => '') : '', await box.locator('xpath=ancestor::label').innerText().catch(() => '')].join(' ');
+    if (/remember|trust/i.test(label)) await box.check().catch(() => {});
+  }
+  await boxes.first().press('Enter').catch(() => {});
+  await settle(p);
+}
+
 async function login(p) {
   phase = 'login';
   currentPage = '(login)';
@@ -247,19 +304,36 @@ async function login(p) {
     throw new Error('Login page shown and no credentials set. Set MC_EMAIL / MC_PASSWORD or run with --headed.');
   }
 
-  const deadline = Date.now() + (HAVE_CREDENTIALS && !args.headed ? 60_000 : 5 * 60_000);
+  let deadline = Date.now() + (HAVE_CREDENTIALS && !args.headed ? 60_000 : 5 * 60_000);
   let warned2fa = false;
   for (;;) {
     await p.waitForTimeout(1000);
     await p.waitForLoadState('domcontentloaded').catch(() => {});
     if (await onTwoFactorPage(p)) {
-      if (!args.headed) throw new Error('MaidCentral asks for a verification code (2FA). Run with --headed and enter it in the browser window.');
-      if (!warned2fa) console.log('Enter the verification code in the browser window.');
+      if (args.headed) {
+        if (!warned2fa) console.log('Enter the verification code in the browser window.');
+      } else {
+        if (!warned2fa) {
+          // A person has to read the code from their email or phone; give them time.
+          deadline = Date.now() + 10 * 60_000;
+          fs.rmSync(CODE_FILE, { force: true }); // ignore a code left over from an earlier run
+          if (await requestTwoFactorCode(p)) console.log('Asked MaidCentral to send a verification code.');
+          await p.screenshot({ path: path.join(OUTPUT, 'screens', '_2fa.png') }).catch(() => {});
+          console.log(`MaidCentral asks for a verification code (2FA). Write it to ${CODE_FILE} (waiting up to 10 minutes).`);
+        }
+        const code = readCode();
+        if (code) {
+          await enterTwoFactorCode(p, code);
+          console.log('Verification code entered.');
+        }
+      }
       warned2fa = true;
     } else if (!(await onLoginPage(p))) {
       break;
     }
-    if (Date.now() > deadline) throw new Error('Still on the login page. Check MC_EMAIL / MC_PASSWORD (quote values containing #).');
+    if (Date.now() > deadline) {
+      throw new Error(warned2fa ? 'Still waiting for 2FA. Write the code sooner, or run with --headed.' : 'Still on the login page. Check MC_EMAIL / MC_PASSWORD (quote values containing #).');
+    }
   }
   await settle(p);
   await context.storageState({ path: AUTH_STATE });

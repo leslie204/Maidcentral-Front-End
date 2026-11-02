@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T15:33:19.437Z",
+  "generatedAt": "2026-11-02T15:46:32.114Z",
   "coverage": [
     {
       "capability": "auth",
@@ -30,10 +30,10 @@
     {
       "capability": "leads-quotes",
       "label": "Leads and quotes",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
-        "write": 0
+        "read": 2,
+        "write": 4
       },
       "portal": {
         "read": 0,
@@ -56,9 +56,9 @@
     {
       "capability": "scheduling",
       "label": "Schedule and dispatch",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
+        "read": 1,
         "write": 0
       },
       "portal": {
@@ -69,9 +69,9 @@
     {
       "capability": "teams",
       "label": "Teams",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
+        "read": 1,
         "write": 0
       },
       "portal": {
@@ -121,10 +121,10 @@
     {
       "capability": "pricing",
       "label": "Pricing and services",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
-        "write": 0
+        "read": 5,
+        "write": 1
       },
       "portal": {
         "read": 0,
@@ -134,10 +134,10 @@
     {
       "capability": "notes-messages",
       "label": "Notes and messages",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
-        "write": 0
+        "read": 3,
+        "write": 1
       },
       "portal": {
         "read": 0,
@@ -160,9 +160,9 @@
     {
       "capability": "settings",
       "label": "Settings and lookups",
-      "status": "not seen",
+      "status": "official API",
       "official": {
-        "read": 0,
+        "read": 4,
         "write": 0
       },
       "portal": {
@@ -175,9 +175,229 @@
     "docs": "https://support.maidcentral.com/apidocs",
     "production": "https://api.maidcentral.com",
     "sandbox": "https://api.maidcentral.net",
-    "status": "Docs not yet read: support.maidcentral.com was blocked by the cloud session's network policy on 2026-11-02. Only /token is listed, from a public search result.",
-    "auth": "POST /token with username, password and grant_type (password or refresh_token); then Authorization: Bearer <token>.",
+    "status": "Docs read end to end on 2026-11-02: 23 endpoints including /token, all under /api/Lead and /api/Note. The API covers the online-booking funnel (leads, quotes, pricing, availability, booking) plus notes and a few lookups. It has no endpoints for existing clients, jobs, the schedule, employees, payroll or invoices. Not probed yet (no API user in the session).",
+    "auth": "POST /token (form-encoded) with username and password (grant_type=password), or refresh_token (grant_type=refresh_token); then Authorization: Bearer <token>. Credentials come from an API User (Company > Settings > General > Integrations > API Users).",
     "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/Lead/Availability",
+        "purpose": "Available job dates for a scope group (hours or amount required)",
+        "capabilities": [
+          "scheduling"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/BillingTerms",
+        "purpose": "Billing terms (lookup)",
+        "capabilities": [
+          "settings"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Lead/BookQuote",
+        "purpose": "Book a quote (turns it into scheduled service). Card details only as a CardConnect iFrame token; Stripe and Authorize.Net not supported",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Lead/CalculatePrice",
+        "purpose": "Calculate a price without creating a lead",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Lead/CreateOrUpdate",
+        "purpose": "Create or update a lead (contact details, postal code, source, tags)",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Lead/CreateOrUpdateQuote",
+        "purpose": "Create or update a quote for a lead (home, scopes, answers, rate modifications)",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/CustomerSources",
+        "purpose": "Customer sources (lookup)",
+        "capabilities": [
+          "settings"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Lead",
+        "purpose": "Get a lead",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/PostalCodes",
+        "purpose": "Serviceable postal codes by home zone",
+        "capabilities": [
+          "settings"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Questions",
+        "purpose": "Booking and pricing questions for one or more scopes",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Quote",
+        "purpose": "Get a quote",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/RateModifications",
+        "purpose": "Rate modifications (extras, add-ons) for a scope group",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/ScopeFrequencies",
+        "purpose": "Frequency options for a scope",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/ScopeGroups",
+        "purpose": "Scope groups (service categories), with their scopes and frequencies",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Scopes",
+        "purpose": "Scopes (services) in a scope group",
+        "capabilities": [
+          "pricing"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Tags",
+        "purpose": "Tags with their categories (lookup)",
+        "capabilities": [
+          "settings"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Lead/Teams",
+        "purpose": "Teams (lookup)",
+        "capabilities": [
+          "teams"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Lead/Utm",
+        "purpose": "Attach UTM data to a lead or quote",
+        "capabilities": [
+          "leads-quotes"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Note/CommunicationDirections",
+        "purpose": "Note communication directions (lookup)",
+        "capabilities": [
+          "notes-messages"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "POST",
+        "path": "/api/Note/Create",
+        "purpose": "Create a note for a customer, quote or employee",
+        "capabilities": [
+          "notes-messages"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Note/EntityTypes",
+        "purpose": "Note entity types (lookup)",
+        "capabilities": [
+          "notes-messages"
+        ],
+        "verified": false,
+        "statuses": []
+      },
+      {
+        "method": "GET",
+        "path": "/api/Note/Types",
+        "purpose": "Note types (lookup)",
+        "capabilities": [
+          "notes-messages"
+        ],
+        "verified": false,
+        "statuses": []
+      },
       {
         "method": "POST",
         "path": "/token",
