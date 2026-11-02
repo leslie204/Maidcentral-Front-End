@@ -4,10 +4,15 @@
 # its action name reads as a query (GetX, SearchX, ListX, LoadX, FindX, FetchX, LookupX) or
 # its path is listed here. Paths are case-insensitive; a trailing slash is ignored.
 #
-# Reviewed 2026-11-02 from the first 20-page crawl. Still blocked on purpose:
-#   /Company/BroadcastMessage   sends a message to staff
+# Reviewed 2026-11-02 from the 20- and 250-page crawls: each body below is only a record id
+# or a date range. Still blocked on purpose:
+#   /Company/BroadcastMessage   sends a message to staff (fires on page load with
+#                               ConfirmedToSend=False; blocked anyway)
 #   /Event/CreateOrEditEvent    saves an event
 #   /Estimate/Step1             may create an estimate
+#   /Settings/CreateOrUpdateOffice   saves an office
+#   /Report/SaveDataTableState  saves a table layout
+#   /CspReport/Report           reports to MaidCentral
 #   /Job/JobResendNotificationFlags   name contains "resend"
 /Event/Events
 /Job/CustomerEmployeeFlags
@@ -16,3 +21,14 @@
 /Job/MonthlyData
 /Schedule/AbsentEmployees
 /Company/ScheduleExceptionCalendar
+/Estimate/QuoteNotes
+/Estimate/QuoteDetailsForGroups
+/Estimate/CampaignHistory
+/Customer/Jobs
+/HomeServiceInformation/Jobs
+/Employee/Stats
+/Employee/DefaultSchedule
+/Settings/PartnerHolidaysCalendar
+/ServiceCompanyGroup/ShowAccessHistory
+/Time/ViewTimeRequestModal
+/Report/RateReport

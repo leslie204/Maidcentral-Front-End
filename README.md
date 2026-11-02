@@ -17,8 +17,8 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 
 | Phase | State |
 | --- | --- |
-| 0. Recon | **In progress**: API docs read (23 endpoints, booking funnel and notes only). Probe and portal crawl wait on secrets and wider network access. See [docs/recon.md](docs/recon.md) |
-| 1. Capture tool | Built and tested against a local fake portal, including headless 2FA; not yet run on the real portal |
+| 0. Recon | **Done** (API probe skipped: no API user). The official API only covers online booking; everything else is portal only. See [docs/recon.md](docs/recon.md) |
+| 1. Capture tool | **Done.** Ran on the real portal: 250 pages, 254 endpoints, read-only, headless 2FA |
 | 2. Verify writes | Not started |
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |
@@ -29,7 +29,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | --- | --- |
 | Hosting | Railway, in **its own Railway project**, completely separate from the Launch27 / UrbanMop project: its own services, Postgres databases (development / staging / production), variables and members. Nothing is shared with or referenced from the Launch27 project |
 | Portal address | Kept out of the repo (public); set as `MC_PORTAL_URL` |
-| Auth | Not decided yet. The official API can't read clients, jobs, the schedule, employees or money, so most data must come from the portal session. Provisional recommendation (per-user portal login with 2FA relayed) in [docs/recon.md](docs/recon.md) |
+| Auth | **Recommended, awaiting sign-off:** people sign in with their own MaidCentral login through our server (2FA relayed, portal cookies kept server-side, no passwords stored). Details and the fallback in [docs/recon.md](docs/recon.md) |
 
 ## Setup
 
@@ -91,7 +91,9 @@ Options: `--start /`, `--scope /` (allowed path prefixes), `--max-pages 300`,
 
 - After sign-in, every request that isn't GET/HEAD/OPTIONS is blocked and logged as
   "blocked: write", so the catalog still lists it. That includes writes the page fires
-  on its own as soon as it loads.
+  on its own as soon as it loads. The one exception is reads sent as POST (the portal loads
+  grids and calendars that way): an XHR whose action name reads as a query (`GetX`,
+  `SearchX`…) or that is on the reviewed list in `capture/read-posts.txt`.
 - GETs to MaidCentral whose URL names an action (delete, cancel, send, charge, payroll,
   export, log out…) are blocked as well, because server-rendered apps sometimes change
   data on a GET.

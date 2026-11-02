@@ -1,112 +1,112 @@
 # Phase 0: Recon
 
-## Status (2026-11-02, second session)
+## Status (2026-11-02): done, apart from the optional API probe
 
 | Step | State |
 | --- | --- |
 | 1. Read the API docs | **Done.** 23 endpoints in `capture/official-api.json` and `docs/API.md` |
-| 2. Probe the API | Waiting: the `MC_API_*` secrets aren't in this session yet (they only reach a new session) |
-| 3. Crawl the portal | Waiting on the `MC_*` secrets, `MC_PORTAL_URL` and wider network access (below) |
-| 4. Coverage + auth recommendation | Provisional, below; confirm after step 3 |
+| 2. Probe the API | **Skipped.** There's no API user. Low value: the API only covers online booking (below). Create one later under Company > Settings > General > Integrations > API Users if needed |
+| 3. Crawl the portal | **Done.** 250 pages, 0 failures, 254 endpoints, read-only (nothing was changed in MaidCentral). Catalog in `docs/API.md` |
+| 4. Coverage + auth recommendation | **Done** (below). Needs the owner's sign-off |
 
-### What the environment still needs
+## 1. Coverage: official API vs portal
 
-- **Secrets** (environment variables): `MC_PORTAL_URL`, `MC_EMAIL`, `MC_PASSWORD`,
-  `MC_API_USERNAME`, `MC_API_PASSWORD` (sandbox pair optional). Start a new session after
-  adding them.
-- **Network:** `support.maidcentral.com`, `api.maidcentral.com` and `api.maidcentral.net`
-  are reachable now, but `maidcentral.com` and other subdomains are not. The portal is a
-  tenant subdomain (`<company>.maidcentral.com`) and its Content-Security-Policy loads
-  scripts from about 30 other hosts (Kendo/Telerik, Syncfusion, DataTables, Highcharts,
-  amCharts, jQuery, Bootstrap, cdnjs, jsDelivr, unpkg, Google Maps, Stripe, CardConnect,
-  Authorize.Net, HubSpot, Pendo, Intercom, Usersnap, Azure Monitor…). The simplest fix is
-  the **Full** network level for the capture session; otherwise allow at least
-  `*.maidcentral.com`, `*.maidcentral.net` and those CDNs.
-- **2FA:** MaidCentral **requires 2FA for every office user** (optional only for
-  technicians). Codes go by email (or text). The crawler now handles this headlessly; see
-  "Running the crawl with 2FA" below.
+| Area | Official API | Portal |
+| --- | --- | --- |
+| Clients and homes | none | yes |
+| Leads and quotes | create/get lead, create/get/book quote | yes |
+| Jobs | none | yes |
+| Schedule and dispatch | availability only | yes |
+| Teams | list | yes |
+| Employees | none | yes |
+| Invoices and payments | none | yes (reads) |
+| Pricing and services | scope groups, scopes, rate modifications, price calculation | yes |
+| Notes and messages | create note, lookups | yes |
+| Reports and dashboard | none | yes |
+| Settings and lookups | a few lookups | yes |
+| Payroll and time | none | **not crawled on purpose** (payroll is off-limits to the crawler) |
 
-## 1. What the official API covers
+**Conclusion:** the official API is the online-booking funnel plus notes. **Everything an
+admin front end needs day to day is portal only.** Per-area endpoint counts are in the
+coverage table in `docs/API.md`.
 
-Read end to end from `https://support.maidcentral.com/llms.txt` (section `v1-api`).
+### Official API details
 
-- **Auth:** `POST /token`, form-encoded `username` / `password` / `grant_type=password`
-  (or `grant_type=refresh_token` + `refresh_token`), then `Authorization: Bearer <token>`.
-  Credentials belong to an **API User** (Company > Settings > General > Integrations >
-  API Users). They're shared, not tied to a person. The same API users power the Zapier
-  integration.
-- **Every response** is wrapped as `{ IsSuccess, Message, Result, InnerException, StatusCode }`.
-- **Endpoints (22 + /token)** are all under two controllers:
-  - `/api/Lead/*`: the **online-booking funnel**. Create or update a lead, get a lead,
-    create or update a quote, get a quote, calculate a price, book a quote, attach UTM
-    data, plus lookups: scope groups, scopes, frequencies, rate modifications,
-    questions, availability, postal codes, customer sources, billing terms, tags, teams.
-  - `/api/Note/*`: create a note on a customer, quote or employee, plus note-type lookups.
-- **Booking payments:** `BookQuote` only takes a **CardConnect** iFrame token. Raw card
-  numbers aren't accepted, and Stripe and Authorize.Net aren't supported.
-- **Not in the API at all:** existing clients and homes, jobs, the schedule and dispatch,
-  employees, payroll and time, invoices and payments, reports, settings. There are no
-  list or search endpoints for existing records. Everything an admin front end does day to
-  day is **portal only**.
-- **Zapier triggers** (lead created/closed, quote sent/booked, job completed, contact
-  updated, do-not-market, service cancelled) use the same API users but aren't documented
-  as public endpoints. They're webhook-style feeds, not reads.
+- `POST /token` (form-encoded, `grant_type=password` or `refresh_token`), then a bearer
+  token. Credentials belong to a shared **API User**, not a person.
+- Every response is wrapped as `{ IsSuccess, Message, Result, InnerException, StatusCode }`.
+- `BookQuote` only takes a **CardConnect** iFrame token (no raw cards, no Stripe/Authorize.Net).
 
-## 2. What we know about the portal so far (from public responses, no login)
+## 2. How the portal works
 
-- **ASP.NET MVC** (server-rendered pages) with OWIN cookie auth (`.AspNet.ApplicationCookie`),
-  behind Cloudflare, with Azure Application Insights.
-- `api.maidcentral.com/Account/Login` redirects to `/Account/Discover` and then to the
-  marketing site, so the API host isn't where admins log in. The portal is the tenant
-  subdomain (`MC_PORTAL_URL`).
-- UI libraries per the CSP: jQuery, Bootstrap, Kendo UI (Telerik), Syncfusion,
-  DataTables, Highcharts/amCharts. Expect server-rendered pages plus Kendo/DataTables
-  grids that load JSON over XHR. That's exactly what the crawler records.
-- Expect `__RequestVerificationToken` anti-forgery fields on forms. To confirm in step 3.
+- **Stack:** ASP.NET MVC, server-rendered pages with jQuery 1.11. Most pages (139 of 196
+  page types) then load data over XHR, about 20 use Kendo grids, and it sits behind
+  Cloudflare. Its own scripts are served from the tenant host: the CDN hosts in its CSP
+  weren't needed for the crawl.
+- **Reads are often POSTs.** Calendars, grids, stats and record tabs load with `POST`
+  (e.g. `/Job/MonthlyData`, `/Customer/Jobs`, `/Estimate/GetPipelineData`), with a JSON or
+  form body holding an id or a date range. The crawler lets through only reviewed or
+  query-named POSTs (`capture/read-posts.txt`, `capture/safety.js`).
+- **Some pages fire real actions on load.** For example, `/Company/BroadcastMessage` posts
+  a draft broadcast as soon as it opens (`ConfirmedToSend=False`). The rebuild must never
+  replay a page's load-time POSTs blindly.
+- **Auth is cookies only.** No bearer tokens, nothing in localStorage.
 
-## 3. Auth: recommendation (updated, to confirm after the crawl)
+  | Cookie | Lifetime |
+  | --- | --- |
+  | `.AspNet.ApplicationCookie` | the sign-in; **12 hours, sliding** (renewed by use) |
+  | `ASP.NET_SessionId` | server session (browser-session cookie) |
+  | `__RequestVerificationToken` | anti-forgery cookie half |
+  | `TwoFactorRememberBrowser` | **30 days**: skips 2FA on this "browser" |
 
-The docs change the picture. The official API can't read clients, jobs, the schedule,
-employees or money, so **most data must come from the portal session whatever we choose**.
-The API user alone (old Option B) can't power an admin front end.
+- **Anti-forgery:** `__RequestVerificationToken` hidden fields in forms (no header
+  variant seen). A server writing through the portal must GET the form first and post the
+  token back with the cookie.
+- **Login flow (stock ASP.NET Identity 2FA):** `POST /Account/Login` → `/Account/SendCode`
+  (choose email/text) → `POST /Account/VerifyCode` (code valid 5 minutes, "Remember this
+  browser?" checkbox). **2FA is mandatory for office users.**
 
-**Option C (hybrid), still recommended, with 2FA handled up front:**
+## 3. Auth recommendation
 
-- People sign in to our app with **their own MaidCentral login**. Our server performs the
-  portal login on their behalf, relays MaidCentral's **2FA step** (send code, enter code)
-  to our login screen, and ticks "Remember this browser". It keeps the resulting portal
-  cookies server-side, encrypted per user, never in the browser.
-- MaidCentral then enforces each person's own permissions, and audit trails in
-  MaidCentral show the real person.
-- The official API (shared API user) is used where it fits: the booking funnel and notes.
-- **Risks to check in the crawl:** how long the portal session and the 30-day "remember
-  this browser" cookie last when replayed from a server; whether anti-forgery tokens are
-  per page (we'd fetch the page first, then post); and whether Cloudflare challenges
-  server-side traffic (bot checks).
+**Option C: people sign in with their own MaidCentral login, through our server.**
 
-**Fallback (Option B′):** if per-user sessions turn out to be brittle (Cloudflare bot
-checks, device binding), use **one dedicated MaidCentral office account** for the server
-(2FA done once, remembered for 30 days and renewed by a person) plus our own users and
-roles in our database. Simpler, but MaidCentral's audit trail would show that one account
-for everything, and we'd have to re-create permission rules ourselves.
+1. Our login screen takes email and password. The server runs `/Account/Login`; if
+   MaidCentral asks for 2FA, our screen asks for the code and the server posts it with
+   "Remember this browser" ticked.
+2. The server keeps that person's MaidCentral cookies encrypted in Postgres, keyed to
+   our own session, and never sends them to the browser. **We don't store passwords.**
+3. Each request for portal data is made with that person's cookies, so **MaidCentral
+   enforces their own permissions** and its history shows the real person.
+4. Their session lives 12 hours from last use. After that they enter their password
+   again; thanks to the 30-day remember cookie, usually no code. After 30 days, a code again.
+5. The official API (shared API user, if one is created) is used only for the booking
+   funnel and notes.
 
-## 4. Running the crawl with 2FA (cloud session, no browser window)
+Why not one shared account for everything (Option B′): it's simpler, but every change would
+show in MaidCentral as that one account, we'd have to rebuild MaidCentral's permission
+rules ourselves, and someone would have to refresh its 2FA every 30 days.
+
+**Risks to watch in Phase 2/3:** Cloudflare may challenge traffic from Railway's IPs (test
+early with a real login from a Railway service); MaidCentral may limit concurrent sessions
+per user (an office person signed in to both MaidCentral and our app); writes need the
+anti-forgery dance above.
+
+## 4. Re-running the crawl
 
 ```bash
-CHROMIUM_PATH=/opt/pw-browsers/chromium npm run capture -- --max-pages 20
+CHROMIUM_PATH=/opt/pw-browsers/chromium npm run capture -- --max-pages 250
 ```
 
-When MaidCentral asks for a code, the crawler clicks "Send code" if the page has one
-(preferring email), saves a screenshot to `capture/output/screens/_2fa.png`, and waits up
-to 10 minutes for the code to appear in `capture/.auth/2fa-code` (gitignored). The person
-tells the session the code and it is written to that file. The crawler ticks "Remember
-this browser", so the saved session (`capture/.auth/state.json`) skips 2FA for 30 days.
+The saved login (`capture/.auth/state.json`, gitignored) skips 2FA until early December
+2026. When a code is needed, the crawler clicks "Send code", saves a screenshot to
+`capture/output/screens/_2fa.png`, and waits up to 10 minutes for the code in
+`capture/.auth/2fa-code`. When a crawl logs `blocked (write)` for a POST that only reads,
+review it and add it to `capture/read-posts.txt`.
 
-## To do once unblocked
+## Open items
 
-1. `npm run probe -- /api/Lead/ScopeGroups /api/Lead/Teams /api/Lead/BillingTerms /api/Note/Types`
-   (and `--sandbox`), then mark endpoints verified.
-2. `npm run capture -- --max-pages 20`, then read docs/API.md → "How the portal talks to
-   its backend": domains, auth, anti-forgery tokens, rendering, Cloudflare behaviour.
-   If it's a SPA, run `npm run bundle-routes` for seeds.
-3. Full crawl; confirm or revise the auth recommendation above; Phase 0 done.
+- Payroll pages were never crawled. If the new front end needs payroll, decide how to
+  capture it safely first.
+- The 250-page crawl left about 6,500 queued links, mostly more records of page types it
+  had already seen (max 2 per type). A longer crawl (`--max-pages 500`) may find a few
+  more rare page types.
