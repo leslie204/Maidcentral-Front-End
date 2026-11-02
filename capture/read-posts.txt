@@ -14,6 +14,8 @@
 #   /Report/SaveDataTableState  saves a table layout
 #   /CspReport/Report           reports to MaidCentral
 #   /Job/JobResendNotificationFlags   name contains "resend"
+#   /Settings/CreateOrUpdateContactSubTypeModal   create/edit form
+#   /Employee/PtoHistoryModal   paid time off, next to payroll: left out with payroll
 /Event/Events
 /Job/CustomerEmployeeFlags
 /Job/PreferExcludeFlags

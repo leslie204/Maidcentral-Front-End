@@ -6,7 +6,7 @@
 | --- | --- |
 | 1. Read the API docs | **Done.** 23 endpoints in `capture/official-api.json` and `docs/API.md` |
 | 2. Probe the API | **Skipped.** There's no API user. Low value: the API only covers online booking (below). Create one later under Company > Settings > General > Integrations > API Users if needed |
-| 3. Crawl the portal | **Done.** 250 pages, 0 failures, 254 endpoints, read-only (nothing was changed in MaidCentral). Catalog in `docs/API.md` |
+| 3. Crawl the portal | **Done.** 250 pages, 0 failures, 267 endpoints (31 of them reads sent as POST), read-only (nothing was changed in MaidCentral). Catalog in `docs/API.md` |
 | 4. Coverage + auth recommendation | **Done** (below). Needs the owner's sign-off |
 
 ## 1. Coverage: official API vs portal

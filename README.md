@@ -18,7 +18,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | Phase | State |
 | --- | --- |
 | 0. Recon | **Done** (API probe skipped: no API user). The official API only covers online booking; everything else is portal only. See [docs/recon.md](docs/recon.md) |
-| 1. Capture tool | **Done.** Ran on the real portal: 250 pages, 254 endpoints, read-only, headless 2FA |
+| 1. Capture tool | **Done.** Ran on the real portal: 250 pages, 267 endpoints, read-only, headless 2FA |
 | 2. Verify writes | Not started |
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |

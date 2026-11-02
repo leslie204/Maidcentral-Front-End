@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T17:08:29.451Z",
+  "generatedAt": "2026-11-02T18:09:48.800Z",
   "coverage": [
     {
       "capability": "auth",
@@ -23,7 +23,7 @@
         "write": 0
       },
       "portal": {
-        "read": 45,
+        "read": 50,
         "write": 1
       }
     },
@@ -36,8 +36,8 @@
         "write": 4
       },
       "portal": {
-        "read": 17,
-        "write": 4
+        "read": 21,
+        "write": 1
       }
     },
     {
@@ -49,8 +49,8 @@
         "write": 0
       },
       "portal": {
-        "read": 22,
-        "write": 3
+        "read": 24,
+        "write": 1
       }
     },
     {
@@ -62,8 +62,8 @@
         "write": 0
       },
       "portal": {
-        "read": 22,
-        "write": 2
+        "read": 25,
+        "write": 0
       }
     },
     {
@@ -88,8 +88,8 @@
         "write": 0
       },
       "portal": {
-        "read": 36,
-        "write": 2
+        "read": 40,
+        "write": 1
       }
     },
     {
@@ -127,8 +127,8 @@
         "write": 1
       },
       "portal": {
-        "read": 9,
-        "write": 1
+        "read": 10,
+        "write": 0
       }
     },
     {
@@ -140,8 +140,8 @@
         "write": 1
       },
       "portal": {
-        "read": 10,
-        "write": 3
+        "read": 14,
+        "write": 2
       }
     },
     {
@@ -153,8 +153,8 @@
         "write": 0
       },
       "portal": {
-        "read": 73,
-        "write": 4
+        "read": 75,
+        "write": 2
       }
     },
     {
@@ -166,8 +166,8 @@
         "write": 0
       },
       "portal": {
-        "read": 33,
-        "write": 4
+        "read": 39,
+        "write": 3
       }
     }
   ],
@@ -799,7 +799,6 @@
         "requests": [
           "GET {tenant}.maidcentral.com/Employee/EmployeeMonitorData",
           "GET {tenant}.maidcentral.com/Employee/EmployeeMonitorTeams",
-          "POST {tenant}.maidcentral.com/Event/Events",
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "POST {tenant}.maidcentral.com/report/getTimeChangeRequests",
           "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
@@ -1244,7 +1243,6 @@
         "requests": [
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "GET {tenant}.maidcentral.com/Report/ActivityPipeline",
-          "GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany",
           "GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany",
           "GET {tenant}.maidcentral.com/Report/RevenueFuture",
           "GET {tenant}.maidcentral.com/Report/RevenuePast",
@@ -2600,8 +2598,8 @@
         ],
         "requests": [
           "GET {tenant}.maidcentral.com/Home/Sidebar",
-          "GET {tenant}.maidcentral.com/Settings/AllDiscounts",
-          "GET {tenant}.maidcentral.com/Settings/General"
+          "GET {tenant}.maidcentral.com/Settings/General",
+          "POST {tenant}.maidcentral.com/Settings/GetIFrameCode"
         ]
       },
       {
@@ -2657,7 +2655,8 @@
         ],
         "requests": [
           "GET {tenant}.maidcentral.com/Home/Sidebar",
-          "POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory (blocked: write)"
+          "POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory",
+          "GET {tenant}.maidcentral.com/view-resources/Views/ServiceCompanyGroup/_AccessHistoryModal.js"
         ]
       },
       {
@@ -2681,8 +2680,7 @@
         "requests": [
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "GET {tenant}.maidcentral.com/Settings/PartnerBilling",
-          "GET {tenant}.maidcentral.com/Settings/PartnerInvoices",
-          "GET {tenant}.maidcentral.com/Settings/PartnerUi"
+          "POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar"
         ]
       },
       {
@@ -2715,9 +2713,8 @@
           }
         ],
         "requests": [
+          "POST {tenant}.maidcentral.com/Settings/CreateOrUpdateContactSubTypeModal (blocked: write)",
           "GET {tenant}.maidcentral.com/Settings/PartnerBilling",
-          "GET {tenant}.maidcentral.com/Settings/PartnerHolidays",
-          "POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar (blocked: write)",
           "GET {tenant}.maidcentral.com/Settings/PartnerInvoices"
         ]
       },
@@ -2807,7 +2804,8 @@
         },
         "forms": [],
         "requests": [
-          "GET {tenant}.maidcentral.com/Home/Sidebar"
+          "GET {tenant}.maidcentral.com/Home/Sidebar",
+          "GET {tenant}.maidcentral.com/ServiceCompanyGroup/CreateOrUpdatePolicy/"
         ]
       },
       {
@@ -2832,8 +2830,10 @@
           "GET {tenant}.maidcentral.com/Employee/CalendarDayAvailability",
           "GET {tenant}.maidcentral.com/Employee/CreateOrUpdateScheduleRequest",
           "GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequests",
+          "GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequestsModal",
           "POST {tenant}.maidcentral.com/Employee/GetAttendance",
-          "POST {tenant}.maidcentral.com/Employee/Stats (blocked: write)",
+          "POST {tenant}.maidcentral.com/Employee/PtoHistoryModal (blocked: write)",
+          "POST {tenant}.maidcentral.com/Employee/Stats",
           "GET {tenant}.maidcentral.com/Home/Sidebar"
         ]
       },
@@ -2906,7 +2906,7 @@
         },
         "forms": [],
         "requests": [
-          "POST {tenant}.maidcentral.com/Customer/Jobs (blocked: write)",
+          "POST {tenant}.maidcentral.com/Customer/Jobs",
           "GET {tenant}.maidcentral.com/Customer/Stats/:id",
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "GET {tenant}.maidcentral.com/HomeInformation/Homes",
@@ -2932,12 +2932,15 @@
         },
         "forms": [],
         "requests": [
-          "POST {tenant}.maidcentral.com/Estimate/CampaignHistory (blocked: write)",
-          "POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups (blocked: write)",
-          "POST {tenant}.maidcentral.com/Estimate/QuoteNotes (blocked: write)",
+          "GET {tenant}.maidcentral.com/Customer/EditTicket/",
+          "POST {tenant}.maidcentral.com/Estimate/CampaignHistory",
+          "POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups",
+          "POST {tenant}.maidcentral.com/Estimate/QuoteNotes",
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "POST {tenant}.maidcentral.com/Note/GetNoteModal",
-          "POST {tenant}.maidcentral.com/Quote/GetStatusSteps"
+          "POST {tenant}.maidcentral.com/Quote/GetStatusSteps",
+          "POST {tenant}.maidcentral.com/Template/GetTemplatesByType",
+          "GET {tenant}.maidcentral.com/view-resources/Views/Note/_NoteModal.js"
         ]
       },
       {
@@ -3108,10 +3111,9 @@
           }
         ],
         "requests": [
-          "POST {tenant}.maidcentral.com/Employee/DefaultSchedule (blocked: write)",
           "GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequests",
           "GET {tenant}.maidcentral.com/Employee/GetEmployeeHistory/:id",
-          "POST {tenant}.maidcentral.com/Employee/Stats (blocked: write)",
+          "POST {tenant}.maidcentral.com/Employee/Stats",
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "GET maps.googleapis.com/maps/api/mapsjs/gen_204"
         ]
@@ -3717,7 +3719,7 @@
         "template": "/Employee/Time#timeclocks-tab",
         "heading": null,
         "statuses": [],
-        "rendering": "server-rendered",
+        "rendering": "server-rendered + XHR",
         "signals": {
           "antiForgeryField": false,
           "webFormsViewState": false,
@@ -3741,7 +3743,9 @@
             ]
           }
         ],
-        "requests": []
+        "requests": [
+          "POST {tenant}.maidcentral.com/report/getTimeChangeRequests"
+        ]
       },
       {
         "template": "/Employee/Time#events-tab",
@@ -3805,7 +3809,8 @@
           }
         ],
         "requests": [
-          "GET {tenant}.maidcentral.com/Employee/GetEmployeeBreaks"
+          "GET {tenant}.maidcentral.com/Employee/GetEmployeeBreaks",
+          "POST {tenant}.maidcentral.com/Event/Events"
         ]
       },
       {
@@ -3837,7 +3842,6 @@
           }
         ],
         "requests": [
-          "GET {tenant}.maidcentral.com/Employee/GetEmployeeBreaks",
           "POST {tenant}.maidcentral.com/report/getTimeChangeRequests"
         ]
       },
@@ -3860,8 +3864,7 @@
         },
         "forms": [],
         "requests": [
-          "GET {tenant}.maidcentral.com/HomeInformation/ImagesPartial",
-          "POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs (blocked: write)",
+          "GET {tenant}.maidcentral.com/HomeInformation/ScorecardPartial",
           "GET {tenant}.maidcentral.com/rates/GetRatesByServiceSetInformationId"
         ]
       },
@@ -4903,7 +4906,9 @@
           }
         ],
         "requests": [
-          "GET {tenant}.maidcentral.com/Job/AdjustTeamSize"
+          "POST {tenant}.maidcentral.com/Event/CreateOrEditEvent (blocked: write)",
+          "GET {tenant}.maidcentral.com/Job/AdjustTeamSize",
+          "GET {tenant}.maidcentral.com/ProviderStatus/Current"
         ]
       },
       {
@@ -4915,10 +4920,9 @@
           "antiForgeryField": true,
           "webFormsViewState": false,
           "metaTokens": [],
-          "tables": 6,
-          "tableColumns": 23,
+          "tables": 0,
+          "tableColumns": 0,
           "framework": {
-            "knockout": true,
             "jquery": "1.11.2",
             "kendo": true
           }
@@ -4931,15 +4935,6 @@
               "__RequestVerificationToken:hidden",
               "PrintDate:hidden",
               "PrintStartTeam:select-one"
-            ]
-          },
-          {
-            "method": "post",
-            "action": "/Job/AdjustTeamSize",
-            "fields": [
-              "Date:hidden",
-              "<key>:hidden",
-              "<key>:text"
             ]
           }
         ],
@@ -4954,10 +4949,9 @@
           "antiForgeryField": true,
           "webFormsViewState": false,
           "metaTokens": [],
-          "tables": 6,
-          "tableColumns": 23,
+          "tables": 0,
+          "tableColumns": 0,
           "framework": {
-            "knockout": true,
             "jquery": "1.11.2",
             "kendo": true
           }
@@ -4970,15 +4964,6 @@
               "__RequestVerificationToken:hidden",
               "PrintDate:hidden",
               "PrintStartTeam:select-one"
-            ]
-          },
-          {
-            "method": "post",
-            "action": "/Job/AdjustTeamSize",
-            "fields": [
-              "Date:hidden",
-              "<key>:hidden",
-              "<key>:text"
             ]
           }
         ],
@@ -5716,7 +5701,8 @@
         "requests": [
           "GET {tenant}.maidcentral.com/Home/Sidebar",
           "POST {tenant}.maidcentral.com/report/getTimeChangeRequests",
-          "POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal (blocked: write)"
+          "POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal",
+          "GET {tenant}.maidcentral.com/view-resources/Views/Time/_ViewTimeRequestModal.js"
         ]
       },
       {
@@ -5970,8 +5956,7 @@
           }
         ],
         "requests": [
-          "GET {tenant}.maidcentral.com/Home/Sidebar",
-          "POST {tenant}.maidcentral.com/Report/RateReport (blocked: write)"
+          "GET {tenant}.maidcentral.com/Home/Sidebar"
         ]
       },
       {
@@ -6178,7 +6163,6 @@
           "GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany",
           "GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany",
           "GET {tenant}.maidcentral.com/Report/RevenueFuture",
-          "GET {tenant}.maidcentral.com/Report/RevenuePast",
           "GET {tenant}.maidcentral.com/Report/SalesPipeline"
         ]
       },
@@ -6213,7 +6197,7 @@
           "GET {tenant}.maidcentral.com/Report/ActivityPipeline",
           "GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany",
           "GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany",
-          "GET {tenant}.maidcentral.com/Report/RevenueFuture",
+          "GET {tenant}.maidcentral.com/Report/RevenuePast",
           "GET {tenant}.maidcentral.com/Report/SalesPipeline"
         ]
       },
@@ -6249,6 +6233,7 @@
           "GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany",
           "GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany",
           "GET {tenant}.maidcentral.com/Report/RevenueFuture",
+          "GET {tenant}.maidcentral.com/Report/RevenuePast",
           "GET {tenant}.maidcentral.com/Report/SalesPipeline"
         ]
       },
@@ -6317,6 +6302,8 @@
         ],
         "requests": [
           "GET {tenant}.maidcentral.com/Report/ActivityPipeline",
+          "GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany",
+          "GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany",
           "GET {tenant}.maidcentral.com/Report/RevenueFuture",
           "GET {tenant}.maidcentral.com/Report/RevenuePast",
           "GET {tenant}.maidcentral.com/Report/SalesPipeline"
@@ -6599,7 +6586,7 @@
         "template": "/Compliance#sidebar_tab_employees",
         "heading": null,
         "statuses": [],
-        "rendering": "server-rendered",
+        "rendering": "server-rendered + XHR",
         "signals": {
           "antiForgeryField": false,
           "webFormsViewState": false,
@@ -6624,7 +6611,9 @@
             ]
           }
         ],
-        "requests": []
+        "requests": [
+          "GET {tenant}.maidcentral.com/Compliance/CreateOrUpdateBreak/"
+        ]
       },
       {
         "template": "/Report/RevenueProductionPlanning#sidebar_tab_customer",
@@ -6743,14 +6732,13 @@
         },
         "forms": [],
         "requests": [
-          "GET {tenant}.maidcentral.com/HomeInformation/ImagesPartial",
-          "POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs (blocked: write)",
+          "POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs",
           "GET {tenant}.maidcentral.com/rates/GetRatesByServiceSetInformationId"
         ]
       },
       {
         "template": "/Portal/Feedback?j=*",
-        "heading": null,
+        "heading": "How'd We Do?",
         "statuses": [
           200
         ],
@@ -7177,6 +7165,37 @@
         "write": true
       },
       {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Company/GetUsers/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Company/Settings#tb-integrations"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "settings"
+        ],
+        "write": false
+      },
+      {
         "method": "POST",
         "endpoint": "{tenant}.maidcentral.com/Company/ScheduleExceptionCalendar",
         "kind": "xhr",
@@ -7318,7 +7337,8 @@
           "html"
         ],
         "pages": [
-          "/Compliance"
+          "/Compliance",
+          "/Compliance#sidebar_tab_employees"
         ],
         "query": {
           "_": [
@@ -7343,7 +7363,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 3,
         "capabilities": [],
         "write": false
       },
@@ -7500,11 +7520,6 @@
             "action": "/Customer/CreateAccount",
             "fields": [
               "CustomerInformationId:hidden",
-              "Email:hidden",
-              "UserId:hidden",
-              "btnDeleteAccount:submit",
-              "btnResetAccount:submit",
-              "btnLockAccount:submit",
               "Email:text"
             ]
           }
@@ -7512,9 +7527,41 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 2,
+        "count": 1,
         "capabilities": [
           "clients"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Customer/CustomerNotes/:id",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Customer/Details/:id?cid=:id#tab_notes"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "notes-messages"
         ],
         "write": false
       },
@@ -7546,7 +7593,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients"
         ],
@@ -7625,6 +7672,7 @@
         "pages": [
           "/",
           "/#sidebar_tab_customer",
+          "/Estimate/Details/:id",
           "/Home"
         ],
         "query": {
@@ -7656,7 +7704,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 9,
+        "count": 6,
         "capabilities": [
           "clients"
         ],
@@ -7700,7 +7748,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients"
         ],
@@ -7731,7 +7779,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients"
         ],
@@ -7796,7 +7844,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients"
         ],
@@ -7808,8 +7856,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
         "pages": [
           "/Customer/Details/:id?cid=:id"
         ],
@@ -7819,16 +7871,33 @@
           "start": "string",
           "end": "string"
         },
+        "responseShape": [
+          {
+            "url": "null",
+            "late": "boolean",
+            "outOfRotation": "boolean",
+            "description": "null",
+            "id": "string",
+            "title": "string",
+            "date": "string",
+            "start": "string",
+            "end": "string",
+            "color": "string",
+            "textColor": "null",
+            "allDay": "boolean",
+            "editable": "boolean"
+          }
+        ],
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 26,
         "capabilities": [
           "clients",
           "jobs"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -7858,7 +7927,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients",
           "billing"
@@ -7949,7 +8018,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "clients",
           "billing"
@@ -8099,9 +8168,44 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 12,
+        "count": 13,
         "capabilities": [
           "scheduling",
+          "employees"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/ContactTicketsPartial",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Details/:id#tab_contact_tickets"
+        ],
+        "query": {
+          "id": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "clients",
           "employees"
         ],
         "write": false
@@ -8225,10 +8329,14 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
         "pages": [
-          "/Employee/Details/:id"
+          "/Employee/Details/:id#tab_emp_schedule"
         ],
         "query": {},
         "requestShape": {
@@ -8236,16 +8344,33 @@
           "start": "string",
           "end": "string"
         },
+        "responseShape": [
+          {
+            "url": "null",
+            "late": "boolean",
+            "outOfRotation": "boolean",
+            "description": "null",
+            "id": "string",
+            "title": "string",
+            "date": "null",
+            "start": "string",
+            "end": "string",
+            "color": "string",
+            "textColor": "null",
+            "allDay": "boolean",
+            "editable": "boolean"
+          }
+        ],
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 2,
         "capabilities": [
           "scheduling",
           "employees"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -8463,6 +8588,41 @@
         "write": false
       },
       {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Employee/EmployeeScheduleRequestsModal",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Employee/Profile"
+        ],
+        "query": {
+          "id": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "scheduling",
+          "employees"
+        ],
+        "write": false
+      },
+      {
         "method": "POST",
         "endpoint": "{tenant}.maidcentral.com/Employee/GetAttendance",
         "kind": "xhr",
@@ -8505,7 +8665,7 @@
         "blocked": null,
         "readPost": true,
         "duringLogin": false,
-        "count": 6,
+        "count": 7,
         "capabilities": [
           "employees"
         ],
@@ -8524,8 +8684,7 @@
           "html"
         ],
         "pages": [
-          "/Employee/Time#breaks-tab",
-          "/Employee/Time#requests-tab"
+          "/Employee/Time#breaks-tab"
         ],
         "query": {
           "_": [
@@ -8602,7 +8761,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "employees"
         ],
@@ -8707,6 +8866,31 @@
         "write": false
       },
       {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Employee/PtoHistoryModal",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Employee/Profile"
+        ],
+        "query": {},
+        "requestShape": {
+          "id": "string"
+        },
+        "forms": [],
+        "blocked": "write",
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "employees"
+        ],
+        "write": true
+      },
+      {
         "method": "GET",
         "endpoint": "{tenant}.maidcentral.com/Employee/ScheduleRequests",
         "kind": "xhr",
@@ -8761,6 +8945,7 @@
           "html"
         ],
         "pages": [
+          "/Employee/Details/:id#tab_scorecard_employee",
           "/Employee/Profile#tab_scorecards"
         ],
         "query": {
@@ -8779,7 +8964,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 1,
+        "count": 2,
         "capabilities": [
           "employees",
           "billing"
@@ -8842,8 +9027,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/Employee/Details/:id",
           "/Employee/Profile"
@@ -8852,16 +9041,17 @@
         "requestShape": {
           "id": "string"
         },
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 31,
         "capabilities": [
           "employees",
           "reports"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -9021,8 +9211,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/Estimate/Details/:id"
         ],
@@ -9030,15 +9224,16 @@
         "requestShape": {
           "id": "number"
         },
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
-        "count": 93,
+        "count": 64,
         "capabilities": [
           "leads-quotes"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -9064,7 +9259,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 100,
+        "count": 108,
         "capabilities": [
           "leads-quotes"
         ],
@@ -9416,7 +9611,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 4,
+        "count": 12,
         "capabilities": [
           "leads-quotes"
         ],
@@ -9428,8 +9623,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/Estimate/Details/:id"
         ],
@@ -9437,15 +9636,16 @@
         "requestShape": {
           "id": "number"
         },
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
-        "count": 100,
+        "count": 64,
         "capabilities": [
           "leads-quotes"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "POST",
@@ -9453,8 +9653,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/Estimate/Details/:id"
         ],
@@ -9462,16 +9666,17 @@
         "requestShape": {
           "id": "number"
         },
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
-        "count": 100,
+        "count": 64,
         "capabilities": [
           "leads-quotes",
           "notes-messages"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -9580,7 +9785,7 @@
         "blocked": "write",
         "readPost": false,
         "duringLogin": false,
-        "count": 8,
+        "count": 16,
         "capabilities": [
           "leads-quotes"
         ],
@@ -9676,7 +9881,8 @@
           "/Job/Monthly",
           "/Job/Monthly#sidebar_tab_customer",
           "/Job/Monthly#sidebar_tab_employees",
-          "/Job/Schedule"
+          "/Job/Schedule",
+          "/Job/Schedule#mdlPrintJobs"
         ],
         "query": {},
         "requestShape": {
@@ -9686,7 +9892,7 @@
         "blocked": "write",
         "readPost": false,
         "duringLogin": false,
-        "count": 6,
+        "count": 7,
         "capabilities": [],
         "write": true
       },
@@ -9737,8 +9943,8 @@
           "html"
         ],
         "pages": [
-          "/Employee/Time#events-tab",
-          "/Employee/Time#monitor-tab"
+          "/Employee/Time#breaks-tab",
+          "/Employee/Time#events-tab"
         ],
         "query": {},
         "requestShape": {
@@ -10325,7 +10531,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 374,
+        "count": 390,
         "capabilities": [
           "clients"
         ],
@@ -10452,9 +10658,8 @@
           "html"
         ],
         "pages": [
-          "/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service",
-          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_images_home",
-          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service"
+          "/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_images_home",
+          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_images_home"
         ],
         "query": {
           "id": [
@@ -10521,6 +10726,7 @@
         "pages": [
           "/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_scorecard_home",
           "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_scorecard_home",
+          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service",
           "/Job/Worksheet/:id#tab_scorecards"
         ],
         "query": {
@@ -10614,11 +10820,16 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
         "pages": [
+          "/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_schedule",
           "/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service",
-          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service"
+          "/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_schedule"
         ],
         "query": {},
         "requestShape": {
@@ -10626,15 +10837,32 @@
           "start": "string",
           "end": "string"
         },
+        "responseShape": [
+          {
+            "url": "null",
+            "late": "boolean",
+            "outOfRotation": "boolean",
+            "description": "null",
+            "id": "string",
+            "title": "null",
+            "date": "string",
+            "start": "string",
+            "end": "string",
+            "color": "string",
+            "textColor": "null",
+            "allDay": "boolean",
+            "editable": "boolean"
+          }
+        ],
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 4,
         "capabilities": [
           "jobs"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -10988,7 +11216,8 @@
           "html"
         ],
         "pages": [
-          "/Job/Schedule"
+          "/Job/Schedule",
+          "/Job/Schedule?Date=:date"
         ],
         "query": {},
         "requestShape": {
@@ -10999,7 +11228,7 @@
         "blocked": null,
         "readPost": true,
         "duringLogin": false,
-        "count": 5,
+        "count": 6,
         "capabilities": [
           "jobs"
         ],
@@ -11204,7 +11433,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 5,
+        "count": 6,
         "capabilities": [
           "jobs",
           "scheduling"
@@ -11224,7 +11453,8 @@
           "json"
         ],
         "pages": [
-          "/Job/Schedule"
+          "/Job/Schedule",
+          "/Job/Schedule?Date=:date"
         ],
         "query": {},
         "requestShape": {
@@ -11259,7 +11489,7 @@
         "blocked": null,
         "readPost": true,
         "duringLogin": false,
-        "count": 5,
+        "count": 7,
         "capabilities": [
           "jobs",
           "scheduling",
@@ -11365,7 +11595,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 9,
+        "count": 10,
         "capabilities": [
           "jobs",
           "teams"
@@ -11602,6 +11832,41 @@
       },
       {
         "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Notification/ContactInfoNotification/:id",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Customer/Details/:id?cid=:id#tab_contacts"
+        ],
+        "query": {
+          "onlyReturnContactList": [
+            "<string>"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "notes-messages"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
         "endpoint": "{tenant}.maidcentral.com/Notification/DailyNotifications",
         "kind": "page",
         "auth": [],
@@ -11764,6 +12029,7 @@
           "/Invoicing?JobDate=:date",
           "/Job/Monthly",
           "/Job/Schedule",
+          "/Job/Schedule#mdlPrintJobs",
           "/Job/TeamMonitor",
           "/Job/TeamMonitor#sidebar_tab_customer",
           "/Job/TeamMonitor#sidebar_tab_employees",
@@ -11785,7 +12051,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 91,
+        "count": 92,
         "capabilities": [
           "reports"
         ],
@@ -11821,6 +12087,38 @@
         "duringLogin": false,
         "count": 1,
         "capabilities": [],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/Quote/CustomerQuotes/:id",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/Customer/Details/:id?cid=:id#tab_quotes"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 2,
+        "capabilities": [
+          "clients",
+          "leads-quotes"
+        ],
         "write": false
       },
       {
@@ -11873,7 +12171,7 @@
         "blocked": null,
         "readPost": true,
         "duringLogin": false,
-        "count": 56,
+        "count": 64,
         "capabilities": [
           "leads-quotes",
           "reports"
@@ -12910,11 +13208,11 @@
           "json"
         ],
         "pages": [
-          "/Report/Kiosk",
           "/Report/Kiosk#revenue_report_1",
           "/Report/Kiosk#revenue_report_2",
           "/Report/Kiosk#revenue_report_3",
           "/Report/Kiosk#revenue_report_4",
+          "/Report/Kiosk#revenue_report_5",
           "/Report/Kiosk#sidebar_tab_customer",
           "/Report/Kiosk#sidebar_tab_employees"
         ],
@@ -12970,6 +13268,7 @@
           "/Report/Kiosk#revenue_report_2",
           "/Report/Kiosk#revenue_report_3",
           "/Report/Kiosk#revenue_report_4",
+          "/Report/Kiosk#revenue_report_5",
           "/Report/Kiosk#sidebar_tab_customer",
           "/Report/Kiosk#sidebar_tab_employees"
         ],
@@ -13098,6 +13397,7 @@
         "pages": [
           "/Employee/Time#monitor-tab",
           "/Employee/Time#requests-tab",
+          "/Employee/Time#timeclocks-tab",
           "/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date"
         ],
         "query": {
@@ -13599,22 +13899,27 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
-          "/Report/Rates"
+          "/Report/Rates#tb-summary"
         ],
         "query": {},
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 1,
         "capabilities": [
           "pricing",
           "reports"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -13715,7 +14020,6 @@
         "pages": [
           "/Report/Kiosk",
           "/Report/Kiosk#revenue_report_1",
-          "/Report/Kiosk#revenue_report_2",
           "/Report/Kiosk#revenue_report_3",
           "/Report/Kiosk#revenue_report_4",
           "/Report/Kiosk#revenue_report_5",
@@ -13752,7 +14056,8 @@
         ],
         "pages": [
           "/Report/Kiosk",
-          "/Report/Kiosk#revenue_report_1",
+          "/Report/Kiosk#revenue_report_2",
+          "/Report/Kiosk#revenue_report_3",
           "/Report/Kiosk#revenue_report_4",
           "/Report/Kiosk#revenue_report_5",
           "/Report/Kiosk#sidebar_tab_customer",
@@ -13768,7 +14073,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 13,
+        "count": 15,
         "capabilities": [
           "reports"
         ],
@@ -14533,7 +14838,7 @@
         "blocked": null,
         "readPost": true,
         "duringLogin": false,
-        "count": 19,
+        "count": 18,
         "capabilities": [
           "scheduling",
           "employees"
@@ -14662,7 +14967,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 9,
+        "count": 10,
         "capabilities": [
           "scheduling"
         ],
@@ -14910,6 +15215,63 @@
       },
       {
         "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/ServiceCompanyGroup/CreateOrUpdatePolicy/",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
+        "pages": [
+          "/ServiceCompanyGroup/Policies"
+        ],
+        "query": {
+          "id": [
+            ":id"
+          ],
+          "_": [
+            ":id"
+          ]
+        },
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "post",
+            "action": "/ServiceCompanyGroup/CreateOrUpdatePolicy",
+            "fields": [
+              "ServiceCompanyGroupPolicyId:hidden",
+              "ServiceCompanyGroupId:hidden",
+              "Name:text",
+              "PolicyTypeId:select-one",
+              "MinRequestIncrement:number",
+              "HoursInDay:text",
+              "PtoWaitingPeriod:number",
+              "PtoRequireUse:checkbox",
+              "PtoRequireUse:hidden",
+              "PtoMaxCarry:number",
+              "PtoCap:number",
+              "SickTimeSeparate:checkbox",
+              "SickTimeSeparate:hidden",
+              "SickWaitingPeriod:number",
+              "SickMaxCarry:number",
+              "SickCap:number"
+            ]
+          }
+        ],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "settings"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
         "endpoint": "{tenant}.maidcentral.com/ServiceCompanyGroup/Policies",
         "kind": "page",
         "auth": [],
@@ -14941,8 +15303,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/ServiceCompanyGroup/Authorization"
         ],
@@ -14950,15 +15316,16 @@
         "requestShape": {
           "id": "string"
         },
+        "responseShape": "html",
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
-        "count": 12,
+        "count": 1,
         "capabilities": [
           "settings"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -15039,7 +15406,7 @@
           "html"
         ],
         "pages": [
-          "/Settings#tab_rate-mods-all"
+          "/Settings#tab_iframe"
         ],
         "query": {
           "partial": [
@@ -15151,7 +15518,7 @@
           "html"
         ],
         "pages": [
-          "/Settings#tab_general"
+          "/Settings#tab_discount-all"
         ],
         "query": {
           "_": [
@@ -15201,6 +15568,29 @@
           "settings"
         ],
         "write": false
+      },
+      {
+        "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Settings/CreateOrUpdateContactSubTypeModal",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [],
+        "responseKinds": [],
+        "pages": [
+          "/Settings/Partner#tab_invoices"
+        ],
+        "query": {},
+        "forms": [],
+        "blocked": "write",
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "clients",
+          "settings"
+        ],
+        "write": true
       },
       {
         "method": "POST",
@@ -15301,7 +15691,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 3,
+        "count": 2,
         "capabilities": [
           "settings"
         ],
@@ -15320,7 +15710,7 @@
           "html"
         ],
         "pages": [
-          "/Settings#tab_rate-mods-all"
+          "/Settings#tab_general"
         ],
         "query": {},
         "requestShape": {
@@ -15437,9 +15827,7 @@
         ],
         "pages": [
           "/Settings/Partner#tab_billing",
-          "/Settings/Partner#tab_holidays",
-          "/Settings/Partner#tab_invoices",
-          "/Settings/Partner#tab_ui"
+          "/Settings/Partner#tab_invoices"
         ],
         "query": {
           "_": [
@@ -15451,7 +15839,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 5,
+        "count": 3,
         "capabilities": [
           "billing",
           "settings"
@@ -15503,8 +15891,7 @@
           "html"
         ],
         "pages": [
-          "/Settings/Partner#tab_holidays",
-          "/Settings/Partner#tab_invoices"
+          "/Settings/Partner#tab_holidays"
         ],
         "query": {
           "_": [
@@ -15528,27 +15915,32 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
         "pages": [
-          "/Settings/Partner#tab_holidays",
-          "/Settings/Partner#tab_invoices"
+          "/Settings/Partner#tab_billing",
+          "/Settings/Partner#tab_holidays"
         ],
         "query": {},
         "requestShape": {
           "start": "number",
           "end": "number"
         },
+        "responseShape": [],
         "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
         "count": 2,
         "capabilities": [
           "scheduling",
           "settings"
         ],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -15563,7 +15955,6 @@
           "html"
         ],
         "pages": [
-          "/Settings/Partner#tab_billing",
           "/Settings/Partner#tab_invoices"
         ],
         "query": {
@@ -15576,7 +15967,7 @@
         "blocked": null,
         "readPost": false,
         "duringLogin": false,
-        "count": 3,
+        "count": 2,
         "capabilities": [
           "billing",
           "settings"
@@ -15596,7 +15987,6 @@
           "html"
         ],
         "pages": [
-          "/Settings/Partner#tab_billing",
           "/Settings/Partner#tab_ui"
         ],
         "query": {
@@ -15863,6 +16253,37 @@
       },
       {
         "method": "POST",
+        "endpoint": "{tenant}.maidcentral.com/Template/GetTemplatesByType",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "json"
+        ],
+        "pages": [
+          "/Estimate/Details/:id"
+        ],
+        "query": {},
+        "requestShape": {
+          "dataType": "string",
+          "noteTypeId": "string"
+        },
+        "responseShape": [],
+        "forms": [],
+        "blocked": null,
+        "readPost": true,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "settings"
+        ],
+        "write": false
+      },
+      {
+        "method": "POST",
         "endpoint": "{tenant}.maidcentral.com/Time/GetAllTimeChangeRequestsForEmployee",
         "kind": "xhr",
         "auth": [],
@@ -15901,8 +16322,12 @@
         "kind": "xhr",
         "auth": [],
         "tokenHeaders": [],
-        "statuses": [],
-        "responseKinds": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "html"
+        ],
         "pages": [
           "/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date"
         ],
@@ -15911,13 +16336,20 @@
           "id": "string",
           "changeRequestType": "string"
         },
-        "forms": [],
-        "blocked": "write",
-        "readPost": false,
+        "responseShape": "html",
+        "forms": [
+          {
+            "method": "get",
+            "action": "",
+            "fields": []
+          }
+        ],
+        "blocked": null,
+        "readPost": true,
         "duringLogin": false,
-        "count": 12,
+        "count": 10,
         "capabilities": [],
-        "write": true
+        "write": false
       },
       {
         "method": "GET",
@@ -15944,6 +16376,94 @@
         "capabilities": [
           "employees"
         ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/view-resources/Views/Note/_NoteModal.js",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "text"
+        ],
+        "pages": [
+          "/Estimate/Details/:id"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 4,
+        "capabilities": [
+          "notes-messages"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/view-resources/Views/ServiceCompanyGroup/_AccessHistoryModal.js",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "text"
+        ],
+        "pages": [
+          "/ServiceCompanyGroup/Authorization"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [
+          "settings"
+        ],
+        "write": false
+      },
+      {
+        "method": "GET",
+        "endpoint": "{tenant}.maidcentral.com/view-resources/Views/Time/_ViewTimeRequestModal.js",
+        "kind": "xhr",
+        "auth": [],
+        "tokenHeaders": [],
+        "statuses": [
+          200
+        ],
+        "responseKinds": [
+          "text"
+        ],
+        "pages": [
+          "/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date"
+        ],
+        "query": {
+          "_": [
+            ":id"
+          ]
+        },
+        "forms": [],
+        "blocked": null,
+        "readPost": false,
+        "duringLogin": false,
+        "count": 1,
+        "capabilities": [],
         "write": false
       },
       {

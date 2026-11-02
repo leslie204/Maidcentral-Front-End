@@ -1,6 +1,6 @@
 # MaidCentral API catalog
 
-Generated 2026-11-02T17:08:29.451Z by `npm run catalog`. Do not edit by hand.
+Generated 2026-11-02T18:09:48.800Z by `npm run catalog`. Do not edit by hand.
 
 Shapes only: every value is replaced by its type, ids by `:id`, the company subdomain by `{tenant}`.
 No names, emails, phones, addresses, notes, pay rates or search text.
@@ -10,18 +10,18 @@ No names, emails, phones, addresses, notes, pay rates or search text.
 | Capability | Where | Official API (read / write) | Portal (read / write) |
 | --- | --- | --- | --- |
 | Sign-in and session | **official API** | 0 / 1 | 0 / 0 |
-| Clients and homes | **portal only** | 0 / 0 | 45 / 1 |
-| Leads and quotes | **both** | 2 / 4 | 17 / 4 |
-| Jobs | **portal only** | 0 / 0 | 22 / 3 |
-| Schedule and dispatch | **both** | 1 / 0 | 22 / 2 |
+| Clients and homes | **portal only** | 0 / 0 | 50 / 1 |
+| Leads and quotes | **both** | 2 / 4 | 21 / 1 |
+| Jobs | **portal only** | 0 / 0 | 24 / 1 |
+| Schedule and dispatch | **both** | 1 / 0 | 25 / 0 |
 | Teams | **both** | 1 / 0 | 10 / 0 |
-| Employees | **portal only** | 0 / 0 | 36 / 2 |
+| Employees | **portal only** | 0 / 0 | 40 / 1 |
 | Payroll and time | **not seen** | 0 / 0 | 0 / 0 |
 | Invoices and payments | **portal only** | 0 / 0 | 11 / 0 |
-| Pricing and services | **both** | 5 / 1 | 9 / 1 |
-| Notes and messages | **both** | 3 / 1 | 10 / 3 |
-| Reports and dashboard | **portal only** | 0 / 0 | 73 / 4 |
-| Settings and lookups | **both** | 4 / 0 | 33 / 4 |
+| Pricing and services | **both** | 5 / 1 | 10 / 0 |
+| Notes and messages | **both** | 3 / 1 | 14 / 2 |
+| Reports and dashboard | **portal only** | 0 / 0 | 75 / 2 |
+| Settings and lookups | **both** | 4 / 0 | 39 / 3 |
 
 ## 1. Official API
 
@@ -148,7 +148,6 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Rendering: server-rendered + XHR · knockout, jquery 1.11.2, kendo · 20 table(s)
 - `GET {tenant}.maidcentral.com/Employee/EmployeeMonitorData`
 - `GET {tenant}.maidcentral.com/Employee/EmployeeMonitorTeams`
-- `POST {tenant}.maidcentral.com/Event/Events`
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `POST {tenant}.maidcentral.com/report/getTimeChangeRequests`
 - `GET maps.googleapis.com/maps/api/mapsjs/gen_204`
@@ -259,7 +258,6 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `GET {tenant}.maidcentral.com/Report/ActivityPipeline`
-- `GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/RevenueFuture`
 - `GET {tenant}.maidcentral.com/Report/RevenuePast`
@@ -527,8 +525,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
-- `GET {tenant}.maidcentral.com/Settings/AllDiscounts`
 - `GET {tenant}.maidcentral.com/Settings/General`
+- `POST {tenant}.maidcentral.com/Settings/GetIFrameCode`
 - Form `GET (same page)`: `QuotingDefaultInternalServiceSetTypeGroupId:select-one`, `QuotingDefaultExternalServiceSetTypeGroupId:select-one`, `DisplayZipCodeCheck:checkbox`, `DisplayManualAddressInputs:checkbox`, `PriceRoundingDecimalPlace:hidden`, `PriceRoundingDigit:hidden`
 
 #### `/Zone`
@@ -540,7 +538,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
-- `POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory (blocked: write)`
+- `POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory`
+- `GET {tenant}.maidcentral.com/view-resources/Views/ServiceCompanyGroup/_AccessHistoryModal.js`
 - Form `POST /ServiceCompanyGroup/UpdateAuthorization`: `Users[:id].UserId:hidden`, `Users[:id].Email:hidden`, `Users[:id].EmployeeName:hidden`, `Users[:id].HasAccess:checkbox`
 
 #### `/Settings/Partner#tab_billing`
@@ -548,15 +547,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Rendering: server-rendered + XHR · jquery 1.11.2
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `GET {tenant}.maidcentral.com/Settings/PartnerBilling`
-- `GET {tenant}.maidcentral.com/Settings/PartnerInvoices`
-- `GET {tenant}.maidcentral.com/Settings/PartnerUi`
+- `POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar`
 
 #### `/Settings/Partner#tab_invoices`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 4 table(s)
+- `POST {tenant}.maidcentral.com/Settings/CreateOrUpdateContactSubTypeModal (blocked: write)`
 - `GET {tenant}.maidcentral.com/Settings/PartnerBilling`
-- `GET {tenant}.maidcentral.com/Settings/PartnerHolidays`
-- `POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar (blocked: write)`
 - `GET {tenant}.maidcentral.com/Settings/PartnerInvoices`
 - Form `POST /Settings/PartnerUiUpdate`: `file:file`, `leftLoginFile:file`, `PrimaryColor:text`, `ResourceLinkUrl:text`, `GoogleAnalyticsKey:text`, `GoogleAnalyticsDomains:text`
 
@@ -580,6 +577,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
+- `GET {tenant}.maidcentral.com/ServiceCompanyGroup/CreateOrUpdatePolicy/`
 
 #### `/Employee/Profile`
 
@@ -587,8 +585,10 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - `GET {tenant}.maidcentral.com/Employee/CalendarDayAvailability`
 - `GET {tenant}.maidcentral.com/Employee/CreateOrUpdateScheduleRequest`
 - `GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequests`
+- `GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequestsModal`
 - `POST {tenant}.maidcentral.com/Employee/GetAttendance`
-- `POST {tenant}.maidcentral.com/Employee/Stats (blocked: write)`
+- `POST {tenant}.maidcentral.com/Employee/PtoHistoryModal (blocked: write)`
+- `POST {tenant}.maidcentral.com/Employee/Stats`
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 
 #### `/Error/NotFound?aspxerrorpath=*`
@@ -606,7 +606,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `/Customer/Details/:id?cid=:id`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 4 table(s)
-- `POST {tenant}.maidcentral.com/Customer/Jobs (blocked: write)`
+- `POST {tenant}.maidcentral.com/Customer/Jobs`
 - `GET {tenant}.maidcentral.com/Customer/Stats/:id`
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `GET {tenant}.maidcentral.com/HomeInformation/Homes`
@@ -615,12 +615,15 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `/Estimate/Details/:id`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2
-- `POST {tenant}.maidcentral.com/Estimate/CampaignHistory (blocked: write)`
-- `POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups (blocked: write)`
-- `POST {tenant}.maidcentral.com/Estimate/QuoteNotes (blocked: write)`
+- `GET {tenant}.maidcentral.com/Customer/EditTicket/`
+- `POST {tenant}.maidcentral.com/Estimate/CampaignHistory`
+- `POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups`
+- `POST {tenant}.maidcentral.com/Estimate/QuoteNotes`
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `POST {tenant}.maidcentral.com/Note/GetNoteModal`
 - `POST {tenant}.maidcentral.com/Quote/GetStatusSteps`
+- `POST {tenant}.maidcentral.com/Template/GetTemplatesByType`
+- `GET {tenant}.maidcentral.com/view-resources/Views/Note/_NoteModal.js`
 
 #### `/Customer/CustomerServiceRequests`
 
@@ -648,10 +651,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `/Employee/Details/:id`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · anti-forgery field · 5 table(s)
-- `POST {tenant}.maidcentral.com/Employee/DefaultSchedule (blocked: write)`
 - `GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequests`
 - `GET {tenant}.maidcentral.com/Employee/GetEmployeeHistory/:id`
-- `POST {tenant}.maidcentral.com/Employee/Stats (blocked: write)`
+- `POST {tenant}.maidcentral.com/Employee/Stats`
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `GET maps.googleapis.com/maps/api/mapsjs/gen_204`
 - Form `POST /Employee/Details/:id`: `__RequestVerificationToken:hidden`, `EmployeeInformationID:hidden`, `Prefix:text`, `FirstName:text`, `MiddleName:text`, `LastName:text`, `HireDate:text`, `TerminationDate:text`, `DriversLicenseNumber:text`, `DriversLicenseNumberState:text`, `CustomEmployeeId:text`, `Bio:textarea`, `EmergencyContactName:text`, `EmergencyContactPhone:text`, `InternalMemo:textarea`, `mycustomfield:text`, `MailingAddress:id:text`, `MailingCountry:hidden`, `MailingCity:text`, `MailingRegion:text`, `MailingPostalCode:text`, `myothercustomfield:text`, `PhysicalAddress:id:text`, `PhysicalCountry:hidden`, `PhysicalCity:text`, `PhysicalRegion:text`, `PhysicalPostalCode:text`, `FederalTaxCredits:text`, `StateTaxCredits:text`, `MaritalStatusId:select-one`, `Withholdings:text`, `DateOfBirth:text`, `ServiceCompanyGroupPolicyId:select-one`, `ServiceCompanyIncentivePayModelId:select-one`, `HourlyRate:text`, `MaxHourlyRate:text`, `MinimumWageRate:text`, `Salary:text`, `:token:select-one`
@@ -781,8 +783,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `/Employee/Time#timeclocks-tab`
 
-- Rendering: server-rendered · knockout, jquery 1.11.2, kendo · 20 table(s)
-- (no XHR/fetch calls)
+- Rendering: server-rendered + XHR · knockout, jquery 1.11.2, kendo · 20 table(s)
+- `POST {tenant}.maidcentral.com/report/getTimeChangeRequests`
 - Form `POST /Time/ExportTimeClockData`: `StartDate:text`, `EndDate:text`, `ExportTypes:checkbox`
 
 #### `/Employee/Time#events-tab`
@@ -796,20 +798,19 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · knockout, jquery 1.11.2, kendo · 20 table(s)
 - `GET {tenant}.maidcentral.com/Employee/GetEmployeeBreaks`
+- `POST {tenant}.maidcentral.com/Event/Events`
 - Form `POST /Time/ExportTimeClockData`: `StartDate:text`, `EndDate:text`, `ExportTypes:checkbox`
 
 #### `/Employee/Time#requests-tab`
 
 - Rendering: server-rendered + XHR · knockout, jquery 1.11.2, kendo · 20 table(s)
-- `GET {tenant}.maidcentral.com/Employee/GetEmployeeBreaks`
 - `POST {tenant}.maidcentral.com/report/getTimeChangeRequests`
 - Form `POST /Time/ExportTimeClockData`: `StartDate:text`, `EndDate:text`, `ExportTypes:checkbox`
 
 #### `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 6 table(s)
-- `GET {tenant}.maidcentral.com/HomeInformation/ImagesPartial`
-- `POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs (blocked: write)`
+- `GET {tenant}.maidcentral.com/HomeInformation/ScorecardPartial`
 - `GET {tenant}.maidcentral.com/rates/GetRatesByServiceSetInformationId`
 
 #### `/Job/Worksheet/:id`
@@ -977,22 +978,22 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `/Job/Schedule#mdlPrintJobs`
 
 - Rendering: server-rendered + XHR · knockout, jquery 1.11.2, kendo · anti-forgery field · 5 table(s)
+- `POST {tenant}.maidcentral.com/Event/CreateOrEditEvent (blocked: write)`
 - `GET {tenant}.maidcentral.com/Job/AdjustTeamSize`
+- `GET {tenant}.maidcentral.com/ProviderStatus/Current`
 - Form `POST /ServiceSetInformation/PrintJobWorksheets`: `__RequestVerificationToken:hidden`, `PrintDate:hidden`, `PrintStartTeam:select-one`
 
 #### `/Job/Schedule#sidebar_tab_customer`
 
-- Rendering: server-rendered · knockout, jquery 1.11.2, kendo · anti-forgery field · 6 table(s)
+- Rendering: server-rendered · jquery 1.11.2, kendo · anti-forgery field
 - (no XHR/fetch calls)
 - Form `POST /ServiceSetInformation/PrintJobWorksheets`: `__RequestVerificationToken:hidden`, `PrintDate:hidden`, `PrintStartTeam:select-one`
-- Form `POST /Job/AdjustTeamSize`: `Date:hidden`, `<key>:hidden`, `<key>:text`
 
 #### `/Job/Schedule#sidebar_tab_employees`
 
-- Rendering: server-rendered · knockout, jquery 1.11.2, kendo · anti-forgery field · 6 table(s)
+- Rendering: server-rendered · jquery 1.11.2, kendo · anti-forgery field
 - (no XHR/fetch calls)
 - Form `POST /ServiceSetInformation/PrintJobWorksheets`: `__RequestVerificationToken:hidden`, `PrintDate:hidden`, `PrintStartTeam:select-one`
-- Form `POST /Job/AdjustTeamSize`: `Date:hidden`, `<key>:hidden`, `<key>:text`
 
 #### `/Job/TeamMonitor#sidebar_tab_customer`
 
@@ -1164,7 +1165,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
 - `POST {tenant}.maidcentral.com/report/getTimeChangeRequests`
-- `POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal (blocked: write)`
+- `POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal`
+- `GET {tenant}.maidcentral.com/view-resources/Views/Time/_ViewTimeRequestModal.js`
 - Form `GET (same page)`: `MinDateFilterId:text`, `MaxDateFilterId:text`, `StatusSelected:radio`, `TypesSelected:checkbox`
 
 #### `/Report/CreditCardTransactions?MaxDateTimeFilter=:date&MinDateTimeFilter=:date`
@@ -1208,7 +1210,6 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · jquery 1.11.2
 - `GET {tenant}.maidcentral.com/Home/Sidebar`
-- `POST {tenant}.maidcentral.com/Report/RateReport (blocked: write)`
 - Form `POST /Report/Rates`: `RateChangeType:hidden`, `VarianceThreshold:text`, `HourlyRate:text`, `RateChangeAllowedHoursType:select-one`, `RateIncreaseAmount:text`, `JobFilterStartDate:text`, `MonthsSinceRateChange:text`, `RateEffectiveDate:text`, `NormalizeNewAllowedHours:checkbox`, `NormalizeNewAllowedHours:hidden`, `UpdatePercentRecurringRateMods:checkbox`, `UpdatePercentRecurringRateMods:hidden`, `IncludeFirstTimeInJobs:checkbox`, `IncludeFirstTimeInJobs:hidden`, `IncludeRedoJobs:checkbox`, `IncludeRedoJobs:hidden`, `IncludeTraineeJobs:checkbox`, `IncludeTraineeJobs:hidden`, `IncludeTimeRateModJobs:checkbox`, `IncludeTimeRateModJobs:hidden`, `ServiceSetTypesSelected:checkbox`, `ServiceTypesSelected:checkbox`, `ZoneSelectListSelected:checkbox`, `ScorecardResponseListSelected:checkbox`
 - Form `POST /EmailTemplate/SendRateAdjustmentOrIncreaseEmail`: `RateIncreaseSubject:hidden`, `RateIncreaseBodyHtml:hidden`, `RateAdjustmentSubject:hidden`, `RateAdjustmentBodyHtml:hidden`, `Subject:text`, `BodyHtml:textarea`
 
@@ -1253,7 +1254,6 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - `GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/RevenueFuture`
-- `GET {tenant}.maidcentral.com/Report/RevenuePast`
 - `GET {tenant}.maidcentral.com/Report/SalesPipeline`
 - Form `POST /Report/ActivityPipeline`: `StartDate:text`, `EndDate:text`, `HideUsers:checkbox`, `HideUsers:hidden`
 
@@ -1263,7 +1263,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - `GET {tenant}.maidcentral.com/Report/ActivityPipeline`
 - `GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany`
-- `GET {tenant}.maidcentral.com/Report/RevenueFuture`
+- `GET {tenant}.maidcentral.com/Report/RevenuePast`
 - `GET {tenant}.maidcentral.com/Report/SalesPipeline`
 - Form `POST /Report/ActivityPipeline`: `StartDate:text`, `EndDate:text`, `HideUsers:checkbox`, `HideUsers:hidden`
 
@@ -1274,6 +1274,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - `GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/RevenueFuture`
+- `GET {tenant}.maidcentral.com/Report/RevenuePast`
 - `GET {tenant}.maidcentral.com/Report/SalesPipeline`
 - Form `POST /Report/ActivityPipeline`: `StartDate:text`, `EndDate:text`, `HideUsers:checkbox`, `HideUsers:hidden`
 
@@ -1292,6 +1293,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 4 table(s)
 - `GET {tenant}.maidcentral.com/Report/ActivityPipeline`
+- `GET {tenant}.maidcentral.com/Report/GetSalesActivtyServiceCompany`
+- `GET {tenant}.maidcentral.com/Report/GetSalesServiceCompany`
 - `GET {tenant}.maidcentral.com/Report/RevenueFuture`
 - `GET {tenant}.maidcentral.com/Report/RevenuePast`
 - `GET {tenant}.maidcentral.com/Report/SalesPipeline`
@@ -1365,8 +1368,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `/Compliance#sidebar_tab_employees`
 
-- Rendering: server-rendered · jquery 1.11.2 · 1 table(s)
-- (no XHR/fetch calls)
+- Rendering: server-rendered + XHR · jquery 1.11.2 · 1 table(s)
+- `GET {tenant}.maidcentral.com/Compliance/CreateOrUpdateBreak/`
 - Form `POST /Compliance/CreateOrUpdateBreak`: `ServiceCompanyBreakId:hidden`, `Name:text`, `Length:number`, `BreakTypeId:select-one`, `Description:text`, `IsActive:select-one`
 
 #### `/Report/RevenueProductionPlanning#sidebar_tab_customer`
@@ -1394,11 +1397,10 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service`
 
 - Rendering: server-rendered + XHR · jquery 1.11.2 · 6 table(s)
-- `GET {tenant}.maidcentral.com/HomeInformation/ImagesPartial`
-- `POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs (blocked: write)`
+- `POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs`
 - `GET {tenant}.maidcentral.com/rates/GetRatesByServiceSetInformationId`
 
-#### `/Portal/Feedback?j=*`
+#### `/Portal/Feedback?j=*` — How'd We Do?
 
 - Rendering: server-rendered + XHR · jquery 3.6.0
 - `GET {tenant}.maidcentral.com/Portal/Layout/Footer/:id`
@@ -1509,6 +1511,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
+#### `GET {tenant}.maidcentral.com/Company/GetUsers/` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Capabilities: settings
+- Pages: `/Company/Settings#tb-integrations`
+- Query: `_` (:id)
+
 #### `POST {tenant}.maidcentral.com/Company/ScheduleExceptionCalendar` [xhr] (read via POST)
 
 - Status: 200 · Auth: cookie · Returns: json · Seen 6×
@@ -1567,8 +1576,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Compliance/CreateOrUpdateBreak/` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
-- Pages: `/Compliance`
+- Status: 200 · Auth: cookie · Returns: html · Seen 3×
+- Pages: `/Compliance`, `/Compliance#sidebar_tab_employees`
 - Query: `_` (:id)
 - Returns form `POST /Compliance/CreateOrUpdateBreak`: `ServiceCompanyBreakId:hidden`, `Name:text`, `Length:number`, `BreakTypeId:select-one`, `Description:text`, `IsActive:select-one`
 
@@ -1621,15 +1630,22 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Customer/CreateAccount` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 2×
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: clients
 - Pages: `/Customer/Details/:id?cid=:id#tab_account`
 - Query: `cid` (:id); `_` (:id)
-- Returns form `POST /Customer/CreateAccount`: `CustomerInformationId:hidden`, `Email:hidden`, `UserId:hidden`, `btnDeleteAccount:submit`, `btnResetAccount:submit`, `btnLockAccount:submit`, `Email:text`
+- Returns form `POST /Customer/CreateAccount`: `CustomerInformationId:hidden`, `Email:text`
+
+#### `GET {tenant}.maidcentral.com/Customer/CustomerNotes/:id` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
+- Capabilities: clients, notes-messages
+- Pages: `/Customer/Details/:id?cid=:id#tab_notes`
+- Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Customer/CustomerPreferences` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients
 - Pages: `/Customer/Details/:id?cid=:id#tab_preferences`
 - Query: `id` (:id); `_` (:id)
@@ -1649,15 +1665,15 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Customer/EditTicket/` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 9×
+- Status: 200 · Auth: cookie · Returns: html · Seen 6×
 - Capabilities: clients
-- Pages: `/`, `/#sidebar_tab_customer`, `/Home`
+- Pages: `/`, `/#sidebar_tab_customer`, `/Estimate/Details/:id`, `/Home`
 - Query: `id` (:id); `typeId` (:id); `_` (:id)
 - Returns form `POST /Customer/EditTicket`: `__RequestVerificationToken:hidden`, `Id:hidden`, `TicketTypeId:hidden`, `OpenDate:text`, `CloseNotes:textarea`, `btnCloseTicket:submit`
 
 #### `GET {tenant}.maidcentral.com/Customer/GetAssignPmgForm` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients
 - Pages: `/Customer/Details/:id?cid=:id#tab_account`
 - Query: `id` (:id); `_` (:id)
@@ -1665,7 +1681,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Customer/GetCustomerAgreements/:id` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients
 - Pages: `/Customer/Details/:id?cid=:id#tab_agreements`
 - Query: `_` (:id)
@@ -1679,14 +1695,14 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Customer/GetCustomerPmgs` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients
 - Pages: `/Customer/Details/:id?cid=:id#tab_account`
 - Query: `id` (:id); `_` (:id)
 
-#### `POST {tenant}.maidcentral.com/Customer/Jobs` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Customer/Jobs` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 26×
+- Status: 200 · Auth: cookie · Returns: json · Seen 26×
 - Capabilities: clients, jobs
 - Pages: `/Customer/Details/:id?cid=:id`
 
@@ -1701,9 +1717,32 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
+<details><summary>Response shape</summary>
+
+```json
+[
+  {
+    "url": "null",
+    "late": "boolean",
+    "outOfRotation": "boolean",
+    "description": "null",
+    "id": "string",
+    "title": "string",
+    "date": "string",
+    "start": "string",
+    "end": "string",
+    "color": "string",
+    "textColor": "null",
+    "allDay": "boolean",
+    "editable": "boolean"
+  }
+]
+```
+</details>
+
 #### `GET {tenant}.maidcentral.com/Customer/ScorecardPartial` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients, billing
 - Pages: `/Customer/Details/:id?cid=:id#tab_scorecard_customer`
 - Query: `id` (:id); `_` (:id)
@@ -1723,7 +1762,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/CustomerBilling/CustomerBillings/:id` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: clients, billing
 - Pages: `/Customer/Details/:id?cid=:id#tab_billing`
 - Query: `_` (:id)
@@ -1754,7 +1793,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Employee/CalendarDayAvailability` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 12×
+- Status: 200 · Auth: cookie · Returns: json · Seen 13×
 - Capabilities: scheduling, employees
 - Pages: `/Company/ScheduleExceptions`, `/Company/ScheduleExceptions#sidebar_tab_customer`, `/Employee/Details/:id#tab_emp_attendance`, `/Employee/Profile`
 - Query: `start` (<string>); `end` (<string>); `_` (:id)
@@ -1765,6 +1804,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 []
 ```
 </details>
+
+#### `GET {tenant}.maidcentral.com/Employee/ContactTicketsPartial` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Capabilities: clients, employees
+- Pages: `/Employee/Details/:id#tab_contact_tickets`
+- Query: `id` (:id); `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Employee/Create` [page]
 
@@ -1786,11 +1832,11 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: employees, reports
 - Pages: `/Employee/Dashboard`
 
-#### `POST {tenant}.maidcentral.com/Employee/DefaultSchedule` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Employee/DefaultSchedule` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 2×
+- Status: 200 · Auth: cookie · Returns: json · Seen 2×
 - Capabilities: scheduling, employees
-- Pages: `/Employee/Details/:id`
+- Pages: `/Employee/Details/:id#tab_emp_schedule`
 
 <details><summary>Request body</summary>
 
@@ -1800,6 +1846,29 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
   "start": "string",
   "end": "string"
 }
+```
+</details>
+
+<details><summary>Response shape</summary>
+
+```json
+[
+  {
+    "url": "null",
+    "late": "boolean",
+    "outOfRotation": "boolean",
+    "description": "null",
+    "id": "string",
+    "title": "string",
+    "date": "null",
+    "start": "string",
+    "end": "string",
+    "color": "string",
+    "textColor": "null",
+    "allDay": "boolean",
+    "editable": "boolean"
+  }
+]
 ```
 </details>
 
@@ -1898,9 +1967,16 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Pages: `/Employee/Details/:id`, `/Employee/Profile`
 - Query: `id` (:id); `_` (:id)
 
+#### `GET {tenant}.maidcentral.com/Employee/EmployeeScheduleRequestsModal` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Capabilities: scheduling, employees
+- Pages: `/Employee/Profile`
+- Query: `id` (:id); `_` (:id)
+
 #### `POST {tenant}.maidcentral.com/Employee/GetAttendance` [xhr] (read via POST)
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 6×
+- Status: 200 · Auth: cookie · Returns: json · Seen 7×
 - Capabilities: employees
 - Pages: `/Employee/Details/:id#tab_emp_attendance`, `/Employee/Profile`
 
@@ -1942,7 +2018,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 10×
 - Capabilities: employees
-- Pages: `/Employee/Time#breaks-tab`, `/Employee/Time#requests-tab`
+- Pages: `/Employee/Time#breaks-tab`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Employee/GetEmployeeHistory/:id` [xhr]
@@ -1954,7 +2030,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Employee/Inspections` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: employees
 - Pages: `/Employee/Details/:id#tab_inspections`
 - Query: `id` (:id); `_` (:id)
@@ -2003,6 +2079,21 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: employees
 - Pages: `/Employee/Profile`
 
+#### `POST {tenant}.maidcentral.com/Employee/PtoHistoryModal` [xhr] (blocked during capture: write)
+
+- Status: n/a · Auth: cookie · Returns: n/a · Seen 1×
+- Capabilities: employees
+- Pages: `/Employee/Profile`
+
+<details><summary>Request body</summary>
+
+```json
+{
+  "id": "string"
+}
+```
+</details>
+
 #### `GET {tenant}.maidcentral.com/Employee/ScheduleRequests` [xhr]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 6×
@@ -2013,9 +2104,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Employee/ScorecardPartial` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: employees, billing
-- Pages: `/Employee/Profile#tab_scorecards`
+- Pages: `/Employee/Details/:id#tab_scorecard_employee`, `/Employee/Profile#tab_scorecards`
 - Query: `id` (:id); `showExcludeColumn` (false); `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Employee/SkillsTag` [xhr]
@@ -2026,9 +2117,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Query: `id` (:id); `_` (:id)
 - Returns form `POST /Employee/SkillsTag`: `__RequestVerificationToken:hidden`, `EmployeeInformationId:hidden`, `SkillsSelected:checkbox`, `HourlyTag:checkbox`, `HourlyTag:hidden`, `ScheduledTag:checkbox`, `ScheduledTag:hidden`, `TagsSelected:checkbox`
 
-#### `POST {tenant}.maidcentral.com/Employee/Stats` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Employee/Stats` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 31×
+- Status: 200 · Auth: cookie · Returns: html · Seen 31×
 - Capabilities: employees, reports
 - Pages: `/Employee/Details/:id`, `/Employee/Profile`
 
@@ -2073,9 +2164,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: leads-quotes
 - Pages: `/Estimate`
 
-#### `POST {tenant}.maidcentral.com/Estimate/CampaignHistory` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Estimate/CampaignHistory` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 93×
+- Status: 200 · Auth: cookie · Returns: html · Seen 64×
 - Capabilities: leads-quotes
 - Pages: `/Estimate/Details/:id`
 
@@ -2090,7 +2181,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Estimate/Details/:id` [page]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 100×
+- Status: 200 · Auth: cookie · Returns: html · Seen 108×
 - Capabilities: leads-quotes
 - Pages: `/Estimate/Details/:id`, `/Estimate/SalesPipeline?=:date`, `/Estimate/SalesPipeline?=:date#sidebar_tab_customer`, `/Estimate/SalesPipeline?=:date#sidebar_tab_employees`
 
@@ -2290,13 +2381,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Estimate/Index/:id` [page]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 4×
+- Status: 200 · Auth: cookie · Returns: html · Seen 12×
 - Capabilities: leads-quotes
 - Pages: `/Estimate/Index/:id`
 
-#### `POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Estimate/QuoteDetailsForGroups` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 100×
+- Status: 200 · Auth: cookie · Returns: html · Seen 64×
 - Capabilities: leads-quotes
 - Pages: `/Estimate/Details/:id`
 
@@ -2309,9 +2400,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
-#### `POST {tenant}.maidcentral.com/Estimate/QuoteNotes` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Estimate/QuoteNotes` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 100×
+- Status: 200 · Auth: cookie · Returns: html · Seen 64×
 - Capabilities: leads-quotes, notes-messages
 - Pages: `/Estimate/Details/:id`
 
@@ -2345,7 +2436,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `POST {tenant}.maidcentral.com/Estimate/Step1` [xhr] (blocked during capture: write)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 8×
+- Status: n/a · Auth: cookie · Returns: n/a · Seen 16×
 - Capabilities: leads-quotes
 - Pages: `/Estimate#tab_1`, `/Estimate/Index/:id#tab_1`
 
@@ -2380,8 +2471,8 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `POST {tenant}.maidcentral.com/Event/CreateOrEditEvent` [xhr] (blocked during capture: write)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 6×
-- Pages: `/Job/Monthly`, `/Job/Monthly#sidebar_tab_customer`, `/Job/Monthly#sidebar_tab_employees`, `/Job/Schedule`
+- Status: n/a · Auth: cookie · Returns: n/a · Seen 7×
+- Pages: `/Job/Monthly`, `/Job/Monthly#sidebar_tab_customer`, `/Job/Monthly#sidebar_tab_employees`, `/Job/Schedule`, `/Job/Schedule#mdlPrintJobs`
 
 <details><summary>Request body</summary>
 
@@ -2402,7 +2493,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `POST {tenant}.maidcentral.com/Event/Events` [xhr] (read via POST)
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 10×
-- Pages: `/Employee/Time#events-tab`, `/Employee/Time#monitor-tab`
+- Pages: `/Employee/Time#breaks-tab`, `/Employee/Time#events-tab`
 
 <details><summary>Request body</summary>
 
@@ -2545,7 +2636,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Home/Sidebar` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 374×
+- Status: 200 · Auth: cookie · Returns: json · Seen 390×
 - Capabilities: clients
 - Pages: `/`, `/#sidebar_tab_customer`, `/Campaign`, `/Campaign/CreateAccountCustomerInvite`, `/Campaign/Employee`, `/Campaign/QuoteCampaign`, `/ChangeLog`, `/Communication?id=:id&info=*&typeId=:id`, `/Company/BroadcastMessage`, `/Company/ScheduleExceptions`, `/Company/ScheduleExceptions#sidebar_tab_customer`, `/Company/Settings`, `/Compliance`, `/Customer/Create`, `/Customer/CustomerServiceRequests`, `/Customer/Details/:id?cid=:id`, `/Customer/Search`, `/CustomerSource`, `/Dashboard/Index/:id`, `/Dashboard/Index/:id#sidebar_tab_customer`, `/EmailTemplate`, `/Employee`, `/Employee/Create`, `/Employee/Details/:id`, `/Employee/Profile`, `/Employee/Time#monitor-tab`, `/Employee/Time#sidebar_tab_customer`, `/Estimate#tab_1`, `/Estimate/Details/:id`, `/Estimate/Index/:id#tab_1`, `/Estimate/SalesPipeline?=:date`, `/Estimate/Search`, `/Estimate/Search#sidebar_tab_customer`, `/Estimate/Search#sidebar_tab_employees`, `/Home`, `/Home/SalesDashboard`, `/Home/SalesDashboard#sidebar_tab_customer`, `/Home/SalesDashboard#tab_main`, `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id`, `/HomeInformation/Details/:id?cid=:id&hsid=:id`, `/Invoicing?JobDate=:date`, `/Job/Monthly`, `/Job/Schedule`, `/Job/TeamMonitor`, `/Job/TeamMonitor#sidebar_tab_customer`, `/Job/TeamMonitor#sidebar_tab_employees`, `/Job/TeamMonitor?Date=:date`, `/Job/Worksheet/:id`, `/Notification/DailyNotifications`, `/Property`, `/Property#sidebar_tab_customer`, `/Property/Create`, `/Rates#tab-mods`, `/Report`, `/Report#sidebar_tab_customer`, `/Report/AvailabilityCalendarGroup`, `/Report/CancelledService?EndDate=:date&StartDate=:date`, `/Report/Consistency?EndDate=:date&StartDate=:date`, `/Report/ContactTickets?MaxDateCreatedTimeFilter=:date&MinDateCreatedTimeFilter=:date`, `/Report/CreditCardTransactions?MaxDateTimeFilter=:date&MinDateTimeFilter=:date`, `/Report/CustomerEfficiencyMap`, `/Report/CustomerIncome`, `/Report/CustomerRetention`, `/Report/CustomerScorecardStats`, `/Report/CustomerStats`, `/Report/DailyJobs`, `/Report/DispatchBoard?EndDate=:date&StartDate=:date`, `/Report/DispatchBoard?EndDate=:date&StartDate=:date#sidebar_tab_customer`, `/Report/EmployeeList`, `/Report/EmployeeProductivity`, `/Report/EmployeeStats?End=:date&Start=:date`, `/Report/EmployeeSurveyResponses`, `/Report/EmployeeTurnover`, `/Report/EmployeeTurnoverAnnual`, `/Report/FirstTimeInJobs`, `/Report/GrossProfitByServiceSet`, `/Report/HomeStats`, `/Report/HomeStatsDetail`, `/Report/HomeStatsDiff`, `/Report/HomeStatsTracker`, `/Report/HotSheet`, `/Report/HotSheetNew`, `/Report/Inspections`, `/Report/JobCampaign`, `/Report/JobCountStatusByDate`, `/Report/KeyReport`, `/Report/Kiosk`, `/Report/MasterSchedule`, `/Report/RateAdjustmentUsage?EndDate=:date&StartDate=:date`, `/Report/Rates`, `/Report/RegisteredCustomers`, `/Report/RevenueByWeek`, `/Report/RevenueProductionPlanning`, `/Report/RevenueProductionPlanning#sidebar_tab_customer`, `/Report/RoutingSheet`, `/Report/SalesKpi2`, `/Report/SalesKpi?EndDate=:date&StartDate=:date`, `/Report/ScheduleEfficiencyMap?EndDate=:date&StartDate=:date`, `/Report/ScorecardResults`, `/Report/SpotlightDashboard`, `/Report/SpotlightDashboard#sidebar_tab_customer`, `/Report/TeamMileage`, `/Report/Tickets`, `/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date`, `/Report/UtmReport?endDate=:date&startDate=:date`, `/Report/ZipZoneList?EndDate=:date&StartDate=:date`, `/Room`, `/Schedule`, `/Schedule?Date=:date`, `/ServiceCompanyGoal/Create`, `/ServiceCompanyGoal/Quarterly`, `/ServiceCompanyGroup/Authorization`, `/ServiceCompanyGroup/Policies`, `/Settings#tab_general`, `/Settings/Offices#tab_offices`, `/Settings/Partner#tab_billing`, `/Skill`, `/Survey`, `/Tag`, `/Team`, `/User`, `/Webhook/Subscriptions`, `/Zone`
 - Query: `_` (:id)
@@ -2583,7 +2674,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `GET {tenant}.maidcentral.com/HomeInformation/ImagesPartial` [xhr]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 4×
-- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_images_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service`
+- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_images_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_images_home`
 - Query: `id` (:id); `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/HomeInformation/Inspections` [xhr]
@@ -2596,7 +2687,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 6×
 - Capabilities: billing
-- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_scorecard_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_scorecard_home`, `/Job/Worksheet/:id#tab_scorecards`
+- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_scorecard_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_scorecard_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service`, `/Job/Worksheet/:id#tab_scorecards`
 - Query: `id` (:id); `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/HomeInformation/ServiceSets` [xhr]
@@ -2611,11 +2702,11 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_tech_home`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_tech_home`
 - Query: `id` (:id); `_` (:id)
 
-#### `POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/HomeServiceInformation/Jobs` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 4×
+- Status: 200 · Auth: cookie · Returns: json · Seen 4×
 - Capabilities: jobs
-- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_service`
+- Pages: `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_schedule`, `/HomeInformation/Details/:id?cid=:id&hid=:id&hsid=:id#tab_service`, `/HomeInformation/Details/:id?cid=:id&hsid=:id#tab_schedule`
 
 <details><summary>Request body</summary>
 
@@ -2625,6 +2716,29 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
   "start": "string",
   "end": "string"
 }
+```
+</details>
+
+<details><summary>Response shape</summary>
+
+```json
+[
+  {
+    "url": "null",
+    "late": "boolean",
+    "outOfRotation": "boolean",
+    "description": "null",
+    "id": "string",
+    "title": "null",
+    "date": "string",
+    "start": "string",
+    "end": "string",
+    "color": "string",
+    "textColor": "null",
+    "allDay": "boolean",
+    "editable": "boolean"
+  }
+]
 ```
 </details>
 
@@ -2760,9 +2874,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `POST {tenant}.maidcentral.com/Job/PreferExcludeFlags/` [xhr] (read via POST)
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 5×
+- Status: 200 · Auth: cookie · Returns: html · Seen 6×
 - Capabilities: jobs
-- Pages: `/Job/Schedule`
+- Pages: `/Job/Schedule`, `/Job/Schedule?Date=:date`
 
 <details><summary>Request body</summary>
 
@@ -2876,15 +2990,15 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Job/Schedule` [page]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 5×
+- Status: 200 · Auth: cookie · Returns: html · Seen 6×
 - Capabilities: jobs, scheduling
 - Pages: `/Job/Schedule`
 
 #### `POST {tenant}.maidcentral.com/Job/ScheduleStats/` [xhr] (read via POST)
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 5×
+- Status: 200 · Auth: cookie · Returns: json · Seen 7×
 - Capabilities: jobs, scheduling, reports
-- Pages: `/Job/Schedule`
+- Pages: `/Job/Schedule`, `/Job/Schedule?Date=:date`
 
 <details><summary>Request body</summary>
 
@@ -2935,7 +3049,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Job/TeamMonitorData` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 9×
+- Status: 200 · Auth: cookie · Returns: json · Seen 10×
 - Capabilities: jobs, teams
 - Pages: `/Job/TeamMonitor`, `/Job/TeamMonitor#sidebar_tab_customer`, `/Job/TeamMonitor#sidebar_tab_employees`, `/Job/TeamMonitor?Date=:date`
 - Query: `date` (:date); `view` (<string>); `showJobClocks` (undefined, true); `_` (:id)
@@ -3049,6 +3163,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
+#### `GET {tenant}.maidcentral.com/Notification/ContactInfoNotification/:id` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
+- Capabilities: clients, notes-messages
+- Pages: `/Customer/Details/:id?cid=:id#tab_contacts`
+- Query: `onlyReturnContactList` (<string>); `_` (:id)
+
 #### `GET {tenant}.maidcentral.com/Notification/DailyNotifications` [page]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 1×
@@ -3080,9 +3201,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/ProviderStatus/Current` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 91×
+- Status: 200 · Auth: cookie · Returns: json · Seen 92×
 - Capabilities: reports
-- Pages: `/Campaign`, `/Campaign/CreateAccountCustomerInvite`, `/Campaign/Employee`, `/Campaign/QuoteCampaign`, `/Company/BroadcastMessage`, `/Company/ScheduleExceptions`, `/Company/ScheduleExceptions#sidebar_tab_customer`, `/Company/Settings`, `/Customer/Create`, `/Customer/CustomerServiceRequests`, `/Customer/Details/:id?cid=:id`, `/Customer/Search`, `/CustomerSource`, `/Invoicing?JobDate=:date`, `/Job/Monthly`, `/Job/Schedule`, `/Job/TeamMonitor`, `/Job/TeamMonitor#sidebar_tab_customer`, `/Job/TeamMonitor#sidebar_tab_employees`, `/Job/TeamMonitor?Date=:date`, `/Job/Worksheet/:id`, `/Notification/DailyNotifications`, `/Report/CustomerEfficiencyMap`, `/Report/CustomerIncome`, `/Report/CustomerRetention`, `/Report/CustomerScorecardStats`, `/Report/CustomerStats`, `/Report/JobCampaign`, `/Report/JobCountStatusByDate`, `/Report/ScorecardResults`
+- Pages: `/Campaign`, `/Campaign/CreateAccountCustomerInvite`, `/Campaign/Employee`, `/Campaign/QuoteCampaign`, `/Company/BroadcastMessage`, `/Company/ScheduleExceptions`, `/Company/ScheduleExceptions#sidebar_tab_customer`, `/Company/Settings`, `/Customer/Create`, `/Customer/CustomerServiceRequests`, `/Customer/Details/:id?cid=:id`, `/Customer/Search`, `/CustomerSource`, `/Invoicing?JobDate=:date`, `/Job/Monthly`, `/Job/Schedule`, `/Job/Schedule#mdlPrintJobs`, `/Job/TeamMonitor`, `/Job/TeamMonitor#sidebar_tab_customer`, `/Job/TeamMonitor#sidebar_tab_employees`, `/Job/TeamMonitor?Date=:date`, `/Job/Worksheet/:id`, `/Notification/DailyNotifications`, `/Report/CustomerEfficiencyMap`, `/Report/CustomerIncome`, `/Report/CustomerRetention`, `/Report/CustomerScorecardStats`, `/Report/CustomerStats`, `/Report/JobCampaign`, `/Report/JobCountStatusByDate`, `/Report/ScorecardResults`
 
 <details><summary>Response shape</summary>
 
@@ -3097,6 +3218,13 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Pages: `/Settings#tab_question`
 - Query: `partial` (true); `_` (:id)
 
+#### `GET {tenant}.maidcentral.com/Quote/CustomerQuotes/:id` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
+- Capabilities: clients, leads-quotes
+- Pages: `/Customer/Details/:id?cid=:id#tab_quotes`
+- Query: `_` (:id)
+
 #### `GET {tenant}.maidcentral.com/Quote/Details/:id` [page]
 
 - Status: 302 · Auth: cookie · Returns: redirect · Seen 2×
@@ -3105,7 +3233,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `POST {tenant}.maidcentral.com/Quote/GetStatusSteps` [xhr] (read via POST)
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 56×
+- Status: 200 · Auth: cookie · Returns: html · Seen 64×
 - Capabilities: leads-quotes, reports
 - Pages: `/Estimate/Details/:id`
 
@@ -3425,7 +3553,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: json · Seen 8×
 - Capabilities: reports, settings
-- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
+- Pages: `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
 - Query: `_` (:id)
 
 <details><summary>Response shape</summary>
@@ -3456,7 +3584,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: json · Seen 8×
 - Capabilities: reports, settings
-- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
+- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
 - Query: `_` (:id)
 
 <details><summary>Response shape</summary>
@@ -3504,7 +3632,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: json · Seen 11×
 - Capabilities: reports
-- Pages: `/Employee/Time#monitor-tab`, `/Employee/Time#requests-tab`, `/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date`
+- Pages: `/Employee/Time#monitor-tab`, `/Employee/Time#requests-tab`, `/Employee/Time#timeclocks-tab`, `/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date`
 - Query: `minDateFilter` (<string>); `maxDateFilter` (<string>); `sorting` (<string>); `skipCount` (:id); `maxResultCount` (:id); `MinDateFilterId` (:date); `MaxDateFilterId` (:date); `StatusSelected` (<string>); `TypesSelected` (:id)
 
 <details><summary>Response shape</summary>
@@ -3640,11 +3768,11 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Pages: `/Report/RateAdjustmentUsage`, `/Report/RateAdjustmentUsage?EndDate=:date&StartDate=:date`
 - Query: `StartDate` (:date); `EndDate` (:date)
 
-#### `POST {tenant}.maidcentral.com/Report/RateReport` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Report/RateReport` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 1×
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: pricing, reports
-- Pages: `/Report/Rates`
+- Pages: `/Report/Rates#tb-summary`
 
 #### `GET {tenant}.maidcentral.com/Report/Rates` [page]
 
@@ -3668,14 +3796,14 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 9×
 - Capabilities: reports
-- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
+- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Report/RevenuePast` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 13×
+- Status: 200 · Auth: cookie · Returns: html · Seen 15×
 - Capabilities: reports
-- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_1`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
+- Pages: `/Report/Kiosk`, `/Report/Kiosk#revenue_report_2`, `/Report/Kiosk#revenue_report_3`, `/Report/Kiosk#revenue_report_4`, `/Report/Kiosk#revenue_report_5`, `/Report/Kiosk#sidebar_tab_customer`, `/Report/Kiosk#sidebar_tab_employees`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Report/RevenueProductionPlanning` [page]
@@ -3974,7 +4102,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `POST {tenant}.maidcentral.com/Schedule/AbsentEmployees/` [xhr] (read via POST)
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 19×
+- Status: 200 · Auth: cookie · Returns: json · Seen 18×
 - Capabilities: scheduling, employees
 - Pages: `/Schedule`, `/Schedule#sidebar_tab_customer`, `/Schedule?Date=:date`
 
@@ -4036,7 +4164,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Schedule/Read` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: json · Seen 9×
+- Status: 200 · Auth: cookie · Returns: json · Seen 10×
 - Capabilities: scheduling
 - Pages: `/Schedule`, `/Schedule?Date=:date`
 - Query: `date` (:date); `view` (<string>); `_` (:id)
@@ -4180,15 +4308,23 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: settings
 - Pages: `/ServiceCompanyGroup/Authorization`
 
+#### `GET {tenant}.maidcentral.com/ServiceCompanyGroup/CreateOrUpdatePolicy/` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
+- Capabilities: settings
+- Pages: `/ServiceCompanyGroup/Policies`
+- Query: `id` (:id); `_` (:id)
+- Returns form `POST /ServiceCompanyGroup/CreateOrUpdatePolicy`: `ServiceCompanyGroupPolicyId:hidden`, `ServiceCompanyGroupId:hidden`, `Name:text`, `PolicyTypeId:select-one`, `MinRequestIncrement:number`, `HoursInDay:text`, `PtoWaitingPeriod:number`, `PtoRequireUse:checkbox`, `PtoRequireUse:hidden`, `PtoMaxCarry:number`, `PtoCap:number`, `SickTimeSeparate:checkbox`, `SickTimeSeparate:hidden`, `SickWaitingPeriod:number`, `SickMaxCarry:number`, `SickCap:number`
+
 #### `GET {tenant}.maidcentral.com/ServiceCompanyGroup/Policies` [page]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: settings
 - Pages: `/ServiceCompanyGroup/Policies`
 
-#### `POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/ServiceCompanyGroup/ShowAccessHistory` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 12×
+- Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: settings
 - Pages: `/ServiceCompanyGroup/Authorization`
 
@@ -4215,7 +4351,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 #### `GET {tenant}.maidcentral.com/ServiceSetType` [xhr]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 1×
-- Pages: `/Settings#tab_rate-mods-all`
+- Pages: `/Settings#tab_iframe`
 - Query: `partial` (true); `_` (:id)
 
 #### `POST {tenant}.maidcentral.com/ServiceSetType/GetServiceTypeGroupAvailability` [xhr] (read via POST)
@@ -4272,7 +4408,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: pricing, settings
-- Pages: `/Settings#tab_general`
+- Pages: `/Settings#tab_discount-all`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Settings/AllRateAdjustments` [xhr]
@@ -4281,6 +4417,12 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: pricing, settings
 - Pages: `/Settings#tab_discount-all`
 - Query: `_` (:id)
+
+#### `POST {tenant}.maidcentral.com/Settings/CreateOrUpdateContactSubTypeModal` [xhr] (blocked during capture: write)
+
+- Status: n/a · Auth: cookie · Returns: n/a · Seen 1×
+- Capabilities: clients, settings
+- Pages: `/Settings/Partner#tab_invoices`
 
 #### `POST {tenant}.maidcentral.com/Settings/CreateOrUpdateOffice` [xhr] (blocked during capture: write)
 
@@ -4298,7 +4440,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Settings/General` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 3×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: settings
 - Pages: `/Settings#tab_general`
 - Query: `_` (:id)
@@ -4308,7 +4450,7 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: settings
-- Pages: `/Settings#tab_rate-mods-all`
+- Pages: `/Settings#tab_general`
 
 <details><summary>Request body</summary>
 
@@ -4341,9 +4483,9 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 #### `GET {tenant}.maidcentral.com/Settings/PartnerBilling` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 5×
+- Status: 200 · Auth: cookie · Returns: html · Seen 3×
 - Capabilities: billing, settings
-- Pages: `/Settings/Partner#tab_billing`, `/Settings/Partner#tab_holidays`, `/Settings/Partner#tab_invoices`, `/Settings/Partner#tab_ui`
+- Pages: `/Settings/Partner#tab_billing`, `/Settings/Partner#tab_invoices`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Settings/PartnerContactSubTypes` [xhr]
@@ -4357,14 +4499,14 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: settings
-- Pages: `/Settings/Partner#tab_holidays`, `/Settings/Partner#tab_invoices`
+- Pages: `/Settings/Partner#tab_holidays`
 - Query: `_` (:id)
 
-#### `POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Settings/PartnerHolidaysCalendar` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 2×
+- Status: 200 · Auth: cookie · Returns: json · Seen 2×
 - Capabilities: scheduling, settings
-- Pages: `/Settings/Partner#tab_holidays`, `/Settings/Partner#tab_invoices`
+- Pages: `/Settings/Partner#tab_billing`, `/Settings/Partner#tab_holidays`
 
 <details><summary>Request body</summary>
 
@@ -4376,18 +4518,25 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
+<details><summary>Response shape</summary>
+
+```json
+[]
+```
+</details>
+
 #### `GET {tenant}.maidcentral.com/Settings/PartnerInvoices` [xhr]
 
-- Status: 200 · Auth: cookie · Returns: html · Seen 3×
+- Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: billing, settings
-- Pages: `/Settings/Partner#tab_billing`, `/Settings/Partner#tab_invoices`
+- Pages: `/Settings/Partner#tab_invoices`
 - Query: `_` (:id)
 
 #### `GET {tenant}.maidcentral.com/Settings/PartnerUi` [xhr]
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 2×
 - Capabilities: settings
-- Pages: `/Settings/Partner#tab_billing`, `/Settings/Partner#tab_ui`
+- Pages: `/Settings/Partner#tab_ui`
 - Query: `_` (:id)
 - Returns form `POST /Settings/PartnerUiUpdate`: `file:file`, `leftLoginFile:file`, `PrimaryColor:text`, `ResourceLinkUrl:text`, `GoogleAnalyticsKey:text`, `GoogleAnalyticsDomains:text`
 
@@ -4459,6 +4608,29 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Capabilities: teams
 - Pages: `/Team`
 
+#### `POST {tenant}.maidcentral.com/Template/GetTemplatesByType` [xhr] (read via POST)
+
+- Status: 200 · Auth: cookie · Returns: json · Seen 4×
+- Capabilities: settings
+- Pages: `/Estimate/Details/:id`
+
+<details><summary>Request body</summary>
+
+```json
+{
+  "dataType": "string",
+  "noteTypeId": "string"
+}
+```
+</details>
+
+<details><summary>Response shape</summary>
+
+```json
+[]
+```
+</details>
+
 #### `POST {tenant}.maidcentral.com/Time/GetAllTimeChangeRequestsForEmployee` [xhr] (read via POST)
 
 - Status: 200 · Auth: cookie · Returns: html · Seen 8×
@@ -4477,10 +4649,11 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 ```
 </details>
 
-#### `POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal` [xhr] (blocked during capture: write)
+#### `POST {tenant}.maidcentral.com/Time/ViewTimeRequestModal` [xhr] (read via POST)
 
-- Status: n/a · Auth: cookie · Returns: n/a · Seen 12×
+- Status: 200 · Auth: cookie · Returns: html · Seen 10×
 - Pages: `/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date`
+- Returns form `GET (same)`: 
 
 <details><summary>Request body</summary>
 
@@ -4497,6 +4670,26 @@ Auth: POST /token (form-encoded) with username and password (grant_type=password
 - Status: 200 · Auth: cookie · Returns: html · Seen 1×
 - Capabilities: employees
 - Pages: `/User`
+
+#### `GET {tenant}.maidcentral.com/view-resources/Views/Note/_NoteModal.js` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: text · Seen 4×
+- Capabilities: notes-messages
+- Pages: `/Estimate/Details/:id`
+- Query: `_` (:id)
+
+#### `GET {tenant}.maidcentral.com/view-resources/Views/ServiceCompanyGroup/_AccessHistoryModal.js` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: text · Seen 1×
+- Capabilities: settings
+- Pages: `/ServiceCompanyGroup/Authorization`
+- Query: `_` (:id)
+
+#### `GET {tenant}.maidcentral.com/view-resources/Views/Time/_ViewTimeRequestModal.js` [xhr]
+
+- Status: 200 · Auth: cookie · Returns: text · Seen 1×
+- Pages: `/Report/TimeChangeRequests?MaxDateFilterId=:date&MinDateFilterId=:date`
+- Query: `_` (:id)
 
 #### `POST {tenant}.maidcentral.com/webhook/getWebhookSubscriptions` [xhr] (read via POST)
 
