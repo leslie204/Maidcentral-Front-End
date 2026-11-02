@@ -1,0 +1,18 @@
+{
+  "_comment": "Groups endpoints into capabilities for the coverage table in docs/API.md. Each 'match' is a case-insensitive regex tested against the endpoint path (official API) or host+path (portal). An endpoint can belong to several. Refine after the first capture.",
+  "capabilities": [
+    { "id": "auth", "label": "Sign-in and session", "match": "log_?in|log_?off|log_?out|sign_?in|/token\\b|/account/|session|two_?factor|verify" },
+    { "id": "clients", "label": "Clients and homes", "match": "client|customer|contact|/homes?\\b|propert" },
+    { "id": "leads-quotes", "label": "Leads and quotes", "match": "lead|quote|estimate|prospect|booking_?request" },
+    { "id": "jobs", "label": "Jobs", "match": "job|booking|appointment|visit|service_?order|work_?order" },
+    { "id": "scheduling", "label": "Schedule and dispatch", "match": "schedul|calendar|dispatch|route|availab|time_?off|recurr" },
+    { "id": "teams", "label": "Teams", "match": "team|crew" },
+    { "id": "employees", "label": "Employees", "match": "employee|staff|cleaner|worker|/users?\\b" },
+    { "id": "payroll", "label": "Payroll and time", "match": "payroll|pay_?rate|wage|timesheet|time_?clock|clock_?in|hours" },
+    { "id": "billing", "label": "Invoices and payments", "match": "invoice|payment|charge|billing|card|transaction|refund|balance|receivable" },
+    { "id": "pricing", "label": "Pricing and services", "match": "pric|rate|scope|service_?type|frequenc|extra|discount|coupon|tax" },
+    { "id": "notes-messages", "label": "Notes and messages", "match": "note|comment|message|email|sms|text|notif|communicat|reminder" },
+    { "id": "reports", "label": "Reports and dashboard", "match": "report|dashboard|stat|kpi|analytic|summary" },
+    { "id": "settings", "label": "Settings and lookups", "match": "setting|config|lookup|option|template|tag|location|zone|territor|region|company|custom_?field" }
+  ]
+}

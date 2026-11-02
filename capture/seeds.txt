@@ -1,0 +1,6 @@
+# Portal routes the crawler visits in addition to the links it finds: menus that only
+# open on click, and routes from the portal's own JavaScript (npm run bundle-routes).
+# One path per line, relative to MC_PORTAL_URL. Lines starting with # are ignored.
+# Unsafe routes (delete/cancel/send/charge/payroll…) are skipped even if listed here.
+#
+# Empty until the first capture: filled in from the portal's menus and bundle in Phase 1.

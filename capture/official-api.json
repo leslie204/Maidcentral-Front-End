@@ -1,0 +1,17 @@
+{
+  "_comment": "The official MaidCentral API, transcribed from the docs. Fill in during Phase 0: one entry per documented endpoint. 'verified' = called successfully by npm run probe. Response shapes come from capture/output/official-probe.jsonl, not from here.",
+  "docs": "https://support.maidcentral.com/apidocs",
+  "production": "https://api.maidcentral.com",
+  "sandbox": "https://api.maidcentral.net",
+  "status": "Docs not yet read: support.maidcentral.com was blocked by the cloud session's network policy on 2026-11-02. Only /token is listed, from a public search result.",
+  "auth": "POST /token with username, password and grant_type (password or refresh_token); then Authorization: Bearer <token>.",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/token",
+      "purpose": "Get a bearer token for the API user (grant_type=password) or refresh it (grant_type=refresh_token)",
+      "capability": "auth",
+      "verified": false
+    }
+  ]
+}
