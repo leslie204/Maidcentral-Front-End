@@ -3,17 +3,22 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "capture"
+    "capture",
+    "server",
+    "web"
   ],
   "scripts": {
     "capture": "npm start -w capture --",
     "catalog": "npm run catalog -w capture",
     "probe": "npm run probe -w capture --",
     "bundle-routes": "npm run bundle-routes -w capture",
-    "test": "npm test -w capture",
+    "test": "npm test -w capture && npm test -w server",
     "test:e2e": "npm run test:e2e -w capture",
     "lint": "eslint .",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm test",
+    "dev": "npm run dev -w server",
+    "build": "npm run build -w web",
+    "start": "node server/src/index.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

@@ -45,8 +45,9 @@ export function startFakePortal({ twoFactor = false } = {}) {
     if (p === '/Account/Login' && req.method === 'POST') {
       const f = new URLSearchParams(body);
       if (f.get('Email') === 'test@example.com' && f.get('Password') === 'pw') {
-        if (twoFactor) return redirect(res, '/Account/VerifyCode', { 'set-cookie': 'mfa=pending; HttpOnly; Path=/' });
-        return redirect(res, '/Dashboard', { 'set-cookie': 'session=ok; HttpOnly; Path=/' });
+        const trusted = /TwoFactorRememberBrowser=1/.test(req.headers.cookie || '');
+        if (twoFactor && !trusted) return redirect(res, '/Account/VerifyCode', { 'set-cookie': 'mfa=pending; HttpOnly; Path=/' });
+        return redirect(res, '/Dashboard', { 'set-cookie': ['session=ok; HttpOnly; Path=/', '.AspNet.ApplicationCookie=x; HttpOnly; Path=/'] });
       }
       return redirect(res, '/Account/Login');
     }
@@ -64,8 +65,8 @@ export function startFakePortal({ twoFactor = false } = {}) {
     if (twoFactor && p === '/Account/VerifyCode' && req.method === 'POST') {
       const f = new URLSearchParams(body);
       if (!codeSent || f.get('Code') !== TWO_FACTOR_CODE) return redirect(res, '/Account/VerifyCode');
-      const cookies = ['session=ok; HttpOnly; Path=/'];
-      if (f.get('RememberBrowser') === 'on') cookies.push('trusted=1; HttpOnly; Path=/; Max-Age=2592000');
+      const cookies = ['session=ok; HttpOnly; Path=/', '.AspNet.ApplicationCookie=x; HttpOnly; Path=/'];
+      if (f.get('RememberBrowser') === 'on') cookies.push('TwoFactorRememberBrowser=1; HttpOnly; Path=/; Max-Age=2592000');
       return redirect(res, '/Dashboard', { 'set-cookie': cookies });
     }
     if (!loggedIn) return redirect(res, `/Account/Login?ReturnUrl=${encodeURIComponent(p)}`);
@@ -81,6 +82,8 @@ export function startFakePortal({ twoFactor = false } = {}) {
     }
     if (p === '/Dashboard/GetPipelineData' && req.method === 'POST') return send(res, 200, [{ LeadId: 4, Name: 'Jane Doe', Total: 180.25 }], 'application/json');
     if (p === '/Job/MonthlyData' && req.method === 'POST') return send(res, 200, { events: [{ JobId: 7, Title: 'John Roe - 12 Elm Street' }] }, 'application/json');
+    if (p === '/Job/ReadJobs') return send(res, 200, [{ JobInformationId: 7, TeamID: 1, Title: 'Jane Doe - Weekly', Start: '/Date(1793610000000)/', End: '/Date(1793617200000)/', AllowedTime: 2, JobStatusId: 2, IsRecurringEvent: true }], 'application/json');
+    if (p === '/Job/TeamMonitorTeams') return send(res, 200, [{ TeamID: 1, TeamName: 'Team A', RgbBackgroundColor: '#ffcc00', CountJobs: 1 }], 'application/json');
     if (p === '/api/dashboard/stats') return send(res, 200, { jobsToday: 12, revenueToday: 1840.5, topClient: 'Jane Doe' }, 'application/json');
     if (p === '/Clients') {
       const rows = Object.entries(PEOPLE).map(([id, n]) => `<tr><td><a href="/Clients/Details/${id}">${n}</a></td><td><a href="/Clients/Delete/${id}">Delete</a></td></tr>`).join('');

@@ -20,7 +20,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | 0. Recon | **Done** (API probe skipped: no API user). The official API only covers online booking; everything else is portal only. See [docs/recon.md](docs/recon.md) |
 | 1. Capture tool | **Done.** Ran on the real portal: 250 pages, 267 endpoints, read-only, headless 2FA |
 | 2. Verify writes | Not started |
-| 3. App skeleton | Not started (waiting on the auth decision) |
+| 3. App skeleton | **Proof of concept** (read-only): sign-in with your own MaidCentral login (2FA relayed), Schedule, Team Monitor, Search, Customer jobs. Deployed to Railway |
 | 4. Pages | Not started |
 
 ## Decisions so far
@@ -30,6 +30,31 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | Hosting | Railway, in **its own Railway project**, completely separate from the Launch27 / UrbanMop project: its own services, Postgres databases (development / staging / production), variables and members. Nothing is shared with or referenced from the Launch27 project |
 | Portal address | Kept out of the repo (public); set as `MC_PORTAL_URL` |
 | Auth | **Recommended, awaiting sign-off:** people sign in with their own MaidCentral login through our server (2FA relayed, portal cookies kept server-side, no passwords stored). Details and the fallback in [docs/recon.md](docs/recon.md) |
+
+## Proof-of-concept app (`server/` + `web/`)
+
+```
+browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral cookies ──> https://<company>.maidcentral.com
+```
+
+- **Sign-in:** people use their own MaidCentral email and password. The server signs in to
+  the portal like a browser, relays MaidCentral's 2FA code step to our login screen and
+  ticks "Remember this browser". Their MaidCentral cookies stay in server memory; the
+  browser only gets an opaque httpOnly cookie. Passwords are never stored. A restart signs
+  everyone out (proof of concept: no database yet).
+- **Read-only by construction:** the server has fixed endpoints (`/api/schedule`,
+  `/api/monitor`, `/api/search`, `/api/customers/:id/jobs`), not a general proxy, and every
+  MaidCentral call goes through the crawler's safety rules (`assertRead` in
+  `server/src/mc.js`): GETs that name no action, and POSTs on `capture/read-posts.txt` only.
+- **Pages:** Schedule (jobs per team for a day), Team Monitor (scheduled vs clocked, live),
+  Search (customers, homes, employees, leads), Customer (jobs, last 6 months and next 3).
+- **Config:** `MC_PORTAL_URL` (required), `ALLOWED_EMAILS` (optional comma-separated
+  list of who may sign in), `PORT`. Railway: `railway.json` (build `npm run build`, start
+  `npm start`, health check `/healthz`).
+
+```bash
+npm run build && npm start       # http://localhost:8787 (uses .env; behind a proxy: NODE_USE_ENV_PROXY=1)
+```
 
 ## Setup
 

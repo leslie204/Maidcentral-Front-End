@@ -14,6 +14,13 @@ export default [
     rules: { ...js.configs.recommended.rules, 'no-unused-vars': unused, 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   {
+    // The web app (React, JSX) runs in the browser.
+    files: ['web/**/*.js', 'web/**/*.jsx'],
+    ...js.configs.recommended,
+    languageOptions: { ecmaVersion: 2024, sourceType: 'module', globals: { ...globals.browser }, parserOptions: { ecmaFeatures: { jsx: true } } },
+    rules: { ...js.configs.recommended.rules, 'no-unused-vars': ['error', { ...unused[1], varsIgnorePattern: '^(_|[A-Z])' }], 'no-empty': ['error', { allowEmptyCatch: true }] },
+  },
+  {
     // The crawler runs some functions inside the browser page.
     files: ['capture/**/*.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },

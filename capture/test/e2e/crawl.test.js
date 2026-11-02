@@ -101,7 +101,7 @@ test('headless crawl gets past 2FA with the code file and remembers the browser'
     assert.match(writes[2].body, /RememberBrowser=on/, '"Remember this browser" not ticked');
     assert.ok(!fs.existsSync(codeFile), 'code file not removed after use');
     const cookies = JSON.parse(fs.readFileSync(authState, 'utf8')).cookies.map((c) => c.name);
-    assert.ok(cookies.includes('trusted') && cookies.includes('session'), `saved cookies: ${cookies}`);
+    assert.ok(cookies.includes('TwoFactorRememberBrowser') && cookies.includes('session'), `saved cookies: ${cookies}`);
   } finally {
     portal.close();
   }
