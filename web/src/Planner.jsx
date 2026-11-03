@@ -12,6 +12,7 @@ const KIND = {
   outside_hours: { label: "Outside team's hours", tone: 'warn', icon: 'clock' },
   overlap: { label: 'Overlapping jobs', tone: 'warn', icon: 'calendar' },
   absent: { label: 'Absence', tone: 'warn', icon: 'user' },
+  late_return: { label: 'Late return', tone: 'bad', icon: 'clock' },
 };
 
 // Times from the server are MaidCentral's local wall-clock strings ("2026-11-03T09:00:00").

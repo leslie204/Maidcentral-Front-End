@@ -10,6 +10,7 @@
 // zone ("2026-11-03T09:00:00"), which browsers read as local time.
 import { mcDate, McError } from './mc.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
+import { returnBy } from './office.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -127,7 +128,10 @@ export function analyseDay(day) {
     const name = meta.TeamName || meta.text || `Team ${id}`;
     const members = shifts.filter((s) => s.teamId === id);
     const working = members.filter((s) => !s.absent && s.start && s.end);
-    const window = working.length ? { start: Math.min(...working.map((s) => s.start)), end: Math.max(...working.map((s) => s.end)) } : null;
+    // The working day ends when teams must be back at the office (default 4:45 PM).
+    const backAt = Date.parse(`${day.iso}T00:00:00Z`) + returnBy() * MIN;
+    const shiftEnd = working.length ? Math.max(...working.map((s) => s.end)) : null;
+    const window = working.length ? { start: Math.min(...working.map((s) => s.start)), end: Math.min(shiftEnd, backAt) } : null;
     const teamJobs = jobs.filter((j) => j.teamId === id).sort((a, b) => a.start - b.start);
     const busy = merge(teamJobs.map((j) => ({ start: j.start, end: j.end })));
     const booked = busy.reduce((s, b) => s + (b.end - b.start), 0);
@@ -145,7 +149,9 @@ export function analyseDay(day) {
     if (teamJobs.length && !working.length) add('no_staff', `${name} has ${teamJobs.length} job${teamJobs.length > 1 ? 's' : ''} but nobody scheduled`, { jobs: teamJobs.map(out) });
     if (window && booked > capacity) add('over_capacity', `${name} is booked ${hours(booked)} h in a ${hours(capacity)} h day`);
     if (window) {
-      const outside = teamJobs.filter((j) => j.start < window.start || j.end > window.end);
+      const late = teamJobs.filter((j) => j.end > backAt);
+      if (late.length) add('late_return', `${name}: ${late.length > 1 ? `${late.length} jobs end` : `${late[0].title} ends`} after the ${clock(backAt)} return to the office`, { jobs: late.map(out) });
+      const outside = teamJobs.filter((j) => !late.includes(j) && (j.start < window.start || j.end > shiftEnd));
       if (outside.length) add('outside_hours', `${outside.length} job${outside.length > 1 ? 's' : ''} outside ${name}'s hours (${clock(window.start)}–${clock(window.end)})`, { jobs: outside.map(out) });
     }
     for (let i = 1; i < teamJobs.length; i++) {

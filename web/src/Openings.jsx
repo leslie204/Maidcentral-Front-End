@@ -187,6 +187,7 @@ function WhereToSell({ data, onError }) {
   const [zone, setZone] = useState(null);
   const [fit, setFit] = useState('all');
   const [day, setDay] = useState('all');
+  const [focus, setFocus] = useState(null); // an opening to fly to
   const map = useLoad(() => api.openingsMap(), 'openings-map', onError);
   const zonesWithOpen = data.zones.filter((z) => z.openings > 0);
   const list = data.openings.filter((o) => (!zone || o.area.zone === zone) && (fit === 'all' || o.fit === fit) && (day === 'all' || o.weekday === day));
@@ -195,8 +196,25 @@ function WhereToSell({ data, onError }) {
 
   return (
     <div className="sell">
-      <div className="sell-top">
-        <Card title="Areas with room to grow" actions={<span className="muted small">open hours per week</span>} className="flush zone-card">
+      <Card className="flush map-card">
+        {map.loading && <Skeleton rows={1} height={520} />}
+        <ErrorNote error={map.error} />
+        {map.data && (
+          <TerritoryMap
+            shapes={map.data.shapes}
+            homes={map.data.homes}
+            office={map.data.office}
+            zones={data.zones}
+            openings={list}
+            selected={zone}
+            onSelect={setZone}
+            teams={data.teams}
+            focus={focus}
+          />
+        )}
+      </Card>
+      <div className="sell-bottom">
+        <Card title="Areas with room to grow" actions={<span className="muted small">open h / week</span>} className="flush zone-card">
           <div className="zone-list">
             {zonesWithOpen.map((z) => (
               <button key={z.name} className={`zone-row ${zone === z.name ? 'on' : ''}`} onClick={() => setZone(zone === z.name ? null : z.name)}>
@@ -209,121 +227,204 @@ function WhereToSell({ data, onError }) {
             {!zonesWithOpen.length && <Empty icon="check" title="No openings in any area" />}
           </div>
         </Card>
-        <Card className="flush map-card">
-          {map.loading && <Skeleton rows={1} height={420} />}
-          <ErrorNote error={map.error} />
-          {map.data && <TerritoryMap shapes={map.data.shapes} homes={map.data.homes} zones={data.zones} openings={list} selected={zone} onSelect={setZone} teams={data.teams} />}
-        </Card>
+        <div>
+          <div className="toolbar">
+            {zone && <button className="chip on" onClick={() => setZone(null)}>{zone} <Icon name="close" size={12} /></button>}
+            <select value={fit} onChange={(e) => setFit(e.target.value)}>
+              <option value="all">Any frequency</option>
+              <option>Weekly</option>
+              <option>Every 2 weeks</option>
+              <option>Every 4 weeks</option>
+            </select>
+            <select value={day} onChange={(e) => setDay(e.target.value)}>
+              <option value="all">Any day</option>
+              {days.map((d) => <option key={d}>{d}</option>)}
+            </select>
+            <span className="muted small">{list.length} openings · teams back at the office by {data.returnBy}</span>
+          </div>
+          <Card className="flush">
+            <table className="data">
+              <thead>
+                <tr><th>Area</th><th>Day</th><th>Time</th><th>Fits</th><th>Team</th><th>Dates</th><th>h / wk</th></tr>
+              </thead>
+              <tbody>
+                {list.map((o) => (
+                  <tr key={o.id} className={`clickable ${focus?.id === o.id ? 'selected' : ''}`} onClick={() => setFocus(o)} title="Show on the map">
+                    <td>
+                      <b className="cap">{o.area.zone || 'Unknown area'}</b>
+                      {o.area.between && <span className="muted small block">between {o.area.between[0]} → {o.area.between[1]}</span>}
+                      {!o.area.between && o.area.basis !== 'neighbouring jobs' && <span className="muted small block">{o.area.basis}</span>}
+                    </td>
+                    <td>{o.weekday}s</td>
+                    <td className="nowrap mono">{o.label}</td>
+                    <td><span className="freq" style={{ '--freq': FIT_COLOR[o.fit] }}><i />{o.fit}</span></td>
+                    <td className="nowrap"><span className="team-swatch" style={{ '--team': teamColor({ name: o.team, color: o.color }).bg }} />{o.team}</td>
+                    <td className="small muted">{o.dates.map(shortDate).join(', ')}</td>
+                    <td><b>{o.weeklyHours}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!list.length && <Empty icon="search" title="No openings match" />}
+          </Card>
+        </div>
       </div>
-      <div className="toolbar">
-        {zone && <span className="chip on" onClick={() => setZone(null)}>{zone} <Icon name="close" size={12} /></span>}
-        <select value={fit} onChange={(e) => setFit(e.target.value)}>
-          <option value="all">Any frequency</option>
-          <option>Weekly</option>
-          <option>Every 2 weeks</option>
-          <option>Every 4 weeks</option>
-        </select>
-        <select value={day} onChange={(e) => setDay(e.target.value)}>
-          <option value="all">Any day</option>
-          {days.map((d) => <option key={d}>{d}</option>)}
-        </select>
-        <span className="muted small">{list.length} openings</span>
-      </div>
-      <Card className="flush">
-        <table className="data">
-          <thead>
-            <tr><th>Area</th><th>Day</th><th>Time</th><th>Fits</th><th>Team</th><th>Dates</th><th>h / week</th></tr>
-          </thead>
-          <tbody>
-            {list.map((o) => (
-              <tr key={o.id}>
-                <td>
-                  <b>{o.area.zone || 'Unknown area'}</b>
-                  {o.area.between && <span className="muted small block">between {o.area.between[0]} → {o.area.between[1]}</span>}
-                  {!o.area.between && o.area.basis !== 'neighbouring jobs' && <span className="muted small block">{o.area.basis}</span>}
-                </td>
-                <td>{o.weekday}s</td>
-                <td className="nowrap mono">{o.label}</td>
-                <td><span className="freq" style={{ '--freq': FIT_COLOR[o.fit] }}><i />{o.fit}</span></td>
-                <td className="nowrap"><span className="team-swatch" style={{ '--team': teamColor({ name: o.team, color: o.color }).bg }} />{o.team}</td>
-                <td className="small muted">{o.dates.map(shortDate).join(', ')}</td>
-                <td><b>{o.weeklyHours}</b></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!list.length && <Empty icon="search" title="No openings match" />}
-      </Card>
-      <p className="muted small">An opening's area comes from the homes the team cleans just before and after it, so a customer there keeps the route tight. h / week counts an every-2-weeks opening as half and every-4-weeks as a quarter.</p>
+      <p className="muted small">An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. h / wk counts an every-2-weeks opening as half and every-4-weeks as a quarter.</p>
     </div>
   );
 }
 
-function TerritoryMap({ shapes, homes, zones, openings, selected, onSelect, teams }) {
+const TILES = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+};
+
+function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSelect, teams, focus }) {
   const el = useRef(null);
   const map = useRef(null);
   const layers = useRef({});
+  const [show, setShow] = useState({ zones: true, homes: true, openings: true, labels: true });
   const dark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
+  const home = useRef(null);
 
+  // Create the map once; keep it sized to its box (fixes grey or half-loaded tiles).
   useEffect(() => {
-    if (map.current) return;
-    map.current = L.map(el.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      maxZoom: 18,
-    }).addTo(map.current);
-    const pts = homes.map((h) => [h.lat, h.lng]);
-    if (pts.length) map.current.fitBounds(pts, { padding: [20, 20] });
-    else map.current.setView([47.66, -117.42], 11);
+    const m = L.map(el.current, { zoomControl: true, scrollWheelZoom: false, preferCanvas: true });
+    map.current = m;
+    let tiles = L.tileLayer(dark ? TILES.dark : TILES.light, { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(m);
+    let failed = 0;
+    tiles.on('tileerror', () => {
+      // If the map tiles are blocked (network or ad-blocker), use OpenStreetMap's own.
+      if (++failed === 4) {
+        m.removeLayer(tiles);
+        tiles = L.tileLayer(TILES.fallback, { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(m);
+      }
+    });
+    // Fit to where most homes are (5th–95th percentile), so a few far-out homes don't
+    // shrink the city to a dot.
+    const q = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.floor(p * (arr.length - 1))))];
+    const lats = homes.map((h) => h.lat).sort((a, b) => a - b);
+    const lngs = homes.map((h) => h.lng).sort((a, b) => a - b);
+    home.current = homes.length ? L.latLngBounds([q(lats, 0.05), q(lngs, 0.05)], [q(lats, 0.95), q(lngs, 0.95)]).pad(0.15) : null;
+    if (home.current) m.fitBounds(home.current);
+    else m.setView([47.66, -117.42], 11);
+    // Zone names only once zoomed in enough to read them.
+    const labelsFor = () => el.current?.classList.toggle('hide-labels', m.getZoom() < 12);
+    m.on('zoomend', labelsFor);
+    labelsFor();
+    m.on('click focus', () => m.scrollWheelZoom.enable());
+    m.on('mouseout blur', () => m.scrollWheelZoom.disable());
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(el.current);
+    setTimeout(() => m.invalidateSize(), 0);
     return () => {
-      map.current?.remove();
+      ro.disconnect();
+      m.remove();
       map.current = null;
     };
   }, []);
 
-  // Zones shaded by open hours; homes as small dots in their team's colour.
+  const open = useMemo(() => Object.fromEntries(zones.map((z) => [z.name, z.openWeeklyHours])), [zones]);
+
+  // Zones shaded by open hours, with names; click to filter and zoom.
   useEffect(() => {
     const m = map.current;
     if (!m) return;
     layers.current.zones?.remove();
-    layers.current.homes?.remove();
-    const open = Object.fromEntries(zones.map((z) => [z.name, z.openWeeklyHours]));
+    layers.current.labels?.remove();
     const max = Math.max(...Object.values(open), 1);
-    layers.current.zones = L.geoJSON(shapes, {
-      style: (f) => {
-        const h = open[f.properties.zone] || 0;
-        const on = selected === f.properties.zone;
-        return { color: on ? '#0e7490' : '#64748b', weight: on ? 2.5 : 0.8, fillColor: h ? '#0e7490' : '#94a3b8', fillOpacity: h ? 0.08 + (h / max) * 0.4 : 0.04 };
-      },
-      onEachFeature: (f, layer) => {
-        layer.bindTooltip(`<b>${f.properties.zone}</b><br>ZIP ${f.properties.zip}${f.properties.city ? ` · ${f.properties.city}` : ''}<br>${open[f.properties.zone] || 0} h/week open`, { sticky: true });
-        layer.on('click', () => onSelect(f.properties.zone === selected ? null : f.properties.zone));
-      },
-    }).addTo(m);
-    const byTeam = Object.fromEntries(teams.map((t) => [t.name, teamColor(t).bg]));
-    layers.current.homes = L.layerGroup(homes.map((h) => L.circleMarker([h.lat, h.lng], { radius: 3, weight: 0, fillOpacity: 0.75, fillColor: byTeam[h.team] || '#64748b' }).bindTooltip(`${h.team || 'No team'} · ${h.frequency || ''}${h.weekday ? ` · ${h.weekday}s` : ''}`))).addTo(m);
-  }, [shapes, homes, zones, selected, onSelect, teams]);
+    if (show.zones) {
+      layers.current.zones = L.geoJSON(shapes, {
+        style: (f) => {
+          const h = open[f.properties.zone] || 0;
+          const on = selected === f.properties.zone;
+          return { color: on ? '#0e7490' : dark ? '#64748b' : '#94a3b8', weight: on ? 3 : 1, fillColor: h ? '#0e7490' : '#94a3b8', fillOpacity: on ? 0.35 : h ? 0.06 + (h / max) * 0.3 : 0.03 };
+        },
+        onEachFeature: (f, layer) => {
+          layer.bindTooltip(`<b class="cap">${f.properties.zone}</b><br>ZIP ${f.properties.zip}${f.properties.city ? ` · ${f.properties.city}` : ''}<br>${open[f.properties.zone] || 0} h/week open`, { sticky: true });
+          layer.on('click', () => onSelect(f.properties.zone === selected ? null : f.properties.zone));
+        },
+      }).addTo(m);
+    }
+    if (show.labels) {
+      layers.current.labels = L.layerGroup(
+        zones.filter((z) => z.center && (z.openWeeklyHours > 0 || z.name === selected)).map((z) =>
+          L.marker([z.center.lat, z.center.lng], {
+            interactive: false,
+            icon: L.divIcon({ className: 'zone-label', html: `<span>${z.name}${z.openWeeklyHours ? `<b>${z.openWeeklyHours} h</b>` : ''}</span>`, iconSize: null }),
+          }),
+        ),
+      ).addTo(m);
+    }
+  }, [shapes, zones, open, selected, onSelect, show.zones, show.labels, dark]);
 
-  // Openings as rings at the team's position (the job before the opening).
+  // Zoom to the selected zone's homes (or back out).
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const pts = homes.filter((h) => h.zone === selected).map((h) => [h.lat, h.lng]);
+    if (selected && pts.length) m.flyToBounds(L.latLngBounds(pts).pad(0.4), { duration: 0.5, maxZoom: 14 });
+    else if (!selected && home.current) m.flyToBounds(home.current, { duration: 0.5 });
+  }, [selected, homes]);
+
+  // Homes as small dots in their team's colour, and the office.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    layers.current.homes?.remove();
+    layers.current.office?.remove();
+    const byTeam = Object.fromEntries(teams.map((t) => [t.name, teamColor(t).bg]));
+    if (show.homes) {
+      layers.current.homes = L.layerGroup(
+        homes.map((h) => L.circleMarker([h.lat, h.lng], { radius: 3.5, weight: 1, color: dark ? '#0b0f14' : '#fff', fillOpacity: 0.9, fillColor: byTeam[h.team] || '#64748b' }).bindTooltip(`${h.team || 'No team'} · ${h.frequency || ''}${h.weekday ? ` · ${h.weekday}s` : ''}<br><span class="cap">${h.zone || ''}</span>`)),
+      ).addTo(m);
+    }
+    if (office) {
+      layers.current.office = L.marker([office.lat, office.lng], {
+        icon: L.divIcon({ className: 'office-pin', html: '<span>CB</span>', iconSize: [30, 30], iconAnchor: [15, 15] }),
+        zIndexOffset: 1000,
+      }).bindTooltip(`<b>Office</b><br>${office.address || ''}`).addTo(m);
+    }
+  }, [homes, teams, show.homes, office, dark]);
+
+  // Openings as rings (size = hours per week) at the team's position before the opening.
   useEffect(() => {
     const m = map.current;
     if (!m) return;
     layers.current.openings?.remove();
+    if (!show.openings) return;
     layers.current.openings = L.layerGroup(
       openings.filter((o) => o.area.center).map((o) =>
-        L.circleMarker([o.area.center.lat, o.area.center.lng], { radius: 6 + o.weeklyHours * 2, color: FIT_COLOR[o.fit], weight: 2.5, fillColor: '#fff', fillOpacity: 0.6 }).bindTooltip(`<b>${o.weekday}s ${o.label}</b><br>${o.team} · fits ${o.fit.toLowerCase()}<br>${o.area.zone || ''}`),
+        L.circleMarker([o.area.center.lat, o.area.center.lng], { radius: 7 + o.weeklyHours * 2.5, color: FIT_COLOR[o.fit], weight: 3, fillColor: FIT_COLOR[o.fit], fillOpacity: 0.15 })
+          .bindPopup(`<b>${o.weekday}s ${o.label}</b><br>${o.team} · fits ${o.fit.toLowerCase()}<br><span class="cap">${o.area.zone || ''}</span><br>${o.weeklyHours} h/week · ${o.dates.join(', ')}`),
       ),
     ).addTo(m);
-  }, [openings]);
+  }, [openings, show.openings]);
+
+  // Fly to an opening picked in the list.
+  useEffect(() => {
+    if (!focus?.area?.center || !map.current) return;
+    map.current.flyTo([focus.area.center.lat, focus.area.center.lng], 14, { duration: 0.6 });
+    L.popup().setLatLng([focus.area.center.lat, focus.area.center.lng]).setContent(`<b>${focus.weekday}s ${focus.label}</b><br>${focus.team} · fits ${focus.fit.toLowerCase()}<br><span class="cap">${focus.area.zone || ''}</span>`).openOn(map.current);
+  }, [focus]);
 
   return (
     <div className="map-wrap">
       <div ref={el} className="map" />
+      <div className="map-controls">
+        {[['zones', 'Zones'], ['labels', 'Names'], ['homes', 'Homes'], ['openings', 'Openings']].map(([k, label]) => (
+          <label key={k}><input type="checkbox" checked={show[k]} onChange={(e) => setShow({ ...show, [k]: e.target.checked })} />{label}</label>
+        ))}
+        <button className="btn sm" onClick={() => (onSelect(null), home.current && map.current?.flyToBounds(home.current, { duration: 0.5 }))}>Reset view</button>
+      </div>
       <div className="map-legend">
         <span><i className="ring" style={{ borderColor: FIT_COLOR.Weekly }} />weekly</span>
         <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />every 2 weeks</span>
         <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 4 weeks'] }} />every 4 weeks</span>
-        <span><i className="dotm" />existing homes (team colour)</span>
+        <span><i className="dotm" />home (team colour)</span>
+        {office && <span><i className="officem">CB</i>office</span>}
+        <span className="muted">Click the map to scroll-zoom</span>
       </div>
     </div>
   );
@@ -402,7 +503,7 @@ function PlaceCustomer({ from, zones, onError }) {
       {busy && <Skeleton rows={5} height={64} />}
       {result && !busy && (
         <>
-          <p className="muted small">Best openings near <b>{result.target.label}</b>, ranked by extra driving, frequency fit and length.</p>
+          <p className="muted small">Best openings near <b>{result.target.label}</b>, ranked by extra driving, frequency fit and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
           {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, or more days.</Empty>}
           <div className="slot-list">
             {result.results.map((r, i) => {
@@ -411,7 +512,8 @@ function PlaceCustomer({ from, zones, onError }) {
                 <div key={r.id} className={`slot place ${i === 0 ? 'best' : ''}`}>
                   <div className="slot-when">
                     <b>{r.weekday}s</b>
-                    <span>{r.label}</span>
+                    <span>{r.arrive} – {r.done}</span>
+                    <span className="muted small">free {r.label}</span>
                   </div>
                   <div className="slot-team">
                     <b><span className="team-swatch" style={{ '--team': c.bg }} />{r.team}</b>

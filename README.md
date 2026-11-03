@@ -74,7 +74,12 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       by frequency (weekly, every 2/4 weeks, one-time) with open time labelled by the
       frequency it fits: free every week → weekly; free in weeks 1 & 3 or 2 & 4 → every 2
       weeks (pairs with an existing every-2-weeks customer); free in one week → every 4
-      weeks. Openings are limited to bookable hours (default 8:00 AM–5:30 PM).
+      weeks. Openings start from 8:00 AM, and everyone must be back at the office by
+      `OFFICE_RETURN_BY` (default 4:45 PM): the last gap of a day ends early enough to
+      drive back from where the team is. The office is the company address in
+      MaidCentral's settings, located once with the US Census geocoder (override with
+      `OFFICE_LAT`/`OFFICE_LNG`; fallback: centre of the homes in its ZIP). The Planner
+      caps team days at the same time and flags jobs that end after it.
     - Where to sell: zones ranked by open hours per week, a map (zone outlines shaded by
       open time, recurring homes as dots in their team's colour, openings as rings) and
       the list of openings by area. An opening's area is where the team is just before
@@ -82,7 +87,10 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       home's ZIP, zone and coordinates) matched to the jobs.
     - Place a customer: ZIP, zone or existing home + frequency + length (+ days, time of
       day) → openings ranked by the extra driving the new home adds between the jobs
-      before and after it (straight-line estimate), frequency fit and length.
+      before and after it (straight-line estimate), frequency fit and length. Each
+      result has an exact arrival time that works on every visit date: driving from the
+      previous job (or the office), the clean, then to the next job on time or back to
+      the office by the return time.
   - Search (customers, homes, cleaners, leads).
 - **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
   MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,
@@ -93,7 +101,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   and dark mode following the device, works on phones).
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
   them as local ISO strings without a zone, so they show the same as in MaidCentral.
-- **Config:** `MC_PORTAL_URL` (required), `DATABASE_URL` + `SESSION_KEY` (64 hex
+- **Config:** `MC_PORTAL_URL` (required), `OFFICE_RETURN_BY` (default `4:45 PM`),
+  `OFFICE_LAT`/`OFFICE_LNG` (optional), `DATABASE_URL` + `SESSION_KEY` (64 hex
   characters; changing it signs everyone out), `ALLOWED_EMAILS` (optional comma-separated
   list of who may sign in), `PORT`. Railway: `railway.json` (build `npm run build`, start
   `npm start`, health check `/healthz`).

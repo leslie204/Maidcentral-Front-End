@@ -1,5 +1,7 @@
 // The planner's maths on a made-up day: windows, gaps, issues, slots, continuity.
 import { test } from 'node:test';
+// These tests predate the return-to-office time; the cutoff has its own test below.
+process.env.OFFICE_RETURN_BY = '6:00 PM';
 import assert from 'node:assert/strict';
 import { analyseDay, planOverview, findSlots, continuity } from '../src/planner.js';
 
@@ -137,4 +139,19 @@ test('recurring slots are checked on every repeat visit', async () => {
   assert.deepEqual(blueLate.repeats, { fits: 2, of: 3, missed: ['2026-11-23'] });
   const full = r.slots.find((x) => x.repeats.fits === 3);
   assert.ok(full && full.score > blueLate.score, 'slots free on every visit rank higher');
+});
+
+test('return to the office: day capped at the return time, late jobs flagged', () => {
+  process.env.OFFICE_RETURN_BY = '4:45 PM';
+  try {
+    const f = fixture(DAYS[0]);
+    f.jobs.push({ JobInformationId: 8, TeamID: 10, Title: 'Gil Fox - Fox Home', Start: at(DAYS[0], '15:30'), End: at(DAYS[0], '17:00'), AllowedTime: 1.5 });
+    const a = analyseDay({ iso: DAYS[0], ...f });
+    const blue = a.teams.find((t) => t.name === 'Blue');
+    assert.equal(blue.window.end, '2026-11-09T16:45:00');
+    const late = a.issues.find((i) => i.kind === 'late_return');
+    assert.match(late.title, /Blue: Gil Fox - Fox Home ends after the 4:45 PM return/);
+  } finally {
+    process.env.OFFICE_RETURN_BY = '6:00 PM';
+  }
 });

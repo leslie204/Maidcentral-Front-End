@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openings, placeCustomer, km } from '../src/territory.js';
 
+process.env.OFFICE_RETURN_BY = '4:45 PM';
+process.env.OFFICE_GEOCODE = 'off'; // no network in tests: office = centre of homes in its ZIP
+
 const at = (day, hhmm) => `/Date(${Date.parse(`${day}T${hhmm}:00Z`)})/`;
 const MONDAYS = ['2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'];
 const NORTH = { lat: 47.73, lng: -117.41 };
@@ -40,9 +43,12 @@ function day(iso) {
   };
 }
 const KEY = '<ul><li><span class="label" style="background:#92B558;">Every Week</span></li><li><span class="label" style="background:#005960;">Every Two Weeks</span></li><li><span class="label" style="background:#578CAC;">Every Four Weeks</span></li><li><span class="label" style="background:#d2691e;">Single</span></li></ul>';
+// Office on the north side (ZIP 99208).
+const COMPANY = '<div class="form-group"><label class="control-label">Address 1</label><input value="1 Main St"></div><div class="form-group"><label class="control-label">City</label><input value="Spokane"></div><div class="form-group"><label class="control-label">State</label><input value="WA"></div><div class="form-group"><label class="control-label">Zip</label><input value="99208"></div>';
 const mc = {
+  host: 'test.maidcentral.com',
   async getHtml(path) {
-    return { '/Report/CustomerEfficiencyMap': CEM, '/Zone': ZONES, '/Job/Schedule': KEY }[path];
+    return { '/Report/CustomerEfficiencyMap': CEM, '/Zone': ZONES, '/Job/Schedule': KEY, '/Company/Settings': COMPANY }[path];
   },
   async getJson(path, q) {
     const [m, d, y] = q.date.split('/').map(Number);
@@ -54,19 +60,24 @@ const mc = {
 test('openings: weekly, every 2 weeks (paired weeks) and every 4 weeks, within working hours', async () => {
   const o = await openings(mc, { from: MONDAYS[0], minHours: 1.5 });
   const find = (team, fit) => o.openings.filter((x) => x.team === team && x.fit === fit);
+  // Blue ends near the office (north): free until the 4:45 return.
   const blueWeekly = find('Blue', 'Weekly');
-  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:00 AM – 5:00 PM']);
+  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:00 AM – 4:45 PM']);
+  assert.equal(o.returnBy, '4:45 PM');
+  assert.ok(o.office.located);
   assert.ok(o.openings.every((x) => x.start >= 8 * 60), 'nothing before 8 AM');
   assert.equal(blueWeekly[0].area.zone, 'north');
   const red2 = find('Red', 'Every 2 weeks');
-  assert.deepEqual(red2.map((x) => [x.label, x.dates]), [['1:00 PM – 5:00 PM', ['2026-11-09', '2026-11-23']]]); // 11–1 is weekly (free every week)
-  assert.equal(red2[0].weeklyHours, 2);
+  // Red ends in the south, ~12 km from the office: it must stop ~23 min before 4:45.
+  assert.deepEqual(red2.map((x) => [x.label, x.dates]), [['1:00 PM – 4:21 PM', ['2026-11-09', '2026-11-23']]]); // 11–1 is weekly (free every week)
+  assert.ok(o.openings.every((x) => x.end <= 16 * 60 + 45), 'nothing ends after 4:45');
   assert.deepEqual(find('Red', 'Weekly').map((x) => x.label), ['11:00 AM – 1:00 PM']);
   assert.equal(red2[0].area.zone, 'south hill');
-  // 15:00–17:00 is free in weeks 1–3: weeks 1 & 3 pair up; week 2 is left as every 4 weeks.
-  assert.ok(find('Red', 'Every 2 weeks').length + find('Red', 'Every 4 weeks').length >= 2);
-  const red4 = find('Red', 'Every 4 weeks');
-  assert.ok(red4.some((x) => x.dates.length === 1));
+  // Week 2's 3:00 PM gap is the last of the day: with the drive back it ends 4:21, too short
+  // for 1.5 h; with shorter openings allowed it shows as every 4 weeks.
+  assert.equal(find('Red', 'Every 4 weeks').length, 0);
+  const short = await openings(mc, { from: MONDAYS[0], minHours: 1 });
+  assert.deepEqual(short.openings.filter((x) => x.team === 'Red' && x.fit === 'Every 4 weeks').map((x) => [x.label, x.dates]), [['3:00 PM – 4:22 PM', ['2026-11-16']]]);
   // The 4-week board.
   assert.equal(o.cycle.weeks.length, 4);
   assert.deepEqual(o.cycle.weekdays, ['Monday']);
@@ -82,6 +93,10 @@ test('place a customer: nearby team and matching frequency first', async () => {
   assert.equal(south.results[0].team, 'Red');
   assert.equal(south.results[0].fit, 'Every 2 weeks');
   assert.ok(south.results[0].extraDriveMin <= 5);
+  assert.ok(south.results.every((r) => r.done && r.arrive));
+  // Last job of the day in the south: done early enough to drive back by 4:45.
+  const last = south.results.find((r) => r.lastOfDay);
+  if (last) assert.ok(last.reasons.some((x) => /Back at the office by/.test(x.text)));
   const north = await placeCustomer(mc, { from: MONDAYS[0], zip: '99208', frequency: '1', hours: 2 });
   assert.equal(north.results[0].team, 'Blue');
   assert.ok(north.results.every((r) => r.weeks === 1), 'weekly customers only get weekly openings');
