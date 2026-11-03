@@ -185,45 +185,70 @@ function route(car, jobs, size, opts, office, backBy) {
 // Re-plan the whole day for one arrangement of cars, then place orphaned jobs.
 function plan(state, arrangement, opts) {
   const backBy = opts.returnBy;
-  const cars = arrangement.cars.map((c) => ({ ...c, jobs: [...c.jobs] }));
-  let orphans = [...arrangement.orphans];
-  const routes = new Map();
-  for (const c of cars) {
+  const base = arrangement.cars.map((c) => ({ ...c, jobs: [...c.jobs] }));
+  const startOrphans = [...arrangement.orphans];
+  const startRoutes = new Map();
+  for (const c of base) {
     let r = route(c, c.jobs, c.size, opts, state.office, backBy);
-    // A car that can't keep all its jobs drops its least valuable ones.
+    // A car that can't keep all its jobs gives up its longest one first (it frees the most
+    // time, so the fewest jobs leave the car).
     while (!r && c.jobs.length) {
-      const dropped = c.jobs.reduce((lo, j) => (j.revenue < lo.revenue ? j : lo), c.jobs[0]);
+      const dropped = c.jobs.reduce((big, j) => (j.cleanerMinutes > big.cleanerMinutes || (j.cleanerMinutes === big.cleanerMinutes && j.revenue < big.revenue) ? j : big), c.jobs[0]);
       c.jobs = c.jobs.filter((j) => j !== dropped);
-      orphans.push(dropped);
+      startOrphans.push(dropped);
       r = route(c, c.jobs, c.size, opts, state.office, backBy);
     }
-    routes.set(c.id, r);
+    startRoutes.set(c.id, r);
   }
-  // Orphans, most valuable first, go where they add the least driving and delay.
-  orphans = orphans.sort((a, b) => b.revenue - a.revenue);
-  const lost = [];
-  for (const j of orphans) {
-    let best = null;
-    const pinned = j.pinCar && cars.some((c) => c.size && c.name === j.pinCar);
-    for (const c of cars) {
-      if (!c.size || (pinned && c.name !== j.pinCar)) continue;
-      const before = routes.get(c.id);
-      for (let i = 0; i <= c.jobs.length; i++) {
-        const list = [...c.jobs.slice(0, i), j, ...c.jobs.slice(i)];
-        const r = route(c, list, c.size, opts, state.office, backBy);
-        if (!r) continue;
-        const shift = r.stops.reduce((s, x) => s + Math.abs(x.start - x.job.start), 0);
-        const cost = r.drive - (before?.drive || 0) + shift / 10;
-        if (!best || cost < best.cost) best = { cost, car: c, list, r };
+  // Orphans go where they add the least driving and delay. The goal is to keep as many
+  // jobs as possible, so two orders are tried (shortest first, most valuable first) and the
+  // one that keeps more jobs wins (then more revenue).
+  const place = (order) => {
+    const cars = base.map((c) => ({ ...c, jobs: [...c.jobs] }));
+    const routes = new Map(startRoutes);
+    const lost = [];
+    for (const j of order) {
+      let best = null;
+      const pinned = j.pinCar && cars.some((c) => c.size && c.name === j.pinCar);
+      for (const c of cars) {
+        if (!c.size || (pinned && c.name !== j.pinCar)) continue;
+        const before = routes.get(c.id);
+        for (let i = 0; i <= c.jobs.length; i++) {
+          const list = [...c.jobs.slice(0, i), j, ...c.jobs.slice(i)];
+          const r = route(c, list, c.size, opts, state.office, backBy);
+          if (!r) continue;
+          const shift = r.stops.reduce((s, x) => s + Math.abs(x.start - x.job.start), 0);
+          const cost = r.drive - (before?.drive || 0) + shift / 10;
+          if (!best || cost < best.cost) best = { cost, car: c, list, r };
+        }
       }
+      if (best) {
+        best.car.jobs = best.list;
+        routes.set(best.car.id, best.r);
+      } else lost.push(j);
     }
-    if (best) {
-      best.car.jobs = best.list;
-      routes.set(best.car.id, best.r);
-    } else lost.push(j);
-  }
-  return { cars, routes, lost };
+    return { cars, routes, lost };
+  };
+  const pinnedFirst = (a, b) => (b.pinCar ? 1 : 0) - (a.pinCar ? 1 : 0);
+  const tries = [
+    place([...startOrphans].sort((a, b) => pinnedFirst(a, b) || a.cleanerMinutes - b.cleanerMinutes || b.revenue - a.revenue)),
+    place([...startOrphans].sort((a, b) => pinnedFirst(a, b) || b.revenue - a.revenue)),
+  ];
+  const lostValue = (t) => t.lost.reduce((s, j) => s + j.revenue, 0);
+  return tries.sort((a, b) => a.lost.length - b.lost.length || lostValue(a) - lostValue(b))[0];
 }
+
+// Revenue impact in words, so the office doesn't have to think in dollars.
+//   jobs: high / medium / low against the day's other jobs (top, middle, bottom third)
+//   plans: share of the day's revenue at stake (none, low < 5%, medium < 15%, high)
+function impactScale(revenues) {
+  const sorted = [...revenues].sort((a, b) => a - b);
+  const q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * f))] ?? 0;
+  const lo = q(1 / 3);
+  const hi = q(2 / 3);
+  return (r) => (r > hi ? 'high' : r < lo ? 'low' : 'medium');
+}
+const shareImpact = (lost, total) => (!lost ? 'none' : !total ? 'low' : lost / total < 0.05 ? 'low' : lost / total < 0.15 ? 'medium' : 'high');
 
 // What customers said when the office called them, applied to their jobs.
 //   calls: { [jobId]: { outcome, car, start, time } }
@@ -285,6 +310,8 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
   const most = Math.max(2, Number(maxCar) || 3);
   const opts = { early: Math.max(0, Number(early) || 0), late: Math.max(0, Number(late) || 0), returnBy: returnBy(), dayStart: startMin };
   const totalRevenue = state.cars.reduce((s, c) => s + c.jobs.reduce((a, j) => a + j.revenue, 0), 0) + notToday.reduce((s, j) => s + j.revenue, 0);
+  const totalJobs = state.cars.reduce((s, c) => s + c.jobs.length, 0) + notToday.length;
+  const jobImpact = impactScale([...state.cars.flatMap((c) => c.jobs), ...notToday].map((j) => j.revenue));
 
   const calledOut = state.cars.flatMap((c) => c.members.filter((m) => outIds.has(String(m.id))).map((m) => ({ id: m.id, name: m.name, role: m.role, car: c.name })));
   if (!calledOut.length) throw new McError('input', 'None of those people are on a car that day.');
@@ -405,13 +432,17 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
         if (moved || shifted || s.job.outcome) changes.push({ jobId: s.job.id, title: s.job.title, phone: s.job.phone, from: state.cars.find((x) => x.id === s.job.carId)?.name, to: c.name, was: hhmm(s.job.start), now: hhmm(s.start), nowMin: s.start, moved, shifted, outcome: s.job.outcome || null });
       }
     }
+    const jobsLost = p.lost.length + notToday.length;
     return {
       moves,
       kinds: combo.map((x) => x.kind),
+      jobsKept: totalJobs - jobsLost,
+      jobsLost,
+      impact: shareImpact(lostRevenue, totalRevenue),
       saved: money(totalRevenue - lostRevenue),
       lost: money(lostRevenue),
       savedShare: totalRevenue ? Math.round(((totalRevenue - lostRevenue) / totalRevenue) * 100) : 100,
-      reschedule: [...notToday, ...p.lost].map((j) => ({ jobId: j.id, title: j.title, phone: j.phone, was: hhmm(j.start), revenue: j.revenue, revenueEstimated: j.revenueEstimated, from: state.cars.find((x) => x.id === j.carId)?.name, frequency: j.frequency, customerChoice: j.customerChoice || null, outcome: j.outcome || null })),
+      reschedule: [...notToday, ...p.lost].map((j) => ({ jobId: j.id, title: j.title, phone: j.phone, was: hhmm(j.start), revenue: j.revenue, revenueEstimated: j.revenueEstimated, impact: jobImpact(j.revenue), from: state.cars.find((x) => x.id === j.carId)?.name, frequency: j.frequency, customerChoice: j.customerChoice || null, outcome: j.outcome || null })),
       changes,
       driveMinutes: [...p.routes.values()].reduce((s, r) => s + (r?.drive || 0), 0),
       cars: p.cars
@@ -433,16 +464,18 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
 
   // If nobody moves: short cars that can't legally go out lose all their jobs.
   const atRisk = short.filter((c) => !working(c.members)).flatMap((c) => c.jobs);
-  const ranked = built.sort((a, b) => b.saved - a.saved || a.changes.length + a.reschedule.length - (b.changes.length + b.reschedule.length) || a.driveMinutes - b.driveMinutes);
+  // Most jobs kept first; then revenue, fewest calls, least driving.
+  const ranked = built.sort((a, b) => b.jobsKept - a.jobsKept || b.saved - a.saved || a.changes.length + a.reschedule.length - (b.changes.length + b.reschedule.length) || a.driveMinutes - b.driveMinutes);
   return {
     date: day,
     isToday: state.isToday,
     revenueEstimated: !state.isToday,
     perCleanerHour: state.perCleanerHour,
     totalRevenue: money(totalRevenue),
+    totalJobs,
     calledOut,
     options: { early: opts.early, late: opts.late, leaveAt: hhmm(opts.dayStart), returnBy: hhmm(opts.returnBy), maxCar: most },
-    baseline: { lost: money(atRisk.reduce((s, j) => s + j.revenue, 0)), jobs: atRisk.length },
+    baseline: { lost: money(atRisk.reduce((s, j) => s + j.revenue, 0)), jobs: atRisk.length, impact: shareImpact(atRisk.reduce((s, j) => s + j.revenue, 0), totalRevenue) },
     scenarios: ranked.slice(0, 8),
     callsApplied: Object.keys(callMap).length,
   };

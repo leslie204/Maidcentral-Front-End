@@ -101,8 +101,10 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
   - Call-outs (`server/src/callouts.js`): tap everyone who called out (any number,
-    today or tomorrow) and compare the ways to rearrange the day, ranked by revenue
-    saved. Every car has a lead (washrooms, kitchen) and a cleaner (floors, dusting):
+    today or tomorrow) and compare the ways to rearrange the day, ranked by how many
+    jobs they keep (then revenue, fewest calls, least driving). Revenue shows only as an
+    impact level: a job is high / medium / low against the day's other jobs; a plan's
+    jobs to rebook are low (< 5% of the day), medium (< 15%) or high. Every car has a lead (washrooms, kitchen) and a cleaner (floors, dusting):
     nobody works alone and a car needs a lead. Roles come from the MaidCentral team
     position (Captain = lead, Team Member = cleaner, Trainee) and can be changed with a
     tap. For each car left short, the people left join another car (a car of three

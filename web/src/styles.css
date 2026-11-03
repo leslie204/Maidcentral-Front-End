@@ -370,10 +370,13 @@ tr.cycle-day td { background: var(--panel-2); padding-top: 8px; padding-bottom: 
 tr.cycle-day td.sticky { background: var(--panel-2); }
 .cycle-cell { min-width: 220px; }
 .cycle-cell.off { text-align: center; }
-.cbar { position: relative; height: 22px; border-radius: 5px; background: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px calc(100% / 11)); }
+.cbar { position: relative; height: 26px; border-radius: 5px; background: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px calc(100% / var(--hours, 11))); }
 .cbar-window { position: absolute; top: 0; bottom: 0; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; }
 .cbar-job { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; box-shadow: 0 0 0 1px var(--panel); transition: opacity 0.12s; }
-.cbar-open { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; border: 1.5px dashed var(--fit); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--fit) 18%, transparent) 0 4px, transparent 4px 8px); font: 600 10px 'Geist Mono', ui-monospace, monospace; color: var(--fit); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.cbar-open { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; border: 1.5px dashed var(--fit); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--fit) 18%, transparent) 0 4px, transparent 4px 8px); font: 600 10px 'Geist Mono', ui-monospace, monospace; color: var(--fit); display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; container-type: inline-size; }
+.cbar-open span { line-height: 1; }
+@container (max-width: 30px) { .cbar-open span { display: none; } }
+.cbar-meta-open b { color: var(--fit); font-weight: 650; }
 .cbar-job.dim, .cbar-open.dim { opacity: 0.15; }
 .cbar-hl { position: absolute; top: -3px; bottom: -3px; border-radius: 6px; border: 2.5px solid var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); z-index: 2; animation: hlpulse 1.4s ease-in-out 3; pointer-events: none; }
 @keyframes hlpulse { 50% { box-shadow: 0 0 0 8px transparent; } }

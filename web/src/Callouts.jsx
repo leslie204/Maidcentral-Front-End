@@ -5,7 +5,12 @@ import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Stats, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
 
-const money = (n) => `$${Math.round(n).toLocaleString()}`;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// Revenue impact in words: a job against the day's other jobs; a plan by how much of the
+// day's revenue it can't keep.
+const IMPACT = { none: 'No impact', low: 'Low impact', medium: 'Medium impact', high: 'High impact' };
+const IMPACT_TONE = { none: 'ok', low: 'info', medium: 'warn', high: 'bad' };
+const Impact = ({ level }) => <span className={`pill ${IMPACT_TONE[level]}`}>{IMPACT[level]}</span>;
 const DAY_START = 7 * 60;
 const DAY_END = 18 * 60;
 const pct = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / (DAY_END - DAY_START)) * 100;
@@ -172,7 +177,7 @@ export default function Callouts({ onError }) {
                   <div className="roster-head">
                     <span className="team-swatch" />
                     <b>{c.name}</b>
-                    <span className="muted small">{c.jobs} jobs · {money(c.revenue)}</span>
+                    <span className="muted small">{plural(c.jobs, 'job')}</span>
                   </div>
                   <div className="roster-people">
                     {c.members.map((m) => (
@@ -230,9 +235,9 @@ export default function Callouts({ onError }) {
         <div className={busy ? 'replanning' : ''}>
           <Stats
             items={[
-              { label: 'Day at stake', value: money(result.totalRevenue), hint: result.revenueEstimated ? 'estimated from cleaner-hours' : "from today's prices", help: result.revenueEstimated ? `MaidCentral only shows today's prices here, so other days are estimated at about ${money(result.perCleanerHour)} per cleaner-hour.` : undefined },
-              { label: 'This plan saves', value: money(plan?.saved || 0), hint: `${plan?.savedShare ?? 0}% of the day`, tone: 'ok' },
-              result.baseline && { label: 'If nobody moves', value: `−${money(result.baseline.lost)}`, hint: result.baseline.jobs ? `${result.baseline.jobs} job${result.baseline.jobs > 1 ? 's' : ''}: short cars can't go out` : 'every car can still go out', tone: result.baseline.lost ? 'bad' : '', help: 'Nobody works alone and every car needs a lead, so a car left with one person, or without a lead, cannot go out unless someone moves.' },
+              { label: 'Jobs on the day', value: result.totalJobs, hint: dayLabel(date) },
+              { label: 'This plan keeps', value: `${plan?.jobsKept ?? 0} of ${result.totalJobs}`, hint: plan?.jobsLost ? `${plural(plan.jobsLost, 'job')} to rebook · ${IMPACT[plan.impact].toLowerCase()}` : 'every job still happens', tone: plan?.jobsLost ? 'warn' : 'ok', help: 'Plans are ranked by how many jobs they keep today. Impact is how much of the day’s revenue the jobs to rebook add up to: low (under 5%), medium (under 15%) or high.' },
+              result.baseline && { label: 'If nobody moves', value: result.baseline.jobs ? `−${plural(result.baseline.jobs, 'job')}` : 'All kept', hint: result.baseline.jobs ? `short cars can't go out · ${IMPACT[result.baseline.impact].toLowerCase()}` : 'every car can still go out', tone: result.baseline.jobs ? 'bad' : '', help: 'Nobody works alone and every car needs a lead, so a car left with one person, or without a lead, cannot go out unless someone moves.' },
               { label: 'Calls', value: plan ? `${plan.changes.filter((c) => s.calls[c.jobId]?.outcome).length + plan.reschedule.filter((c) => s.calls[c.jobId]?.outcome).length} / ${plan.changes.length + plan.reschedule.length}` : 0, hint: noAnswer ? `${noAnswer} not reached yet` : 'logged / to make' },
             ]}
           />
@@ -242,9 +247,8 @@ export default function Callouts({ onError }) {
                 <div className="plan-rank">{i === 0 ? 'Best' : `Option ${i + 1}`}</div>
                 <div className="plan-moves">{x.moves.map((m, n) => <span key={n}>{m}</span>)}</div>
                 <div className="plan-nums">
-                  <b className="ok-text">{money(x.saved)}</b>
-                  <span className="muted small">saved ({x.savedShare}%)</span>
-                  {x.lost > 0 && <span className="bad-text small">−{money(x.lost)} to rebook</span>}
+                  <b className={x.jobsLost ? '' : 'ok-text'}>{x.jobsKept} of {result.totalJobs} jobs</b>
+                  {x.jobsLost > 0 ? <span className="small">{plural(x.jobsLost, 'job')} to rebook <Impact level={x.impact} /></span> : <span className="ok-text small">nothing to rebook</span>}
                   <span className="muted small">{x.changes.length + x.reschedule.length} calls</span>
                 </div>
               </button>
@@ -313,10 +317,10 @@ function PlanDetail({ plan, result, calls, setCall }) {
             <div key={c.jobId} className={`call ${c.kind} ${k.outcome ? 'logged' : ''}`}>
               <span className={`pill ${tone[c.kind]}`}>{label[c.kind]}</span>
               <div className="call-body">
-                <b>{c.title}</b>
+                <b>{c.title} {c.impact && (offToday || c.kind === 'skip') && <Impact level={c.impact} />}</b>
                 <span className="muted small">
                   {offToday || c.kind === 'skip'
-                    ? `Was ${c.was} with ${c.from} · ${money(c.revenue)}${c.revenueEstimated ? ' (est.)' : ''}${c.frequency ? ` · ${plainFreq(c.frequency)}` : ''}`
+                    ? `Was ${c.was} with ${c.from}${c.frequency ? ` · ${plainFreq(c.frequency)}` : ''}`
                     : `${c.was}${c.now !== c.was ? ` → ${c.now}` : ''}${c.moved ? ` · ${c.from} → ${c.to}` : ` · ${c.to}`}`}
                 </span>
               </div>

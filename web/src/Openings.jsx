@@ -10,7 +10,8 @@ import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainF
 // Frequency colours (MaidCentral's own, from the jobs on the board), with fallbacks.
 const FIT_COLOR = { Weekly: '#92B558', 'Every 2 weeks': '#005960', 'Every 4 weeks': '#578CAC', 'One-time': '#d2691e', 'On demand': '#c48f65' };
 // Labels inside the small open blocks on the 4-week plan.
-const FIT_SHORT = { Weekly: 'weekly', 'Every 2 weeks': 'every other', 'Every 4 weeks': 'every 4 wks' };
+const FIT_SHORT = { Weekly: 'wkly', 'Every 2 weeks': '2 wk', 'Every 4 weeks': '4 wk' };
+const FIT_LONG = { Weekly: 'open weekly', 'Every 2 weeks': 'open every other wk', 'Every 4 weeks': 'open every 4 wks' };
 // "Good for…" wording for an opening's frequency.
 const GOOD_FOR = { Weekly: 'Weekly customer', 'Every 2 weeks': 'Every-other-week customer', 'Every 4 weeks': 'Every-4-weeks customer' };
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''}${m < 720 ? 'a' : 'p'}`;
@@ -101,8 +102,12 @@ function CyclePlan({ data, highlight, onClear }) {
   }, [highlight]);
   const isHl = (t, dt) => highlight && t.id === highlight.teamId && highlight.dates.includes(dt);
   const { weeks, weekdays, teams } = data.cycle;
-  const dayStart = 7 * 60;
-  const dayEnd = 18 * 60;
+  // The bar covers the working day (8 AM–5 PM), wider only if a booked job falls outside it,
+  // so short openings get as much room as possible.
+  const spans = teams.flatMap((t) => Object.values(t.days).filter(Boolean).flatMap((d) => [...d.jobs, ...d.open]));
+  const dayStart = Math.min(8 * 60, ...spans.map((x) => Math.floor(x.s / 60) * 60));
+  const dayEnd = Math.max(17 * 60, ...spans.map((x) => Math.ceil(x.e / 60) * 60));
+  const hourLabel = (m) => `${((m / 60 + 11) % 12) + 1} ${m < 720 ? 'AM' : 'PM'}`;
   const pct = (m) => ((Math.min(Math.max(m, dayStart), dayEnd) - dayStart) / (dayEnd - dayStart)) * 100;
   const shown = teams.filter((t) => team === 'all' || String(t.id) === team);
   const datesFor = (weekday) => weeks.map((w) => {
@@ -149,7 +154,7 @@ function CyclePlan({ data, highlight, onClear }) {
         <div className="cycle-legend">
           {['Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => <span key={f}><i style={{ background: freqColors[f] }} />{plainFreq(f)} job</span>)}
           <span><i className="hatch" />Free time (the label says which customers it suits)</span>
-          <span className="muted">Each bar is one team's day, 7 AM–6 PM</span>
+          <span className="muted">Each bar is one team's day, {hourLabel(dayStart)}–{hourLabel(dayEnd)}</span>
           <Help wide>Read across a row to see a team's next 4 weeks on that weekday. Coloured blocks are booked jobs, coloured by how often that customer is cleaned. Dashed blocks are free time; their label says what kind of new customer fits there: "weekly" is free every week, "every other" is free in alternate weeks (pairs with existing every-other-week customers), "every 4 wks" is free once in the 4 weeks. Click any opening elsewhere on this page to jump here.</Help>
         </div>
         <div className="tablewrap plain">
@@ -179,7 +184,7 @@ function CyclePlan({ data, highlight, onClear }) {
                           if (!day) return <td key={dt} className="cycle-cell off"><span className="muted small">off</span></td>;
                           return (
                             <td key={dt} className={`cycle-cell ${isHl(t, dt) ? 'hl' : ''}`}>
-                              <div className="cbar">
+                              <div className="cbar" style={{ '--hours': (dayEnd - dayStart) / 60 }}>
                                 {isHl(t, dt) && <div className="cbar-hl" style={{ left: `${pct(highlight.s)}%`, width: `${pct(highlight.e) - pct(highlight.s)}%` }} />}
                                 {day.window && <div className="cbar-window" style={{ left: `${pct(day.window.s)}%`, width: `${pct(day.window.e) - pct(day.window.s)}%` }} />}
                                 {day.jobs.map((j, i) => {
@@ -193,12 +198,19 @@ function CyclePlan({ data, highlight, onClear }) {
                                   const dim = focus !== 'all' && g.fit !== focus;
                                   return (
                                     <div key={`o${i}`} className={`cbar-open ${dim ? 'dim' : ''}`} style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }} title={`Free ${hhmm(g.s)}–${hhmm(g.e)} · good for an ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}>
-                                      {FIT_SHORT[g.fit]}
+                                      <span>{FIT_SHORT[g.fit]}</span>
                                     </div>
                                   );
                                 })}
                               </div>
-                              <span className="cbar-meta">{day.booked} h{day.open.length ? ` · ${Math.round(day.open.reduce((a, g) => a + (g.e - g.s), 0) / 6) / 10} h open` : ''}</span>
+                              <span className="cbar-meta">
+                                {day.booked} h booked
+                                {day.open.map((g, i) => (
+                                  <span key={i} className="cbar-meta-open" style={{ '--fit': freqColors[g.fit] }}>
+                                    {' · '}<b>{Math.round((g.e - g.s) / 6) / 10} h</b> {FIT_LONG[g.fit]}
+                                  </span>
+                                ))}
+                              </span>
                             </td>
                           );
                         })}

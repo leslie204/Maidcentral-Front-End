@@ -66,7 +66,15 @@ test('nobody works alone: the person left joins a car with a lead, or their car 
   assert.deepEqual(p.calledOut.map((c) => [c.car, c.role]), [['Blue', 'cleaner']]);
   assert.ok(p.scenarios.every((s) => s.cars.every((c) => c.people.length !== 1)), 'no car of one');
   assert.ok(p.baseline.jobs === 2 && p.baseline.lost > 0, 'doing nothing loses all of Blue');
-  for (let i = 1; i < p.scenarios.length; i++) assert.ok(p.scenarios[i - 1].saved >= p.scenarios[i].saved, 'ranked');
+  for (let i = 1; i < p.scenarios.length; i++) assert.ok(p.scenarios[i - 1].jobsKept >= p.scenarios[i].jobsKept, 'ranked by jobs kept');
+  assert.equal(p.totalJobs, JOBS.length);
+  assert.equal(p.baseline.impact, 'high', 'losing a third of the day is high impact');
+  for (const s of p.scenarios) {
+    assert.equal(s.jobsKept + s.jobsLost, p.totalJobs);
+    assert.ok(['none', 'low', 'medium', 'high'].includes(s.impact));
+    assert.equal(s.impact === 'none', s.jobsLost === 0);
+    for (const x of s.reschedule) assert.ok(['low', 'medium', 'high'].includes(x.impact));
+  }
   assert.ok(anyMove(p, /Person 11 \(lead\) joins (Green|Red) \(car of 3\)/));
   assert.ok(p.scenarios[0].saved > p.totalRevenue - p.baseline.lost, 'best plan beats doing nothing');
   for (const s of p.scenarios) {
