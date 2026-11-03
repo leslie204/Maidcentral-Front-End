@@ -579,7 +579,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       {busy && <Skeleton rows={5} height={64} />}
       {result && !busy && (
         <>
-                    <p className="muted small">Best openings for <b>{result.target.label}</b>, ranked by extra driving, frequency and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
+                    <p className="muted small">Best openings for <b>{result.target.label}</b>, ranked by extra driving, {result.frequency === 0 ? 'how soon' : 'frequency'} and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
           {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, or more days.</Empty>}
           <div className="slot-list">
             {result.results.map((r, i) => {
@@ -587,7 +587,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
               return (
                 <div key={r.id} className={`slot place clickable ${i === 0 ? 'best' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
                   <div className="slot-when">
-                    <b>{r.weekday}s</b>
+                    <b>{r.weeks === 0 ? `${r.weekday.slice(0, 3)} ${shortDate(r.dates[0])}` : `${r.weekday}s`}</b>
                     <span>{r.arrive} – {r.done}</span>
                     <span className="muted small">free {r.label}</span>
                   </div>
@@ -596,10 +596,10 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
                     <span className="muted small">{r.area.name || 'area unknown'}{r.area.zip ? ` · ${r.area.zip}` : ''}</span>
                   </div>
                   <div className="slot-reasons">
-                                        <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{plainFreq(r.fit)}</span>
+                                        <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.weeks === 0 ? 'One-time clean' : plainFreq(r.fit)}</span>
                     {r.reasons.map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
                   </div>
-                  <span className="slot-gap muted small">first visits {r.dates.slice(0, 2).map(shortDate).join(', ')}</span>
+                  <span className="slot-gap muted small">{r.weeks === 0 ? `one visit on ${shortDate(r.dates[0])}` : `first visits ${r.dates.slice(0, 2).map(shortDate).join(', ')}`}</span>
                 </div>
               );
             })}

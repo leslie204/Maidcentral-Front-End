@@ -103,6 +103,15 @@ test('place a customer: nearby team and matching frequency first', async () => {
   await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], zip: '00000' }), /ZIP code, an area/);
 });
 
+test('place a one-time clean: single dates, no frequency language', async () => {
+  const once = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '0', hours: 2 });
+  assert.ok(once.results.length > 0);
+  assert.ok(once.results.every((r) => r.weeks === 0 && r.fit === 'One-time' && r.dates.length === 1));
+  assert.ok(once.results.every((r) => !r.reasons.some((x) => /every|weeks: right/i.test(x.text))));
+  assert.equal(new Set(once.results.map((r) => r.id)).size, once.results.length, 'each date listed once');
+  assert.equal(once.results[0].team, 'Red');
+});
+
 test('distance', () => {
   assert.ok(Math.abs(km(NORTH, SOUTH) - 12.2) < 0.5);
 });

@@ -519,7 +519,18 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
     return { startAt, endAt: startAt + need, latest, lastOfDay, ok: startAt + need <= latest };
   };
   const wantDays = String(days || '').split(',').map((d) => d.trim()).filter(Boolean);
-  const ranked = o.openings
+  // A one-time clean needs one free date, not a repeating slot: every date of every opening
+  // is its own candidate (today onwards), and sooner is a little better.
+  const today = localToday();
+  const candidates =
+    want === 0
+      ? o.openings.flatMap((x) =>
+        x.dates
+          .map((d, k) => ({ ...x, id: `${x.id}-${d}`, dates: [d], legs: x.legs.filter((l) => l.date === d).length ? x.legs.filter((l) => l.date === d) : [x.legs[k]].filter(Boolean), fit: 'One-time', weeks: 0 }))
+          .filter((x2) => x2.dates[0] >= today),
+      )
+      : o.openings;
+  const ranked = candidates
     .filter((x) => x.hours * 60 >= need && x.area.center)
     .filter((x) => !wantDays.length || wantDays.includes(x.weekday))
     .filter((x) => part === 'morning' ? x.start < 12 * 60 : part === 'afternoon' ? x.end > 12 * 60 + need : true)
@@ -539,8 +550,11 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       if (want === 1 && x.weeks !== 1) score -= 200;
       if (want === 2) score += x.weeks === 2 ? 30 : x.weeks === 1 ? 5 : -200;
       if (want === 4) score += x.weeks === 4 ? 30 : x.weeks === 2 ? 5 : x.weeks === 1 ? 0 : -200;
-      if (want === 0) score += x.weeks === 4 ? 10 : 0;
-      if (x.weeks === want) reasons.push({ text: { 1: 'Free every week', 2: 'Free every other week: right for this customer', 4: 'Free once every 4 weeks: right for this customer' }[x.weeks] || 'Right frequency', tone: 'good' });
+      if (want === 0) {
+        const ahead = Math.round((Date.parse(`${x.dates[0]}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+        score -= ahead * 0.5;
+        reasons.push({ text: ahead <= 7 ? 'This week or next' : `In ${Math.ceil(ahead / 7)} weeks`, tone: ahead <= 7 ? 'good' : 'neutral' });
+      } else if (x.weeks === want) reasons.push({ text: { 1: 'Free every week', 2: 'Free every other week: right for this customer', 4: 'Free once every 4 weeks: right for this customer' }[x.weeks] || 'Right frequency', tone: 'good' });
       const extra = driveMin(Math.max(detour, 0));
       if (extra <= 5) reasons.push({ text: `On the team's way (≈${extra} min extra driving)`, tone: 'good' });
       else reasons.push({ text: `≈${extra} min extra driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
