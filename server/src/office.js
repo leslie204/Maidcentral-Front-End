@@ -9,6 +9,13 @@ import { geocode } from './geo.js';
 
 const located = new Map(); // portal host -> office
 
+// Cars leave the office no earlier than OFFICE_LEAVE_AT (default 8:15 AM); the first job
+// starts after the drive from there.
+export function leaveAt() {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(process.env.OFFICE_LEAVE_AT || '8:15 AM').trim());
+  return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : 8 * 60 + 15;
+}
+
 export function returnBy() {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(process.env.OFFICE_RETURN_BY || '4:45 PM').trim());
   return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : 16 * 60 + 45;

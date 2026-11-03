@@ -74,7 +74,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       by frequency (weekly, every 2/4 weeks, one-time) with open time labelled by the
       frequency it fits: free every week → weekly; free in weeks 1 & 3 or 2 & 4 → every 2
       weeks (pairs with an existing every-2-weeks customer); free in one week → every 4
-      weeks. Openings start from 8:00 AM, and everyone must be back at the office by
+      weeks. Cars leave the office at `OFFICE_LEAVE_AT` (default 8:15 AM), so the first
+      opening of a day starts after the drive from the office, and everyone must be back at the office by
       `OFFICE_RETURN_BY` (default 4:45 PM): the last gap of a day ends early enough to
       drive back from where the team is. The office is the company address in
       MaidCentral's settings, located once with the US Census geocoder (override with
@@ -99,17 +100,25 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
-  - Call-outs (`server/src/callouts.js`): tap who called out (today or tomorrow) and
-    compare the ways to rearrange the day, ranked by revenue saved. For each car left
-    short: the remaining cleaner works solo, joins another car (a car of three works
-    1.5× faster: on-site time = cleaner-hours ÷ people), or pairs with someone without a
-    team the office marks as available. Each option re-plans the day: cars nobody
-    touched keep their booked times; orphaned jobs (most valuable first) go where they
-    add the least driving, within how far customers may move (default 30 min earlier /
-    2 h later) and with everyone back by the return time; what fits nowhere is to be
-    rescheduled. Shows revenue saved vs doing nothing, the calls to make (with phones)
-    and each car's new day. Today's prices, phones and car sizes come from MaidCentral's
-    Dispatch Board (it only shows today); other days are estimated per cleaner-hour.
+  - Call-outs (`server/src/callouts.js`): tap everyone who called out (any number,
+    today or tomorrow) and compare the ways to rearrange the day, ranked by revenue
+    saved. Every car has a lead (washrooms, kitchen) and a cleaner (floors, dusting):
+    nobody works alone and a car needs a lead. Roles come from the MaidCentral team
+    position (Captain = lead, Team Member = cleaner, Trainee) and can be changed with a
+    tap. For each car left short, the people left join another car (a car of three
+    cleans 1.5× faster: on-site time = cleaner-hours ÷ people), pair up with the person
+    left from another short car (if one is a lead), or pair with someone without a team
+    the office marks as available; otherwise the car stands down and its jobs are shared
+    out. Each option re-plans the day: cars nobody touched keep their booked times;
+    orphaned jobs (most valuable first) go where they add the least driving, within how
+    far customers may move (default 30 min earlier / 2 h later), no earlier than leaving
+    the office (`OFFICE_LEAVE_AT`, default 8:15 AM) plus the drive, and with everyone
+    back by the return time; what fits nowhere is to be rebooked. Beside each call the
+    office logs what the customer said (agreed, no answer → keep booked time, voicemail →
+    OK to move, can't move, only after/before a time, rebook another day, skip) plus a
+    note; the plans update around those answers. Entries stay on that device for the
+    day. Today's prices, phones and car sizes come from MaidCentral's Dispatch Board (it
+    only shows today); other days are estimated per cleaner-hour.
   - Search (customers, homes, cleaners, leads).
 - **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
   MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,
@@ -120,7 +129,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   and dark mode following the device, works on phones).
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
   them as local ISO strings without a zone, so they show the same as in MaidCentral.
-- **Config:** `MC_PORTAL_URL` (required), `OFFICE_RETURN_BY` (default `4:45 PM`),
+- **Config:** `MC_PORTAL_URL` (required), `OFFICE_LEAVE_AT` (default `8:15 AM`),
+  `OFFICE_RETURN_BY` (default `4:45 PM`),
   `OFFICE_LAT`/`OFFICE_LNG` (optional), `DATABASE_URL` + `SESSION_KEY` (64 hex
   characters; changing it signs everyone out), `ALLOWED_EMAILS` (optional comma-separated
   list of who may sign in), `PORT`. Railway: `railway.json` (build `npm run build`, start

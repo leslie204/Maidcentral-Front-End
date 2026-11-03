@@ -1,18 +1,22 @@
 // Call-out recovery: when cleaners call out, play out the ways to rearrange the day and
 // rank them by how much of the day's revenue they save.
 //
-// Each car normally has two cleaners. A job's on-site time scales with the people in the
-// car (cleaner-hours ÷ car size): a car of three cleans a 2-hour (two-person) job in about
-// 1 h 20 min. For each car left short, the options are: the remaining cleaner works solo,
-// joins another car (a car of three), or pairs with someone working without a team
-// today. For every combination the day is re-planned: each car keeps its jobs in order
-// where it can, and the orphaned jobs (highest revenue first) are slotted into whichever
-// car can take them with the least extra driving, within how far customers may be moved,
-// and with everyone back at the office by the return time. Jobs that fit nowhere are to
-// be rescheduled. Read-only: the plan says what to do; changes are made in MaidCentral.
+// How Clean Bee works: every car has a lead (Captain in MaidCentral: washrooms, kitchen)
+// and a cleaner (Team Member: floors, dusting). Nobody works alone, and a car needs a
+// lead. A job's on-site time scales with the people in the car (cleaner-hours ÷ people):
+// a car of three cleans a 2-hour (two-person) job in about 1 h 20 min.
+//
+// After the call-outs, everyone left without a working car is placed: they join another
+// car (if it ends up with a lead and within the size limit), pair up with the person left
+// from another short car (if one of them is a lead), or pair with someone the office marks
+// as available. Every combination is played out: each car keeps its jobs where it can,
+// and orphaned jobs (most valuable first) go to whichever car can take them with the
+// least extra driving, within how far customers may be moved, and with everyone back at
+// the office by the return time. Jobs that fit nowhere are to be rescheduled.
+// Read-only: the plan says what to do; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { book, homeIndex, km, driveMin } from './territory.js';
-import { office, returnBy } from './office.js';
+import { office, returnBy, leaveAt } from './office.js';
 import { tables } from './extract.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
@@ -22,6 +26,26 @@ const DAY = 24 * 60 * MIN;
 const mod = (iso) => Math.round((Date.parse(`${iso}Z`) % DAY) / MIN); // "2026-11-03T09:00:00" -> 540
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(Math.round(m) % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
 const money = (n) => Math.round(n);
+const ROLE_LABEL = { lead: 'lead', cleaner: 'cleaner', trainee: 'trainee' };
+
+// MaidCentral team positions -> roles.
+function roleOf(positionName) {
+  const p = String(positionName || '').toLowerCase();
+  if (/captain|lead|supervisor/.test(p)) return 'lead';
+  if (/trainee/.test(p)) return 'trainee';
+  if (p) return 'cleaner';
+  return null; // not set in MaidCentral
+}
+
+// "123:lead,456:cleaner" -> Map
+function parseRoles(text) {
+  return new Map(
+    String(text || '')
+      .split(',')
+      .map((x) => x.split(':').map((s) => s.trim()))
+      .filter(([id, r]) => id && ROLE_LABEL[r]),
+  );
+}
 
 // Today's prices, addresses, phones and car sizes (MaidCentral's Dispatch Board shows today).
 async function dispatchBoard(mc) {
@@ -36,10 +60,7 @@ async function dispatchBoard(mc) {
         {
           revenue: num(r.cells[col('Bill Rate')]) || 0,
           cleanerHours: num(r.cells[col('Alwd. Hours')]) || null,
-          teamSize: num(r.cells[col('Team Size')]) || null,
           phone: r.cells[col('Phone')] || null,
-          address: r.cells[col('Address')] || null,
-          customer: r.cells[col('Customer')] || null,
         },
       ]),
     );
@@ -49,10 +70,15 @@ async function dispatchBoard(mc) {
   }
 }
 
-// The day as cars, people and jobs.
-export async function dayState(mc, date) {
+// The day as cars, people (with roles) and jobs.
+export async function dayState(mc, date, roleOverrides = new Map()) {
   const dayMs = parseDay(date);
-  const [day, homes] = await Promise.all([dayData(mc, dayMs), book(mc)]);
+  const mcDay = (() => {
+    const [y, m, d] = date.split('-').map(Number);
+    return `${m}/${d}/${y}`;
+  })();
+  const [day, homes, positions] = await Promise.all([dayData(mc, dayMs), book(mc), mc.getJson('/Schedule/ReadTeamPositions', { date: mcDay }).catch(() => [])]);
+  const posName = new Map((positions || []).map((p) => [String(p.TeamPositionID), p.TeamPositionName]));
   const a = analyseDay(day);
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
@@ -61,11 +87,24 @@ export async function dayState(mc, date) {
   // Price per cleaner-hour, from today's board, to estimate other days.
   const priced = [...board.values()].filter((b) => b.revenue && b.cleanerHours);
   const perCleanerHour = priced.length ? priced.reduce((s, b) => s + b.revenue, 0) / priced.reduce((s, b) => s + b.cleanerHours, 0) : 30;
+  const person = (m) => {
+    const fromMc = roleOf(posName.get(String(m.positionId)));
+    const override = roleOverrides.get(String(m.employeeId));
+    return {
+      id: m.employeeId,
+      name: m.name,
+      start: mod(m.start),
+      end: mod(m.end),
+      role: override || fromMc || 'cleaner',
+      roleSource: override ? 'you' : fromMc ? 'MaidCentral' : 'not set',
+      position: posName.get(String(m.positionId)) || null,
+    };
+  };
 
   const cars = a.teams
     .filter((t) => t.jobs.length || t.members.some((m) => !m.absent))
     .map((t) => {
-      const members = t.members.filter((m) => !m.absent && m.start && m.end).map((m) => ({ id: m.employeeId, name: m.name, start: mod(m.start), end: mod(m.end) }));
+      const members = t.members.filter((m) => !m.absent && m.start && m.end).map(person);
       const size = Math.max(members.length, 1);
       const jobs = t.jobs.map((j) => {
         const b = board.get(String(j.id));
@@ -87,21 +126,21 @@ export async function dayState(mc, date) {
           carId: t.id,
         };
       });
-      const last = jobs.length ? jobs.reduce((a, j) => (j.end > a.end ? j : a), jobs[0]) : null;
+      const last = jobs.length ? jobs.reduce((x, j) => (j.end > x.end ? j : x), jobs[0]) : null;
       const bookedBack = last && base.lat && last.loc ? last.end + driveMin(km(last.loc, base)) : last ? last.end + 12 : null;
       return { id: t.id, name: t.name, color: t.color, members, size, jobs, bookedBack };
     });
-  const spare = a.spare.map((p) => ({ id: p.employeeId, name: p.name, start: mod(p.start), end: mod(p.end) }));
+  const spare = a.spare.map(person);
   return { date, isToday, cars, spare, office: base.lat ? { lat: base.lat, lng: base.lng } : null, perCleanerHour: Math.round(perCleanerHour) };
 }
 
-// Plan one car's day: jobs in the given order, starting from the office.
-//   Returns null if any job can't start within its allowed window or the car can't be
-//   back at the office by the return time.
+// Plan one car's day: jobs in the given order, starting from the office. Returns null if
+// any job can't start within its allowed window or the car can't be back in time.
 function route(car, jobs, size, opts, office, backBy) {
   if (!size) return jobs.length ? null : { stops: [], drive: 0, back: null };
   const drive = (a, b) => (a && b ? driveMin(km(a, b)) : 12);
-  const dayStart = car.members.length ? Math.max(opts.dayStart - 60, Math.min(...car.members.map((m) => m.start))) : opts.dayStart;
+  // The car leaves the office at the departure time (or later, if nobody's shift starts yet).
+  const dayStart = car.members.length ? Math.max(opts.dayStart, Math.min(...car.members.map((m) => m.start))) : opts.dayStart;
   let t = dayStart;
   let at = office;
   let total = 0;
@@ -121,9 +160,15 @@ function route(car, jobs, size, opts, office, backBy) {
     } else {
       // Moved jobs and re-crewed cars may start up to opts.early before the booked time;
       // anyone may be pushed up to opts.late later.
-      const earliest = car.changed || j.carId !== car.id ? j.start - opts.early : j.start;
+      // What the customer said on the phone narrows this (see applyCalls).
+      let earliest = car.changed || j.carId !== car.id ? j.start - opts.early : j.start;
+      let latest = j.start + opts.late;
+      if (j.keepTime) (earliest = j.start), (latest = j.start);
+      if (j.pinStart != null) (earliest = j.pinStart), (latest = j.pinStart);
+      if (j.after != null) earliest = Math.max(earliest, j.after);
+      if (j.before != null) latest = Math.min(latest, j.before);
       start = Math.max(t + d, earliest);
-      if (start > j.start + opts.late) return null;
+      if (start > latest) return null;
       end = start + Math.ceil(j.cleanerMinutes / size / 5) * 5;
     }
     stops.push({ job: j, start, end });
@@ -142,10 +187,10 @@ function plan(state, arrangement, opts) {
   const backBy = opts.returnBy;
   const cars = arrangement.cars.map((c) => ({ ...c, jobs: [...c.jobs] }));
   let orphans = [...arrangement.orphans];
-  // A car that can't keep all its jobs (e.g. one cleaner now) drops its last ones.
   const routes = new Map();
   for (const c of cars) {
     let r = route(c, c.jobs, c.size, opts, state.office, backBy);
+    // A car that can't keep all its jobs drops its least valuable ones.
     while (!r && c.jobs.length) {
       const dropped = c.jobs.reduce((lo, j) => (j.revenue < lo.revenue ? j : lo), c.jobs[0]);
       c.jobs = c.jobs.filter((j) => j !== dropped);
@@ -159,8 +204,9 @@ function plan(state, arrangement, opts) {
   const lost = [];
   for (const j of orphans) {
     let best = null;
+    const pinned = j.pinCar && cars.some((c) => c.size && c.name === j.pinCar);
     for (const c of cars) {
-      if (!c.size) continue;
+      if (!c.size || (pinned && c.name !== j.pinCar)) continue;
       const before = routes.get(c.id);
       for (let i = 0; i <= c.jobs.length; i++) {
         const list = [...c.jobs.slice(0, i), j, ...c.jobs.slice(i)];
@@ -179,100 +225,195 @@ function plan(state, arrangement, opts) {
   return { cars, routes, lost };
 }
 
+// What customers said when the office called them, applied to their jobs.
+//   calls: { [jobId]: { outcome, car, start, time } }
+//     agreed     -> the job is done by that car at that time (pinned)
+//     keep       -> it can't move from its booked time (any car may do it)
+//     after/before -> only after / only before a time (minutes)
+//     reschedule/skip -> not today
+//     noanswer   -> couldn't reach them: keep their booked time (don't move them unannounced)
+//     voicemail  -> left a message and it's OK to move them: no limit
+function applyCalls(cars, calls) {
+  const out = [];
+  for (const c of cars) {
+    c.jobs = c.jobs
+      .map((j) => {
+        const k = calls[String(j.id)];
+        if (!k) return j;
+        if (k.outcome === 'reschedule' || k.outcome === 'skip') {
+          out.push({ ...j, customerChoice: k.outcome });
+          return null;
+        }
+        const x = { ...j, outcome: k.outcome };
+        if (k.outcome === 'agreed') Object.assign(x, { pinCar: k.car || null, pinStart: Number.isFinite(k.start) ? k.start : null });
+        if (k.outcome === 'keep' || k.outcome === 'noanswer') x.keepTime = true;
+        if (k.outcome === 'after' && Number.isFinite(k.time)) x.after = k.time;
+        if (k.outcome === 'before' && Number.isFinite(k.time)) x.before = k.time;
+        return x;
+      })
+      .filter(Boolean);
+  }
+  return out;
+}
+
+const hasLead = (people) => people.some((p) => p.role === 'lead');
+const names = (people) => people.map((p) => `${p.name} (${ROLE_LABEL[p.role] || 'role not set'})`).join(' & ');
+
 // Every reasonable arrangement after the call-outs, ranked by revenue saved.
-//   available: people without a team that day who could fill in (ids), chosen by the office
-//   maxCar: the most people in one car (default 3)
-export async function callOutScenarios(mc, { date, out = [], available = [], early = 30, late = 120, dayStart = '8:00 AM', maxCar = 3 } = {}) {
+//   out: ids of people who called out; roles: "id:lead,id:cleaner" (overrides MaidCentral)
+//   available: people without a team that day who could fill in (ids)
+//   early/late: minutes customers may move; maxCar: most people in one car (default 3)
+//   calls: JSON { jobId: { outcome, car, start, time } } from the office's phone calls
+export async function callOutScenarios(mc, { date, out = [], roles = '', available = [], early = 30, late = 120, dayStart, maxCar = 3, calls = '' } = {}) {
   const day = date || localToday();
-  const state = await dayState(mc, day);
-  const outIds = new Set((Array.isArray(out) ? out : String(out).split(',')).map((x) => String(x).trim()).filter(Boolean));
+  const state = await dayState(mc, day, parseRoles(roles));
+  let callMap = {};
+  try {
+    callMap = typeof calls === 'string' ? (calls ? JSON.parse(calls) : {}) : calls || {};
+  } catch {
+    throw new McError('input', 'Call outcomes could not be read.');
+  }
+  // Customers who chose to reschedule or skip are off today's plan before anything else.
+  const notToday = applyCalls(state.cars, callMap);
+  const ids = (v) => new Set((Array.isArray(v) ? v : String(v).split(',')).map((x) => String(x).trim()).filter(Boolean));
+  const outIds = ids(out);
   if (!outIds.size) throw new McError('input', 'Choose who called out.');
   const startMin = (() => {
-    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(dayStart);
-    return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : 480;
+    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(dayStart || ''));
+    return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : leaveAt();
   })();
+  const most = Math.max(2, Number(maxCar) || 3);
   const opts = { early: Math.max(0, Number(early) || 0), late: Math.max(0, Number(late) || 0), returnBy: returnBy(), dayStart: startMin };
-  const totalRevenue = state.cars.reduce((s, c) => s + c.jobs.reduce((a, j) => a + j.revenue, 0), 0);
+  const totalRevenue = state.cars.reduce((s, c) => s + c.jobs.reduce((a, j) => a + j.revenue, 0), 0) + notToday.reduce((s, j) => s + j.revenue, 0);
 
-  // Who's left in each car.
-  const after = state.cars.map((c) => ({ ...c, members: c.members.filter((m) => !outIds.has(String(m.id))) }));
-  const calledOut = state.cars.flatMap((c) => c.members.filter((m) => outIds.has(String(m.id))).map((m) => ({ ...m, car: c.name })));
-  if (!calledOut.length) throw new McError('input', "None of those people are on a car that day.");
-  const short = after.filter((c) => c.members.length < state.cars.find((x) => x.id === c.id).members.length);
-  const availIds = new Set((Array.isArray(available) ? available : String(available).split(',')).map((x) => String(x).trim()).filter(Boolean));
-  const spare = state.spare.filter((p) => availIds.has(String(p.id)) && !outIds.has(String(p.id)));
+  const calledOut = state.cars.flatMap((c) => c.members.filter((m) => outIds.has(String(m.id))).map((m) => ({ id: m.id, name: m.name, role: m.role, car: c.name })));
+  if (!calledOut.length) throw new McError('input', 'None of those people are on a car that day.');
+  const availIds = ids(available);
+  const fillIns = state.spare.filter((p) => availIds.has(String(p.id)) && !outIds.has(String(p.id)));
 
-  // Choices for each short car with one cleaner left: solo, join another car, or pair
-  // with someone without a team. Cars with nobody left hand all their jobs out.
-  const choices = short.map((c) => {
-    if (c.members.length === 0) return [{ kind: 'empty', car: c }];
-    if (c.members.length >= 2) return [{ kind: 'keep', car: c }];
-    const opts2 = [{ kind: 'solo', car: c }];
-    const most = Math.max(2, Number(maxCar) || 3);
-    for (const u of after) if (u.id !== c.id && u.members.length >= 1 && u.members.length + c.members.length <= most && !short.some((s) => s.id === u.id && s.members.length < 2)) opts2.push({ kind: 'join', car: c, into: u });
-    for (const p of spare) opts2.push({ kind: 'pair', car: c, with: p });
-    return opts2;
-  });
-  const combos = choices.reduce((acc, list) => acc.flatMap((a) => list.map((x) => [...a, x])), [[]]).slice(0, 400);
+  // Cars after the call-outs: intact ones keep going; short ones need a decision.
+  const after = state.cars.map((c) => ({ ...c, members: c.members.filter((m) => !outIds.has(String(m.id))), lostPeople: c.members.filter((m) => outIds.has(String(m.id))) }));
+  const intact = after.filter((c) => !c.lostPeople.length);
+  const short = after.filter((c) => c.lostPeople.length);
+  // A short car still works if it has two people and a lead.
+  const working = (people) => people.length >= 2 && hasLead(people);
 
-  const scenarios = combos.map((combo) => {
+  // Options for each short car, chosen together (pairs and shared cars must agree).
+  const scenarios = [];
+  const explore = (i, acc, used) => {
+    if (scenarios.length >= 600) return;
+    if (i === short.length) return scenarios.push(acc);
+    const c = short[i];
+    if (used.taken.has(c.id)) return explore(i + 1, acc, used); // paired with an earlier car
+    const people = c.members;
+    if (!people.length) return explore(i + 1, [...acc, { kind: 'empty', car: c }], used);
+    if (working(people)) return explore(i + 1, [...acc, { kind: 'keep', car: c }], used);
+    // Join an intact car (it must end up with a lead, within the size limit).
+    for (const u of intact) {
+      const size = u.members.length + (used.added.get(u.id) || 0) + people.length;
+      if (size > most) continue;
+      if (!hasLead([...u.members, ...people])) continue;
+      const added = new Map(used.added).set(u.id, (used.added.get(u.id) || 0) + people.length);
+      explore(i + 1, [...acc, { kind: 'join', car: c, into: u }], { ...used, added });
+    }
+    // Pair with what's left of another short car: together they need a lead.
+    for (const d of short.slice(i + 1)) {
+      if (used.taken.has(d.id) || !d.members.length || working(d.members)) continue;
+      const together = [...people, ...d.members];
+      if (together.length > most || !working(together)) continue;
+      const taken = new Set(used.taken).add(d.id);
+      explore(i + 1, [...acc, { kind: 'pair', car: c, other: d, keep: c }], { ...used, taken });
+      explore(i + 1, [...acc, { kind: 'pair', car: c, other: d, keep: d }], { ...used, taken });
+    }
+    // Pair with someone available to fill in.
+    for (const f of fillIns) {
+      if (used.fill.has(f.id)) continue;
+      const together = [...people, f];
+      if (together.length > most || !working(together)) continue;
+      explore(i + 1, [...acc, { kind: 'fill', car: c, with: f }], { ...used, fill: new Set(used.fill).add(f.id) });
+    }
+    // Nothing works: they can't go out alone, so their car's jobs are shared out.
+    explore(i + 1, [...acc, { kind: 'stand-down', car: c }], used);
+  };
+  explore(0, [], { taken: new Set(), added: new Map(), fill: new Set() });
+
+  const seen = new Set();
+  const built = scenarios.map((combo) => {
     const cars = after.map((c) => ({ ...c, members: [...c.members], jobs: [...c.jobs], size: c.members.length }));
     const byId = new Map(cars.map((c) => [c.id, c]));
     const orphans = [];
     const moves = [];
-    const usedSpare = new Set();
-    let valid = true;
+    const off = (c) => {
+      orphans.push(...c.jobs);
+      c.jobs = [];
+      c.members = [];
+      c.size = 0;
+    };
     for (const ch of combo) {
       const c = byId.get(ch.car.id);
       if (ch.kind === 'empty') {
-        orphans.push(...c.jobs);
-        c.jobs = [];
-        c.size = 0;
-        moves.push(`${c.name} has nobody left: its jobs go to other cars`);
-      } else if (ch.kind === 'solo') {
+        moves.push(`${c.name} has nobody left: its jobs are shared out`);
+        off(c);
+      } else if (ch.kind === 'keep') {
         c.changed = true;
-        moves.push(`${c.members[0].name} works ${c.name} alone`);
+        moves.push(`${c.name} carries on with ${names(c.members)}`);
       } else if (ch.kind === 'join') {
         const u = byId.get(ch.into.id);
-        u.members.push(...c.members);
+        const joining = [...c.members];
+        u.members.push(...joining);
         u.size = u.members.length;
         u.changed = true;
-        orphans.push(...c.jobs);
-        moves.push(`${c.members.map((m) => m.name).join(' & ')} joins ${u.name} (car of ${u.size}); ${c.name}'s jobs are shared out`);
-        c.members = [];
-        c.jobs = [];
-        c.size = 0;
+        moves.push(`${names(joining)} joins ${u.name} (car of ${u.size}); ${c.name}'s jobs are shared out`);
+        off(c);
       } else if (ch.kind === 'pair') {
-        if (usedSpare.has(ch.with.id)) valid = false;
-        usedSpare.add(ch.with.id);
+        const keep = byId.get(ch.keep.id);
+        const other = byId.get((ch.keep.id === ch.car.id ? ch.other : ch.car).id);
+        keep.members.push(...other.members);
+        keep.size = keep.members.length;
+        keep.changed = true;
+        moves.push(`${names(keep.members)} pair up in ${keep.name}, keeping ${keep.name}'s jobs; ${other.name}'s jobs are shared out`);
+        off(other);
+      } else if (ch.kind === 'fill') {
+        const partners = [...c.members];
         c.members.push(ch.with);
         c.size = c.members.length;
         c.changed = true;
-        moves.push(`${ch.with.name} (no team today) pairs with ${c.members[0].name} in ${c.name}`);
+        moves.push(`${ch.with.name} (${ROLE_LABEL[ch.with.role]}, no team today) fills in with ${names(partners)} in ${c.name}`);
+      } else if (ch.kind === 'stand-down') {
+        moves.push(`${names(c.members)} can't go out alone: ${c.name}'s jobs are shared out`);
+        off(c);
       }
     }
-    if (!valid) return null;
+    const k = moves.join('|');
+    if (seen.has(k)) return null;
+    seen.add(k);
+    // Jobs a customer agreed to have done by another car go to that car.
+    for (const c of cars) {
+      const away = c.jobs.filter((j) => j.pinCar && j.pinCar !== c.name);
+      if (away.length) {
+        c.jobs = c.jobs.filter((j) => !away.includes(j));
+        orphans.push(...away);
+      }
+    }
     const p = plan(state, { cars, orphans }, opts);
-    const lostRevenue = p.lost.reduce((s, j) => s + j.revenue, 0);
+    const lostRevenue = p.lost.reduce((s, j) => s + j.revenue, 0) + notToday.reduce((s, j) => s + j.revenue, 0);
     const changes = [];
     for (const c of p.cars) {
-      const r = p.routes.get(c.id);
-      for (const s of r?.stops || []) {
+      for (const s of p.routes.get(c.id)?.stops || []) {
         const moved = s.job.carId !== c.id;
         const shifted = Math.abs(s.start - s.job.start) >= 15;
-        if (moved || shifted) changes.push({ jobId: s.job.id, title: s.job.title, phone: s.job.phone, from: state.cars.find((x) => x.id === s.job.carId)?.name, to: c.name, was: hhmm(s.job.start), now: hhmm(s.start), moved, shifted });
+        if (moved || shifted || s.job.outcome) changes.push({ jobId: s.job.id, title: s.job.title, phone: s.job.phone, from: state.cars.find((x) => x.id === s.job.carId)?.name, to: c.name, was: hhmm(s.job.start), now: hhmm(s.start), nowMin: s.start, moved, shifted, outcome: s.job.outcome || null });
       }
     }
-    const drive = [...p.routes.values()].reduce((s, r) => s + (r?.drive || 0), 0);
     return {
       moves,
-      kind: combo.map((c) => c.kind),
+      kinds: combo.map((x) => x.kind),
       saved: money(totalRevenue - lostRevenue),
       lost: money(lostRevenue),
       savedShare: totalRevenue ? Math.round(((totalRevenue - lostRevenue) / totalRevenue) * 100) : 100,
-      reschedule: p.lost.map((j) => ({ jobId: j.id, title: j.title, phone: j.phone, was: hhmm(j.start), revenue: j.revenue, revenueEstimated: j.revenueEstimated, from: state.cars.find((x) => x.id === j.carId)?.name, frequency: j.frequency })),
+      reschedule: [...notToday, ...p.lost].map((j) => ({ jobId: j.id, title: j.title, phone: j.phone, was: hhmm(j.start), revenue: j.revenue, revenueEstimated: j.revenueEstimated, from: state.cars.find((x) => x.id === j.carId)?.name, frequency: j.frequency, customerChoice: j.customerChoice || null, outcome: j.outcome || null })),
       changes,
-      driveMinutes: drive,
+      driveMinutes: [...p.routes.values()].reduce((s, r) => s + (r?.drive || 0), 0),
       cars: p.cars
         .filter((c) => c.size || (p.routes.get(c.id)?.stops || []).length)
         .map((c) => {
@@ -282,6 +423,7 @@ export async function callOutScenarios(mc, { date, out = [], available = [], ear
             name: c.name,
             color: c.color,
             people: c.members.map((m) => m.name),
+            roles: c.members.map((m) => m.role),
             back: r?.back != null ? hhmm(r.back) : null,
             stops: (r?.stops || []).map((s) => ({ jobId: s.job.id, title: s.job.title, start: s.start, end: s.end, label: `${hhmm(s.start)} – ${hhmm(s.end)}`, was: hhmm(s.job.start), moved: s.job.carId !== c.id, from: state.cars.find((x) => x.id === s.job.carId)?.name, revenue: s.job.revenue, frequency: s.job.frequency, area: s.job.area })),
           };
@@ -289,17 +431,9 @@ export async function callOutScenarios(mc, { date, out = [], available = [], ear
     };
   }).filter(Boolean);
 
-  // Doing nothing: the short cars' jobs that need the missing people are lost.
-  const baseline = scenarios.find((s) => s.kind.every((k) => k === 'solo' || k === 'empty' || k === 'keep'));
-  const ranked = scenarios.sort((a, b) => b.saved - a.saved || a.changes.length - b.changes.length || a.driveMinutes - b.driveMinutes);
-  // Keep distinct plans only (same moves text can repeat via equivalent combos).
-  const seen = new Set();
-  const top = ranked.filter((s) => {
-    const k = s.moves.join('|');
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  }).slice(0, 6);
+  // If nobody moves: short cars that can't legally go out lose all their jobs.
+  const atRisk = short.filter((c) => !working(c.members)).flatMap((c) => c.jobs);
+  const ranked = built.sort((a, b) => b.saved - a.saved || a.changes.length + a.reschedule.length - (b.changes.length + b.reschedule.length) || a.driveMinutes - b.driveMinutes);
   return {
     date: day,
     isToday: state.isToday,
@@ -307,20 +441,24 @@ export async function callOutScenarios(mc, { date, out = [], available = [], ear
     perCleanerHour: state.perCleanerHour,
     totalRevenue: money(totalRevenue),
     calledOut,
-    options: { early: opts.early, late: opts.late, returnBy: hhmm(opts.returnBy), maxCar: Math.max(2, Number(maxCar) || 3) },
-    baseline: baseline ? { saved: baseline.saved, lost: baseline.lost, moves: baseline.moves } : null,
-    scenarios: top,
+    options: { early: opts.early, late: opts.late, leaveAt: hhmm(opts.dayStart), returnBy: hhmm(opts.returnBy), maxCar: most },
+    baseline: { lost: money(atRisk.reduce((s, j) => s + j.revenue, 0)), jobs: atRisk.length },
+    scenarios: ranked.slice(0, 8),
+    callsApplied: Object.keys(callMap).length,
   };
 }
 
-// Who's working (to choose who called out).
-export async function roster(mc, { date } = {}) {
+// Who's working (to choose who called out), with roles.
+export async function roster(mc, { date, roles = '' } = {}) {
   const day = date || localToday();
-  const state = await dayState(mc, day);
+  const state = await dayState(mc, day, parseRoles(roles));
+  const who = (m) => ({ id: m.id, name: m.name, role: m.role, roleSource: m.roleSource, position: m.position });
   return {
     date: day,
     isToday: state.isToday,
-    cars: state.cars.map((c) => ({ id: c.id, name: c.name, color: c.color, members: c.members.map((m) => ({ id: m.id, name: m.name })), jobs: c.jobs.length, revenue: c.jobs.reduce((s, j) => s + j.revenue, 0) })),
-    spare: state.spare.map((p) => ({ id: p.id, name: p.name })),
+    leaveAt: hhmm(leaveAt()),
+    returnBy: hhmm(returnBy()),
+    cars: state.cars.map((c) => ({ id: c.id, name: c.name, color: c.color, members: c.members.map(who), noLead: c.members.length > 0 && !hasLead(c.members), jobs: c.jobs.length, revenue: c.jobs.reduce((s, j) => s + j.revenue, 0) })),
+    spare: state.spare.map(who),
   };
 }

@@ -13,7 +13,7 @@
 import { root, tables } from './extract.js';
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { McError } from './mc.js';
-import { office, returnBy } from './office.js';
+import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
 import { geocode, localToday, mondayOf } from './geo.js';
 
@@ -180,8 +180,8 @@ export function openingsStatus(mc) {
   return p ? { stage: p.stage, done: p.done, total: p.total, seconds: Math.round((Date.now() - p.startedAt) / 1000) } : null;
 }
 
-export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM', dayEnd } = {}) {
-  const key = JSON.stringify([from, dayStart, dayEnd || '']);
+export async function openings(mc, { from, minHours = 1.5, dayStart, dayEnd } = {}) {
+  const key = JSON.stringify([from, dayStart || '', dayEnd || '']);
   if (!results.has(mc)) results.set(mc, new Map());
   const m = results.get(mc);
   const hit = m.get(key);
@@ -239,12 +239,13 @@ export function prewarm(mc) {
   return openings(mc, { from: mondayOf(localToday()) }).catch(() => {});
 }
 
-async function computeOpenings(mc, { from, dayStart = '8:00 AM', dayEnd }) {
+async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const minHours = 0.5;
   const start = parseDay(from);
   const minMin = Math.round(minHours * 60);
   const back = returnBy();
-  const open = [[minutes(dayStart) ?? 480, Math.min(minutes(dayEnd) ?? back, back)]];
+  const leave = leaveAt();
+  const open = [[minutes(dayStart) ?? leave, Math.min(minutes(dayEnd) ?? back, back)]];
   const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
   const prog = { stage: 'locations', done: 0, total: dates.length, startedAt: Date.now() };
   progress.set(mc, prog);
@@ -299,8 +300,14 @@ async function computeOpenings(mc, { from, dayStart = '8:00 AM', dayEnd }) {
         // office by the return time, from where the team was last (the job before it).
         const jobs = t.jobs.map((j) => ({ ...j, s: mod(Date.parse(`${j.start}Z`)), e: mod(Date.parse(`${j.end}Z`)) }));
         const gaps = t.gaps.map((g) => {
-          const gs = mod(g.startMs);
+          let gs = mod(g.startMs);
           let ge = mod(g.endMs);
+          // The first gap of the day (no job before it) starts after leaving the office at
+          // the departure time and driving to where the team goes next.
+          if (!jobs.some((j) => j.e <= gs + 5)) {
+            const after = jobs.filter((j) => j.s >= ge - 5).sort((a, b) => a.s - b.s)[0];
+            gs = Math.max(gs, leave + toOffice(after ? place(after.title) : null));
+          }
           if (!jobs.some((j) => j.s >= ge - 5)) {
             const before = jobs.filter((j) => j.e <= gs + 5).sort((a, b) => b.e - a.e)[0];
             ge = Math.min(ge, back - toOffice(before ? place(before.title) : null));
@@ -512,7 +519,7 @@ export async function placeCustomer(mc, { from, address, zip, zone, home, freque
     let latest = Infinity;
     let lastOfDay = false;
     for (const l of x.legs) {
-      earliest = Math.max(earliest, l.beforeEnd != null ? l.beforeEnd + (l.before ? drive(l.before, target) : 15) : x.start + (base.lat ? drive(base, target) : 0));
+      earliest = Math.max(earliest, l.beforeEnd != null ? l.beforeEnd + (l.before ? drive(l.before, target) : 15) : leaveAt() + (base.lat ? drive(base, target) : 15));
       if (l.afterStart != null) latest = Math.min(latest, l.afterStart - (l.after ? drive(target, l.after) : 15));
       else {
         lastOfDay = true;

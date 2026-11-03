@@ -467,7 +467,6 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
 .spare-pick { margin-top: 12px; }
 .spare-pick .roster-people { margin-top: 8px; }
 .callout-settings { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-.callout-settings .btn { margin-left: auto; }
 .inline-field select { height: 32px; }
 .plan-list { display: grid; gap: 8px; margin-bottom: 16px; }
 .plan-card { display: grid; grid-template-columns: 90px 1fr auto; gap: 14px; align-items: center; text-align: left; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; box-shadow: var(--shadow); }
@@ -486,6 +485,27 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
 .plan-car-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .plan-car-head .right { margin-left: auto; }
 .cbar-job.moved { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.person { display: inline-flex; align-items: stretch; }
+.person .person-chip { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.role-tag { border: 1px solid var(--border-strong); border-left: 0; border-radius: 0 999px 999px 0; padding: 0 9px 0 7px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer; background: var(--bg); color: var(--muted); }
+.role-tag.lead { background: var(--info-soft); color: var(--info); }
+.role-tag.cleaner { background: var(--ok-soft); color: var(--ok); }
+.role-tag.trainee { background: var(--warn-soft); color: var(--warn); }
+.role-tag.none { color: var(--bad); }
+.role-tag.changed { text-decoration: underline dotted; }
+.role-tag:hover { border-color: var(--accent); }
+.person.is-out .role-tag { opacity: 0.6; }
+.roster-warn { display: flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--warn); }
+.replan { margin-left: auto; }
+.replanning { opacity: 0.6; transition: opacity 0.2s; }
+.call-log { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.call-log select, .call-log input { height: 32px; }
+.call-log .call-note { flex: 1; min-width: 160px; }
+.call-log select.tone-ok { border-color: var(--ok); color: var(--ok); }
+.call-log select.tone-warn { border-color: var(--warn); color: var(--warn); }
+.call-log select.tone-info { border-color: var(--info); color: var(--info); }
+.call-log select.tone-bad { border-color: var(--bad); color: var(--bad); }
+.call.logged { background: color-mix(in srgb, var(--ok-soft) 35%, transparent); }
 
 /* Quick search */
 .palette-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(2px); display: grid; justify-items: center; align-items: start; padding-top: 12vh; z-index: 50; }

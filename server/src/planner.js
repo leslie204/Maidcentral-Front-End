@@ -10,7 +10,7 @@
 // zone ("2026-11-03T09:00:00"), which browsers read as local time.
 import { mcDate, McError } from './mc.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
-import { returnBy } from './office.js';
+import { returnBy, leaveAt } from './office.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -120,6 +120,7 @@ export function analyseDay(day) {
     absent: Boolean(s.Absent),
     late: Boolean(s.Late),
     reason: s.Reason || null,
+    positionId: s.TeamPositionID ?? null,
   }));
   const issues = [];
   const teamIds = new Set([...teamMeta.keys(), ...jobs.map((j) => j.teamId), ...shifts.map((s) => s.teamId)].filter(Boolean));
@@ -131,7 +132,8 @@ export function analyseDay(day) {
     // The working day ends when teams must be back at the office (default 4:45 PM).
     const backAt = Date.parse(`${day.iso}T00:00:00Z`) + returnBy() * MIN;
     const shiftEnd = working.length ? Math.max(...working.map((s) => s.end)) : null;
-    const window = working.length ? { start: Math.min(...working.map((s) => s.start)), end: Math.min(shiftEnd, backAt) } : null;
+    const leaveMs = Date.parse(`${day.iso}T00:00:00Z`) + leaveAt() * MIN;
+    const window = working.length ? { start: Math.max(Math.min(...working.map((s) => s.start)), leaveMs), end: Math.min(shiftEnd, backAt) } : null;
     const teamJobs = jobs.filter((j) => j.teamId === id).sort((a, b) => a.start - b.start);
     const busy = merge(teamJobs.map((j) => ({ start: j.start, end: j.end })));
     const booked = busy.reduce((s, b) => s + (b.end - b.start), 0);
@@ -180,7 +182,7 @@ export function analyseDay(day) {
   return {
     date: day.iso,
     teams: teams.sort((a, b) => a.name.localeCompare(b.name)),
-    spare: spare.map((s) => ({ employeeId: s.employeeId, name: s.name, start: wall(s.start), end: wall(s.end) })),
+    spare: spare.map((s) => ({ employeeId: s.employeeId, name: s.name, start: wall(s.start), end: wall(s.end), positionId: s.positionId })),
     issues,
   };
 }

@@ -1,7 +1,8 @@
 // The planner's maths on a made-up day: windows, gaps, issues, slots, continuity.
 import { test } from 'node:test';
-// These tests predate the return-to-office time; the cutoff has its own test below.
+// These tests predate the office departure and return times; those have their own tests.
 process.env.OFFICE_RETURN_BY = '6:00 PM';
+process.env.OFFICE_LEAVE_AT = '7:00 AM';
 import assert from 'node:assert/strict';
 import { analyseDay, planOverview, findSlots, continuity } from '../src/planner.js';
 
@@ -153,5 +154,15 @@ test('return to the office: day capped at the return time, late jobs flagged', (
     assert.match(late.title, /Blue: Gil Fox - Fox Home ends after the 4:45 PM return/);
   } finally {
     process.env.OFFICE_RETURN_BY = '6:00 PM';
+  }
+});
+
+test('cars leave the office at 8:15 AM: team days start no earlier', () => {
+  process.env.OFFICE_LEAVE_AT = '8:15 AM';
+  try {
+    const a = analyseDay({ iso: DAYS[0], ...fixture(DAYS[0]) });
+    assert.equal(a.teams.find((t) => t.name === 'Blue').window.start, '2026-11-09T08:15:00');
+  } finally {
+    process.env.OFFICE_LEAVE_AT = '7:00 AM';
   }
 });
