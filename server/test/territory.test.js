@@ -100,7 +100,7 @@ test('place a customer: nearby team and matching frequency first', async () => {
   const north = await placeCustomer(mc, { from: MONDAYS[0], zip: '99208', frequency: '1', hours: 2 });
   assert.equal(north.results[0].team, 'Blue');
   assert.ok(north.results.every((r) => r.weeks === 1), 'weekly customers only get weekly openings');
-  await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], zip: '00000' }), /ZIP code, a zone/);
+  await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], zip: '00000' }), /ZIP code, an area/);
 });
 
 test('distance', () => {
@@ -120,27 +120,6 @@ test('area names: place names from zone descriptions, duplicates told apart by Z
   assert.equal(names.get('east - spokane valley').label, 'Spokane Valley (99037, 99216)');
   assert.equal(names.get('north').label, 'North Spokane');
   assert.equal(derive('far north - zone - green bluff'), 'Green Bluff');
-});
-
-test('place a customer by street address (geocoded), area from the nearest homes', async () => {
-  const realFetch = globalThis.fetch;
-  const saved = process.env.OFFICE_GEOCODE;
-  delete process.env.OFFICE_GEOCODE;
-  globalThis.fetch = async (url) => ({
-    json: async () => (String(url).includes('nowhere')
-      ? { result: { addressMatches: [] } }
-      : { result: { addressMatches: [{ matchedAddress: '12 S HILL ST, SPOKANE, WA, 99203', coordinates: { x: SOUTH.lng + 0.002, y: SOUTH.lat + 0.002 }, addressComponents: { zip: '99203' } }] } }),
-  });
-  try {
-    const r = await placeCustomer(mc, { from: MONDAYS[0], address: '12 S Hill St, Spokane', frequency: '2', hours: 2 });
-    assert.match(r.target.label, /^12 S HILL ST.*\(south hill|South Hill\)/i);
-    assert.equal(r.results[0].team, 'Red');
-    assert.ok(r.results[0].reasons.some((x) => /every other week/i.test(x.text)));
-    await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], address: 'nowhere at all' }), /Couldn't find that address/);
-  } finally {
-    globalThis.fetch = realFetch;
-    process.env.OFFICE_GEOCODE = saved;
-  }
 });
 
 test('openings are cached per person and filtered by length without re-reading MaidCentral', async () => {

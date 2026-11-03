@@ -15,7 +15,7 @@ import { dayData, analyseDay, parseDay } from './planner.js';
 import { McError } from './mc.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
-import { geocode, localToday, mondayOf } from './geo.js';
+import { localToday, mondayOf } from './geo.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -472,23 +472,12 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
 // Where should a new customer go? Openings ranked by distance, frequency and length.
 //   target: zip, zone, or home (name of an existing home in the book)
 //   days: optional weekdays ("Tuesday,Thursday"); part: any | morning | afternoon
-export async function placeCustomer(mc, { from, address, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
+export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
   const homes = await book(mc);
   const zs = await zones(mc);
   const names = areaNames(zs);
   let target = null;
   let label = null;
-  if (address) {
-    // A new customer's street address: located, and its area taken from the nearest homes.
-    const g = await geocode(address);
-    if (!g) throw new McError('input', "Couldn't find that address. Check the spelling, add the city, or use the ZIP code instead.");
-    const nearest = homes.map((h) => ({ h, d: km(g, h) })).sort((a, b) => a.d - b.d).slice(0, 5);
-    const zoneCount = {};
-    for (const n of nearest) if (n.h.zone) zoneCount[n.h.zone] = (zoneCount[n.h.zone] || 0) + 1;
-    const z = zs.find((x) => g.zip && x.zips.includes(String(g.zip)))?.name || Object.entries(zoneCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-    target = { lat: g.lat, lng: g.lng, zone: z };
-    label = `${g.matched}${z ? ` (${names.get(areaKey(z))?.label || z})` : ''}`;
-  }
   if (home) {
     const h = homes.find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
     if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${areaNames(zs).get(areaKey(h.zone))?.label || h.zip})`);
@@ -505,7 +494,7 @@ export async function placeCustomer(mc, { from, address, zip, zone, home, freque
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone };
     label = zone;
   }
-  if (!target) throw new McError('input', 'Enter an address, a ZIP code, a zone, or an existing home to place the customer near.');
+  if (!target) throw new McError('input', 'Enter a ZIP code, an area, or an existing home to place the customer near.');
   const want = Number(frequency);
   const need = Math.round(Math.min(Math.max(Number(hours) || 2, 0.5), 8) * 60);
   const o = await openings(mc, { from, minHours: Math.max(need / 60, 0.5), dayStart, dayEnd });

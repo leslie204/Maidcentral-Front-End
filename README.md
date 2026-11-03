@@ -93,8 +93,7 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       the list of openings by area. An opening's area is where the team is just before
       and after it, from MaidCentral's Customer Efficiency Map report (every recurring
       home's ZIP, zone and coordinates) matched to the jobs.
-    - Place a customer: street address (located with the US Census geocoder; its area
-      comes from the nearest homes), ZIP, area or existing home + frequency + length (+ days, time of
+    - Place a customer: ZIP, area or existing home + frequency + length (+ days, time of
       day) → openings ranked by the extra driving the new home adds between the jobs
       before and after it (straight-line estimate), frequency fit and length. Each
       result has an exact arrival time that works on every visit date: driving from the

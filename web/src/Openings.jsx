@@ -508,7 +508,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 function PlaceCustomer({ from, zones, onError, onOpen }) {
-    const [form, setForm] = useState({ where: 'address', address: '', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
+    const [form, setForm] = useState({ where: 'zip', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
   const [days, setDays] = useState([]);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -520,7 +520,6 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
     setError(null);
     try {
       const q = { from, frequency: form.frequency, hours: form.hours, part: form.part, days: days.join(',') };
-            if (form.where === 'address') q.address = form.address;
       if (form.where === 'zip') q.zip = form.zip;
       if (form.where === 'zone') q.zone = form.zone;
       if (form.where === 'home') q.home = form.home;
@@ -537,11 +536,10 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       <form className="card place-form" onSubmit={submit}>
         <div className="place-where">
           <div className="segmented">
-                        {[['address', 'Address'], ['zip', 'ZIP'], ['zone', 'Area'], ['home', 'Existing home']].map(([k, label]) => (
+                        {[['zip', 'ZIP'], ['zone', 'Area'], ['home', 'Existing home']].map(([k, label]) => (
               <button type="button" key={k} className={form.where === k ? 'on' : ''} onClick={() => setForm({ ...form, where: k })}>{label}</button>
             ))}
           </div>
-                    {form.where === 'address' && <input placeholder="Street address, city (e.g. 1234 S Grand Blvd, Spokane)" value={form.address} onChange={set('address')} required />}
           {form.where === 'zip' && <input placeholder="e.g. 99203" value={form.zip} onChange={set('zip')} inputMode="numeric" required />}
           {form.where === 'zone' && (
             <select value={form.zone} onChange={set('zone')} required>
@@ -606,7 +604,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
           <p className="muted small">Drive times are estimates from straight-line distance. To book, create the job in MaidCentral.</p>
         </>
       )}
-            {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Enter their address, how often and how long the clean is. You'll get times when a team is already nearby, that work on every visit and still get the team back to the office on time.</Empty>}
+            {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Enter their ZIP code, area or a nearby existing home, how often and how long the clean is. You'll get times when a team is already nearby, that work on every visit and still get the team back to the office on time.</Empty>}
     </>
   );
 }
