@@ -1,6 +1,6 @@
 // HTTP API for the web app. People sign in with their own MaidCentral login; their
-// MaidCentral cookies stay in server memory (proof of concept: a restart signs everyone
-// out). The browser only gets an opaque, httpOnly session cookie.
+// MaidCentral cookies stay on the server (Postgres, encrypted: see store.js), so sessions
+// survive restarts. The browser only gets an opaque, httpOnly session cookie.
 //
 //   POST /auth/login {email, password}   -> {status: 'signed-in'} | {status: 'code', sentTo}
 //   POST /auth/code  {code}              -> {status: 'signed-in'}
@@ -12,14 +12,16 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { McSession, McError, mcDate } from './mc.js';
+import { MemoryStore, hashSid } from './store.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
+const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
+const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000; // MaidCentral's "remember this browser"
 const COOKIE = 'mcfe_sid';
 
-export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir } = {}) {
+export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir, store = new MemoryStore() } = {}) {
   const app = express();
-  const sessions = new Map(); // sid -> { mc, email, lastUsed }
-  const remembered = new Map(); // email -> TwoFactorRememberBrowser cookie (30 days)
+  const cache = new Map(); // sidHash -> { hash, mc, email, expiresAt, saved, touchedAt }; the store is the source of truth
   const attempts = new Map(); // ip -> [timestamps]
 
   app.disable('x-powered-by');
@@ -33,16 +35,41 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   app.get('/healthz', (req, res) => res.json({ ok: true }));
 
   const sidOf = (req) => /(?:^|;\s*)mcfe_sid=([a-f0-9]{64})/.exec(req.headers.cookie || '')?.[1];
-  const current = (req) => {
+
+  // The session for this request: from the cache, or from the store after a restart.
+  const current = async (req) => {
     const sid = sidOf(req);
-    const s = sid && sessions.get(sid);
-    if (!s) return null;
-    if (Date.now() - s.lastUsed > IDLE_MS) {
-      sessions.delete(sid);
+    if (!sid) return null;
+    const hash = hashSid(sid);
+    let s = cache.get(hash);
+    if (s && s.expiresAt <= Date.now()) {
+      cache.delete(hash);
+      await store.deleteSession(hash);
       return null;
     }
-    s.lastUsed = Date.now();
+    if (!s) {
+      const rec = await store.getSession(hash);
+      if (!rec) return null;
+      s = { hash, email: rec.email, mc: McSession.fromState(portalUrl, rec.state, { fetchImpl }), expiresAt: rec.expiresAt, saved: JSON.stringify(rec.state), touchedAt: Date.now() };
+      cache.set(hash, s);
+    }
     return s;
+  };
+
+  // Saves the session when MaidCentral's cookies changed (they renew as they're used);
+  // otherwise only moves the expiry forward, at most once a minute.
+  const persist = async (s, ttl = IDLE_MS) => {
+    s.expiresAt = Date.now() + ttl;
+    const state = s.mc.toState();
+    const json = JSON.stringify(state);
+    if (json !== s.saved) {
+      await store.saveSession(s.hash, { email: s.email, state, expiresAt: s.expiresAt });
+      s.saved = json;
+      s.touchedAt = Date.now();
+    } else if (Date.now() - s.touchedAt > 60_000) {
+      await store.touchSession(s.hash, s.expiresAt);
+      s.touchedAt = Date.now();
+    }
   };
   const setCookie = (res, sid, maxAge = IDLE_MS) =>
     res.cookie(COOKIE, sid, { httpOnly: true, secure: secureCookies, sameSite: 'strict', path: '/', maxAge });
@@ -69,10 +96,13 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     if (allowedEmails.length && !allowedEmails.includes(email)) return res.status(403).json({ error: 'This preview is limited to invited users.' });
     const mc = new McSession(portalUrl, { fetchImpl });
     try {
-      const result = await mc.login(email, password, remembered.get(email));
+      const result = await mc.login(email, password, await store.getRemembered(email));
       const sid = crypto.randomBytes(32).toString('hex');
-      sessions.set(sid, { mc, email, lastUsed: Date.now() });
-      setCookie(res, sid, result.status === 'code' ? 10 * 60 * 1000 : IDLE_MS);
+      const s = { hash: hashSid(sid), mc, email, expiresAt: 0, saved: null, touchedAt: 0 };
+      const ttl = result.status === 'code' ? CODE_MS : IDLE_MS;
+      await persist(s, ttl);
+      cache.set(s.hash, s);
+      setCookie(res, sid, ttl);
       res.json(result);
     } catch (e) {
       sendError(res, e);
@@ -81,13 +111,13 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   app.post('/auth/code', sameOrigin, async (req, res) => {
     const sid = sidOf(req);
-    const s = sid && sessions.get(sid);
+    const s = await current(req);
     if (!s) return res.status(401).json({ error: 'Start again: sign in first.' });
     if (tooMany(req.ip)) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
     try {
       const result = await s.mc.verify(String(req.body?.code || ''));
-      if (result.rememberCookie) remembered.set(s.email, result.rememberCookie);
-      s.lastUsed = Date.now();
+      if (result.rememberCookie) await store.saveRemembered(s.email, result.rememberCookie, result.rememberCookie.expires || Date.now() + REMEMBER_MS);
+      await persist(s);
       setCookie(res, sid);
       res.json({ status: result.status });
     } catch (e) {
@@ -95,24 +125,41 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     }
   });
 
-  app.post('/auth/logout', sameOrigin, (req, res) => {
+  app.post('/auth/logout', sameOrigin, async (req, res) => {
     const sid = sidOf(req);
-    if (sid) sessions.delete(sid);
+    if (sid) {
+      cache.delete(hashSid(sid));
+      await store.deleteSession(hashSid(sid)).catch((e) => console.error('logout:', e.message));
+    }
     res.clearCookie(COOKIE, { path: '/' });
     res.json({ ok: true });
   });
 
-  app.get('/auth/me', (req, res) => {
-    const s = current(req);
+  app.get('/auth/me', async (req, res) => {
+    const s = await current(req).catch(() => null);
     res.json(s?.mc.signedIn ? { email: s.email, portal: new URL(portalUrl).host } : { email: null });
   });
 
   // Everything under /api needs a signed-in session.
   const api = express.Router();
-  api.use((req, res, next) => {
-    const s = current(req);
+  api.use(async (req, res, next) => {
+    let s;
+    try {
+      s = await current(req);
+    } catch (e) {
+      console.error('session store:', e.message);
+      return res.status(503).json({ error: 'Session storage is unavailable. Try again shortly.' });
+    }
     if (!s?.mc.signedIn) return res.status(401).json({ error: 'Please sign in.' });
     req.mc = s.mc;
+    // After the response, save renewed MaidCentral cookies (or a signed-out state).
+    res.on('finish', () => {
+      if (s.mc.signedIn) persist(s).catch((e) => console.error('session save:', e.message));
+      else {
+        cache.delete(s.hash);
+        store.deleteSession(s.hash).catch(() => {});
+      }
+    });
     next();
   });
 

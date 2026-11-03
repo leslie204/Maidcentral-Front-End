@@ -30,6 +30,19 @@ export class McSession {
     this.signedIn = false;
   }
 
+  // Everything needed to resume this session after a restart (stored encrypted).
+  toState() {
+    return { jar: [...this.jar], pendingForm: this.pendingForm, signedIn: this.signedIn };
+  }
+
+  static fromState(portalUrl, state, options) {
+    const mc = new McSession(portalUrl, options);
+    mc.jar = new Map(state?.jar || []);
+    mc.pendingForm = state?.pendingForm || null;
+    mc.signedIn = Boolean(state?.signedIn);
+    return mc;
+  }
+
   cookieHeader() {
     const now = Date.now();
     return [...this.jar].filter(([, c]) => !c.expires || c.expires > now).map(([n, c]) => `${n}=${c.value}`).join('; ');

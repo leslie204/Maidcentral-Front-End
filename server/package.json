@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "node-html-parser": "^9.0.0"
+    "node-html-parser": "^9.0.0",
+    "pg": "^8.23.1"
   }
 }

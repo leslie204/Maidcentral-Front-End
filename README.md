@@ -39,16 +39,22 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
 
 - **Sign-in:** people use their own MaidCentral email and password. The server signs in to
   the portal like a browser, relays MaidCentral's 2FA code step to our login screen and
-  ticks "Remember this browser". Their MaidCentral cookies stay in server memory; the
-  browser only gets an opaque httpOnly cookie. Passwords are never stored. A restart signs
-  everyone out (proof of concept: no database yet).
+  ticks "Remember this browser". Passwords are never stored. The browser only gets an
+  opaque httpOnly cookie.
+- **Sessions in Postgres** (`server/src/store.js`): each person's MaidCentral cookies are
+  stored encrypted (AES-256-GCM with `SESSION_KEY`, bound to the row), the session id only
+  as a SHA-256 hash, and MaidCentral's 30-day "remember this browser" cookie per email, so
+  restarts and redeploys don't sign anyone out or ask for a new code. Sessions end after
+  12 hours without use; expired rows are deleted hourly. Without `DATABASE_URL`, sessions
+  live in memory (local development).
 - **Read-only by construction:** the server has fixed endpoints (`/api/schedule`,
   `/api/monitor`, `/api/search`, `/api/customers/:id/jobs`), not a general proxy, and every
   MaidCentral call goes through the crawler's safety rules (`assertRead` in
   `server/src/mc.js`): GETs that name no action, and POSTs on `capture/read-posts.txt` only.
 - **Pages:** Schedule (jobs per team for a day), Team Monitor (scheduled vs clocked, live),
   Search (customers, homes, employees, leads), Customer (jobs, last 6 months and next 3).
-- **Config:** `MC_PORTAL_URL` (required), `ALLOWED_EMAILS` (optional comma-separated
+- **Config:** `MC_PORTAL_URL` (required), `DATABASE_URL` + `SESSION_KEY` (64 hex
+  characters; changing it signs everyone out), `ALLOWED_EMAILS` (optional comma-separated
   list of who may sign in), `PORT`. Railway: `railway.json` (build `npm run build`, start
   `npm start`, health check `/healthz`).
 
@@ -65,6 +71,9 @@ npm install
 cp .env.example .env     # fill in; .env is gitignored
 npm run check            # lint + unit tests (same as CI)
 ```
+
+Server tests include a Postgres one that runs when `TEST_DATABASE_URL` points at an empty
+database (CI provides one).
 
 Variables (names only; never commit values): `MC_PORTAL_URL`, `MC_EMAIL`, `MC_PASSWORD`,
 `MC_API_USERNAME`, `MC_API_PASSWORD`, `MC_SANDBOX_API_USERNAME`, `MC_SANDBOX_API_PASSWORD`.

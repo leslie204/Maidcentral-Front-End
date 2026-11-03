@@ -21,6 +21,17 @@ jobs:
     timeout-minutes: 15
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      # Runs the server's Postgres session-store test.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/mcfe_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mcfe_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +40,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run build
 
   crawler-e2e:
     name: Crawler end-to-end (fake portal)
