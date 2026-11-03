@@ -31,8 +31,6 @@ export const api = {
   customer: (id) => call('GET', `/api/customers/${encodeURIComponent(id)}`),
   plannerOverview: (from, days) => call('GET', `/api/planner/overview?from=${from}&days=${days}`),
   plannerDay: (date) => call('GET', `/api/planner/day?date=${date}`),
-  plannerContinuity: (from) => call('GET', `/api/planner/continuity?from=${from}`),
-  plannerSlots: (q) => call('GET', `/api/planner/slots?${new URLSearchParams(q)}`),
   calloutRoster: (date) => call('GET', `/api/callouts/roster?date=${date}`),
   calloutPlan: (q) => call('GET', `/api/callouts/plan?${new URLSearchParams(q)}`),
   openings: (q) => call('GET', `/api/openings?${new URLSearchParams(q)}`),

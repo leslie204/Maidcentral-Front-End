@@ -8,7 +8,6 @@ import Search from './Search.jsx';
 import Customer from './Customer.jsx';
 import Cleaners from './Cleaners.jsx';
 import Cleaner from './Cleaner.jsx';
-import Planner from './Planner.jsx';
 import Openings from './Openings.jsx';
 import Callouts from './Callouts.jsx';
 
@@ -52,7 +51,7 @@ export default function App() {
   if (cleaner) page = <Cleaner id={cleaner[1]} onError={onError} portal={me.portal} />;
   else if (customer) page = <Customer id={customer[1]} go={go} onError={onError} portal={me.portal} />;
   else if (pathname === '/cleaners') page = <Cleaners go={go} onError={onError} />;
-  else if (pathname === '/planner') page = <Planner onError={onError} go={go} />;
+  else if (pathname === '/planner') page = <Openings key="capacity" onError={onError} initialTab="capacity" />;
   else if (pathname === '/openings') page = <Openings key={query} onError={onError} initialTab={new URLSearchParams(query).get('tab') || 'plan'} />;
   else if (pathname === '/callouts') page = <Callouts onError={onError} />;
   else if (pathname === '/monitor') page = <Monitor onError={onError} />;

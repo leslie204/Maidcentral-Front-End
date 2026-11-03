@@ -475,7 +475,6 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
 export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
   const homes = await book(mc);
   const zs = await zones(mc);
-  const names = areaNames(zs);
   let target = null;
   let label = null;
   if (home) {

@@ -62,14 +62,12 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     with productivity, attendance calendar, default schedule, scorecards, inspections,
     clock events, tickets, notes). Licence, birth date, tax and pay details are never
     read out of the page (allow-listed fields only).
-  - Scheduling planner (`server/src/planner.js`), 4-week cycle from this Monday: capacity per team and day (booked hours
-    vs the team's shift window) with a day timeline, things needing attention (no team,
-    nobody scheduled, over capacity, outside hours, overlaps, absences, cleaners without
-    a team), same-team continuity (last 4 weeks vs next 2), and find-a-slot (gaps that
-    fit a job, ranked; prefers the home's usual team). It suggests; changes are made in
-    MaidCentral.
   - Openings (`server/src/territory.js`), for scheduling and sales, over the 4-week
     cycle from this Monday:
+    - Capacity tab (`server/src/planner.js`): how full each team's day is (booked hours
+      vs the team's shift window, 8:15 AM leave to the return time), split repeat /
+      one-time, with the day's timeline when a day is clicked. (The separate Scheduling
+      planner page was removed; `/planner` opens this tab.)
     - 4-week plan: per weekday, each team's day in weeks 1–4 as a bar of jobs coloured
       by frequency (weekly, every 2/4 weeks, one-time) with open time labelled by the
       frequency it fits: free every week → weekly; free in weeks 1 & 3 or 2 & 4 → every 2
@@ -79,8 +77,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       `OFFICE_RETURN_BY` (default 4:45 PM): the last gap of a day ends early enough to
       drive back from where the team is. The office is the company address in
       MaidCentral's settings, located once with the US Census geocoder (override with
-      `OFFICE_LAT`/`OFFICE_LNG`; fallback: centre of the homes in its ZIP). The Planner
-      caps team days at the same time and flags jobs that end after it.
+      `OFFICE_LAT`/`OFFICE_LNG`; fallback: centre of the homes in its ZIP). The Capacity
+      tab caps team days at the same time.
     - Speed: results are cached per person (never shared across users), warmed at
       sign-in and every 15 minutes for anyone active in the last 2 hours, and served at
       once while a refresh runs in the background; the page shows progress while the
@@ -123,9 +121,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   - Search (customers, homes, cleaners, leads).
 - **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
   MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,
-  On Demand) so every job shows its frequency. The planner has a Frequency tab (mix per
-  day and per team), recurring vs one-off hours in the capacity grid, recurring-only
-  continuity, and find-a-slot for recurring bookings (checked on each repeat visit).
+  On Demand) so every job shows its frequency (4-week plan colours, recurring vs one-off
+  hours in the capacity grid).
 - **Design:** same system as the Launch27 app (Geist, sidebar, ⌘K quick search, light
   and dark mode following the device, works on phones).
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns

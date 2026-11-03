@@ -9,7 +9,6 @@ export const NAV = [
       { path: '/', label: 'Schedule', icon: 'calendar' },
       { path: '/monitor', label: 'Team Monitor', icon: 'activity' },
       { path: '/callouts', label: 'Call-outs', icon: 'alert' },
-      { path: '/planner', label: 'Planner', icon: 'planner' },
       { path: '/openings', label: 'Openings & sales', icon: 'sparkle' },
     ],
   },

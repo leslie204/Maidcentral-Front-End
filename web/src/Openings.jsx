@@ -5,6 +5,7 @@ import { api } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
+import CapacityTab from './Capacity.jsx';
 import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
 
 // Frequency colours (MaidCentral's own, from the jobs on the board), with fallbacks.
@@ -54,13 +55,14 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       <PageHeader
         title="Openings"
         subtitle={`Where we can add repeat customers: each team's free time over the next 4 weeks, by area. Teams are back at the office by ${d?.returnBy || '4:45 PM'}.`}
-        actions={
+        actions={tab === 'capacity' ? null : (
           <label className="inline-field">
             Shortest job
             <select value={minHours} onChange={(e) => setMinHours(e.target.value)}>
               {['1', '1.5', '2', '2.5', '3'].map((h) => <option key={h} value={h}>{h} h</option>)}
             </select>
           </label>
+        )
         }
       />
       {d && (
@@ -74,9 +76,9 @@ export default function Openings({ onError, initialTab = 'plan' }) {
           ]}
         />
       )}
-      <Tabs value={tab} onChange={setTab} tabs={[['plan', '4-week plan'], ['sell', 'Where to sell'], ['place', 'Place a customer']]} />
-      <ErrorNote error={o.error} />
-      {o.loading && (
+      <Tabs value={tab} onChange={setTab} tabs={[['plan', '4-week plan'], ['sell', 'Where to sell'], ['place', 'Place a customer'], ['capacity', 'Capacity']]} />
+      {tab !== 'capacity' && <ErrorNote error={o.error} />}
+      {o.loading && tab !== 'capacity' && (
         <div className="loading-card">
           <b>{!prog ? 'Getting your openings from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations and areas…' : `Reading the schedule: week ${Math.min(Math.floor(prog.done / 7) + 1, 4)} of 4`}</b>
           <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 12 : 12 + (prog.done / prog.total) * 88}%` }} /></div>
@@ -85,6 +87,7 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       )}
       {d && tab === 'plan' && <CyclePlan data={d} highlight={highlight} onClear={() => setHighlight(null)} />}
       {d && tab === 'sell' && <WhereToSell data={d} onError={onError} onOpen={openInPlan} />}
+      {tab === 'capacity' && <CapacityTab from={from} onError={onError} />}
       {tab === 'place' && <PlaceCustomer from={from} zones={d?.zones || []} onError={onError} onOpen={(r) => openInPlan(r, r.arriveMin ?? r.start, r.doneMin ?? r.end)} />}
     </>
   );
