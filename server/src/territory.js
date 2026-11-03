@@ -116,7 +116,7 @@ export async function zoneShapes(mc) {
 }
 
 // Index of homes by "home name - customer" (how job titles are written).
-function homeIndex(homes) {
+export function homeIndex(homes) {
   const byTitle = new Map();
   const byHome = new Map();
   for (const h of homes) {

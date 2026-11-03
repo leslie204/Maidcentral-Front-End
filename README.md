@@ -99,6 +99,17 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
+  - Call-outs (`server/src/callouts.js`): tap who called out (today or tomorrow) and
+    compare the ways to rearrange the day, ranked by revenue saved. For each car left
+    short: the remaining cleaner works solo, joins another car (a car of three works
+    1.5× faster: on-site time = cleaner-hours ÷ people), or pairs with someone without a
+    team the office marks as available. Each option re-plans the day: cars nobody
+    touched keep their booked times; orphaned jobs (most valuable first) go where they
+    add the least driving, within how far customers may move (default 30 min earlier /
+    2 h later) and with everyone back by the return time; what fits nowhere is to be
+    rescheduled. Shows revenue saved vs doing nothing, the calls to make (with phones)
+    and each car's new day. Today's prices, phones and car sizes come from MaidCentral's
+    Dispatch Board (it only shows today); other days are estimated per cleaner-hour.
   - Search (customers, homes, cleaners, leads).
 - **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
   MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,

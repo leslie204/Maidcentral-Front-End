@@ -10,6 +10,7 @@ import Cleaners from './Cleaners.jsx';
 import Cleaner from './Cleaner.jsx';
 import Planner from './Planner.jsx';
 import Openings from './Openings.jsx';
+import Callouts from './Callouts.jsx';
 
 // Tiny router: the path decides the page.
 function usePath() {
@@ -53,6 +54,7 @@ export default function App() {
   else if (pathname === '/cleaners') page = <Cleaners go={go} onError={onError} />;
   else if (pathname === '/planner') page = <Planner onError={onError} go={go} />;
   else if (pathname === '/openings') page = <Openings key={query} onError={onError} initialTab={new URLSearchParams(query).get('tab') || 'plan'} />;
+  else if (pathname === '/callouts') page = <Callouts onError={onError} />;
   else if (pathname === '/monitor') page = <Monitor onError={onError} />;
   else if (pathname === '/search') page = <Search go={go} onError={onError} initial={new URLSearchParams(query).get('q') || ''} />;
   else page = <Schedule onError={onError} />;
