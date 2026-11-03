@@ -356,6 +356,27 @@ function makeEval(ds, C) {
 
 // ---------- Optimise ----------
 
+// One team-day for drawing: its visits (who, when) and how long it drives.
+function dayView(ds, key, m) {
+  const td = ds.teamDays.get(key);
+  return {
+    key,
+    teamId: td.teamId,
+    team: td.team,
+    date: td.date,
+    weekday: WEEKDAY[td.weekday],
+    week: td.week + 1,
+    ws: td.ws,
+    we: td.we,
+    drive: m ? m.drive : 0,
+    back: m && m.jobs ? m.backAt : null,
+    stops: (m?.stops || []).map((st) => {
+      const j = ds.jobs.get(st.id);
+      return { id: st.id, home: j.home, area: j.area, frequency: j.frequency, start: st.start, end: st.end, was: j.T, fromKey: `${j.teamId}|${j.i}` };
+    }),
+  };
+}
+
 // Totals over team-days (minutes are car minutes unless "cleaner").
 function totals(ds, dayMetrics) {
   const out = { teamDays: 0, jobs: 0, driveMin: 0, km: 0, driveCleanerMin: 0, onsiteCleanerMin: 0, paidFixedCleanerMin: 0, paidRouteCleanerMin: 0, sellableCleanerMin: 0, fragCleanerMin: 0, overtimeCleanerMin: 0, emptyTeamDays: 0, sellableCarMin: 0 };
@@ -574,7 +595,7 @@ function replay(ds, C, ev, recs, chosen) {
     const mine = new Set(rec.kind === 'resequence' ? rec.days.flatMap((k) => ds.teamDays.get(k).jobIds) : rec.plan.map((p) => p.jobId));
     const placed = new Map();
     for (const [k, v] of after) for (const st of v.stops) if (mine.has(st.id)) placed.set(st.id, { start: st.start, day: k });
-    results.push({ id: rec.id, applied: true, delta: diff(ds, before, after), placed });
+    results.push({ id: rec.id, applied: true, delta: diff(ds, before, after), placed, views: { before: [...before].map(([k, v]) => dayView(ds, k, v)), after: [...after].map(([k, v]) => dayView(ds, k, v)) } });
   }
   return { metrics, dayJobs, assign, results };
 }
@@ -695,7 +716,7 @@ export function run(ds, C) {
         why = `${toTeam} is already working near ${s.area || 'this home'} that day; ${fromTeam} drives out of its way for it. Same day for the customer${maxShift ? `, time moves up to ${maxShift} min` : ''}; they get a different team.`;
       }
     }
-    return { id: rec.id, kind: rec.kind, applied: Boolean(r?.applied), phase, impact, complexity, confidence, title, why, customers, maxShift, newTeam, newDay, delta: d };
+    return { id: rec.id, kind: rec.kind, applied: Boolean(r?.applied), phase, impact, complexity, confidence, title, why, customers, maxShift, newTeam, newDay, delta: d, jobIds: jobsOf, views: r?.views || null };
   };
   const recommendations = recs.map(describe).filter((r) => r.applied && (-(r.delta.driveCleanerMin || 0) + (r.delta.sellableCleanerMin || 0) > 0 || r.delta.overtimeCleanerMin < 0));
 
@@ -709,6 +730,8 @@ export function run(ds, C) {
     capacityBound: capacityBound(ds, full.metrics),
     recommendations,
     sellable: sellableBlocks(ds, full.metrics),
+    baseline: [...current].map(([k, v]) => dayView(ds, k, v)),
+    teams: [...ds.teams.values()],
     _recs: recs,
   };
 }
@@ -846,7 +869,7 @@ export async function applyChosen(mc, q = {}) {
   const ev = makeEval(ds, C);
   const chosen = new Set(String(q.ids || '').split(',').filter(Boolean));
   const r = replay(ds, C, ev, res._recs, chosen);
-  return { chosen: chosen.size, optimised: totals(ds, r.metrics), skipped: r.results.filter((x) => !x.applied).map((x) => x.id) };
+  return { chosen: chosen.size, optimised: totals(ds, r.metrics), skipped: r.results.filter((x) => !x.applied).map((x) => x.id), days: [...r.metrics].map(([k, v]) => dayView(ds, k, v)) };
 }
 
 // Every strategy side by side, and what relaxing one constraint at a time is worth.

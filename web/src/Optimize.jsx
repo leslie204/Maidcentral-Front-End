@@ -4,6 +4,7 @@ import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
+import { ChangeView, CycleBoard } from './OptimizeViews.jsx';
 
 // Schedule & route optimization: where the 4-week cycle stands, what's possible, the money,
 // the phased roadmap, scenario planning and keeping it optimized. The server works in
@@ -356,6 +357,7 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
   const [chosen, setChosen] = useState(null);
   const [open, setOpen] = useState(null);
   const [phaseFilter, setPhaseFilter] = useState(0);
+  const [mode, setMode] = useState('list');
   // Each recommendation's value; then the best first within each phase.
   const recs = useMemo(() => (r ? r.recommendations.map((x) => ({ ...x, m: yearly(money(x.delta, A, rate, capture)) })) : []), [r, A, rate, capture]);
   useEffect(() => setChosen(r ? new Set(recs.filter((x) => x.phase === 1 && x.m.total > 0).map((x) => x.id)) : null), [r]);
@@ -394,7 +396,11 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
           ))}
           {presetId === 'custom' && <button className="on">Your scenario</button>}
         </div>
-        <span className="muted small">{recs.length} changes found · tick the ones you'd make; the totals update.</span>
+        <div className="segmented">
+          <button className={mode === 'list' ? 'on' : ''} onClick={() => setMode('list')}>List of changes</button>
+          <button className={mode === 'board' ? 'on' : ''} onClick={() => setMode('board')}>4-week board</button>
+        </div>
+        <span className="muted small">{recs.length} changes found · tick the ones you'd make; the totals and the board update.</span>
       </div>
       <div className="impact-bar">
         <div><span className="muted small">Chosen</span><b>{chosen?.size || 0} changes</b><span className="muted small">{customersHit.size} customers to contact</span></div>
@@ -402,6 +408,29 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
         <div><span className="muted small">Freed time to sell a year</span><b>{comb ? `+${h(comb.hours * 60)}` : '…'}</b><span className="muted small">{comb ? `${$(comb.gp)} gross profit if ${capture}% filled` : ''}</span></div>
         <div><span className="muted small">Total value a year</span><b>{comb ? $(comb.total) : '…'}</b>{combined?.skipped?.length ? <span className="warn-text small">{combined.skipped.length} need another change first</span> : <span className="muted small">combined, not just added up</span>}</div>
       </div>
+      {mode === 'board' && (
+        <Card title={<>The 4-week cycle with the chosen changes <Help wide>Every team's day, week by week, for each weekday. Switch between Before and After. Highlighted visits are the ones the chosen changes move to another team or day, or re-time. Hover for details; click one to open the change behind it.</Help></>} className="flush">
+          {!combined?.days && <Skeleton rows={6} height={30} />}
+          {combined?.days && (
+            <CycleBoard
+              baseline={r.baseline}
+              after={combined.days}
+              teams={r.teams}
+              onPick={(jobId) => {
+                const cands = recs.filter((x) => x.jobIds?.includes(jobId));
+                const rec = cands.find((x) => chosen?.has(x.id) && x.kind !== 'resequence') || cands.find((x) => chosen?.has(x.id)) || cands[0];
+                if (!rec) return;
+                setMode('list');
+                setPhaseFilter(0);
+                setOpen(rec.id);
+                setTimeout(() => document.getElementById(`rec-${rec.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+              }}
+            />
+          )}
+        </Card>
+      )}
+      {mode === 'list' && (
+      <>
       <div className="chip-row">
         {[0, 1, 2, 3].map((p) => (
           <button key={p} className={phaseFilter === p ? 'chip on' : 'chip'} onClick={() => setPhaseFilter(p)}>
@@ -428,7 +457,7 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
             className="flush"
           >
             {list.map((x) => (
-              <div key={x.id} className={`rec ${chosen?.has(x.id) ? 'on' : ''}`}>
+              <div key={x.id} id={`rec-${x.id}`} className={`rec ${chosen?.has(x.id) ? 'on' : ''}`}>
                 <input type="checkbox" checked={chosen?.has(x.id) || false} onChange={() => toggle(x.id)} aria-label={x.title} />
                 <div className="rec-body">
                   <button className="rec-title" onClick={() => setOpen(open === x.id ? null : x.id)}>
@@ -444,6 +473,7 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
                   </div>
                   {open === x.id && (
                     <div className="rec-detail">
+                      <ChangeView rec={x} teams={r.teams} />
                       <table className="data">
                         <thead><tr><th>Customer</th><th>Now</th><th>After</th><th>Visits / 4 wks</th></tr></thead>
                         <tbody>
@@ -483,6 +513,8 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
             {recs.filter((x) => x.m.total <= 0).map((x) => <li key={x.id}>{x.title} <span className="muted small">({$(x.m.total)} a year)</span></li>)}
           </ul>
         </details>
+      )}
+      </>
       )}
       <p className="muted small">Each change's value is measured after the ones before it in the list, so a selection's total is worked out again (the bar above) rather than added up. A change that relies on another (for example, a team that needs room freed first) is flagged if you pick it alone.</p>
     </>
