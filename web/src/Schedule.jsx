@@ -3,7 +3,7 @@ import { api, today, time } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import DayPicker from './DayPicker.jsx';
-import { PageHeader, Stats, Skeleton, ErrorNote, Empty, FreqPill } from './ui.jsx';
+import { PageHeader, Stats, Skeleton, ErrorNote, Empty, FreqPill, plainFreq } from './ui.jsx';
 
 // The day's jobs, one column per team (MaidCentral's Job Schedule as data).
 export default function Schedule({ onError }) {
@@ -76,11 +76,11 @@ export function FrequencyMix({ jobs }) {
   return (
     <div className="mix">
       <div className="mix-bar">
-        {list.map((g) => <span key={g.name} style={{ flex: g.n, background: g.color }} title={`${g.name}: ${g.n}`} />)}
+        {list.map((g) => <span key={g.name} style={{ flex: g.n, background: g.color }} title={`${plainFreq(g.name)}: ${g.n}`} />)}
       </div>
       <div className="mix-legend">
         {list.map((g) => (
-          <span key={g.name}><i style={{ background: g.color }} />{g.name} <b>{g.n}</b></span>
+          <span key={g.name}><i style={{ background: g.color }} />{plainFreq(g.name)} <b>{g.n}</b></span>
         ))}
       </div>
     </div>

@@ -13,7 +13,7 @@ let base;
 
 before(async () => {
   portal = await startFakePortal({ twoFactor: true });
-  const app = createApp({ portalUrl: portal.url, secureCookies: false });
+  const app = createApp({ portalUrl: portal.url, secureCookies: false, warm: false });
   await new Promise((resolve) => (server = app.listen(0, '127.0.0.1', resolve)));
   base = `http://127.0.0.1:${server.address().port}`;
 });

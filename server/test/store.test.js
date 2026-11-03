@@ -14,7 +14,7 @@ before(async () => (portal = await startFakePortal({ twoFactor: true })));
 after(() => portal.close());
 
 async function start(store) {
-  const app = createApp({ portalUrl: portal.url, secureCookies: false, store });
+  const app = createApp({ portalUrl: portal.url, secureCookies: false, store, warm: false });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });

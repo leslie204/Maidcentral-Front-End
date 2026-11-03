@@ -3,7 +3,7 @@ import { api, dayLabel } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
-import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, FreqPill, Card } from './ui.jsx';
+import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, FreqPill, Card, plainFreq, Help } from './ui.jsx';
 
 const KIND = {
   unassigned: { label: 'No team', tone: 'bad', icon: 'alert' },
@@ -59,7 +59,7 @@ export default function Planner({ onError, go }) {
           items={[
             { label: 'Jobs, 4-week cycle', value: o.totals.reduce((s, t) => s + t.jobs, 0) },
             { label: 'Booked', value: `${Math.round(allHours)} h`, hint: `of ${Math.round(capacity)} h team time (${capacity ? Math.round((allHours / capacity) * 100) : 0}%)` },
-            { label: 'Recurring share', value: allHours ? `${Math.round((recurringHours / allHours) * 100)}%` : '–', hint: 'of booked hours' },
+            { label: 'Repeat customers', value: allHours ? `${Math.round((recurringHours / allHours) * 100)}%` : '–', hint: 'of booked hours', help: 'The share of booked cleaning hours that are repeat visits (weekly, every other week, every 4 weeks) rather than one-time cleans.' },
             { label: 'Needs attention', value: issues.length, tone: issues.length ? 'warn' : 'ok' },
           ]}
         />
@@ -147,7 +147,7 @@ function Capacity({ data, day, setDay, onError }) {
   return (
     <>
       <Card
-        title="Team capacity"
+        title={<>Team capacity <Help wide>Each cell is how full a team's day is: booked cleaning hours ÷ the hours they can work (first shift start until they must be back at the office). Green is healthy, yellow is nearly full, red is overbooked. The thin bar under each number splits repeat (teal) and one-time (orange) work. Click a day to see its timeline.</Help></>}
         actions={
           <div className="legend">
             <span><i style={{ background: 'var(--heat-1)' }} />under 60%</span>
@@ -298,7 +298,7 @@ function Frequencies({ data }) {
       <div className="freq-cards">
         {data.frequencies.map((f) => (
           <div key={f.name} className="freq-card" style={{ '--freq': f.color || '#d1d5db' }}>
-            <span className="freq-name"><i />{f.name}</span>
+            <span className="freq-name"><i />{plainFreq(f.name)}</span>
             <b>{f.jobs}</b>
             <span className="muted small">jobs · {Math.round(f.hours)} h · {total ? Math.round((f.hours / total) * 100) : 0}%</span>
           </div>
@@ -309,7 +309,7 @@ function Frequencies({ data }) {
           {data.totals.map((t) => {
             const x = dayOnly(t.date);
             return (
-              <div key={t.date} className={`fc-col ${x.weekend ? 'weekend' : ''}`} title={`${shortDay(t.date)}\n${keys.filter((k) => t.mix[k]).map((k) => `${k}: ${t.mix[k]} h`).join('\n')}`}>
+              <div key={t.date} className={`fc-col ${x.weekend ? 'weekend' : ''}`} title={`${shortDay(t.date)}\n${keys.filter((k) => t.mix[k]).map((k) => `${plainFreq(k)}: ${t.mix[k]} h`).join('\n')}`}>
                 <div className="fc-bar" style={{ height: `${(t.booked / maxDay) * 100}%` }}>
                   {keys.filter((k) => t.mix[k]).map((k) => <i key={k} style={{ flex: t.mix[k], background: colors[k] }} />)}
                 </div>
@@ -319,7 +319,7 @@ function Frequencies({ data }) {
           })}
         </div>
         <div className="mix-legend">
-          {data.frequencies.map((f) => <span key={f.name}><i style={{ background: f.color || '#d1d5db' }} />{f.name}</span>)}
+          {data.frequencies.map((f) => <span key={f.name}><i style={{ background: f.color || '#d1d5db' }} />{plainFreq(f.name)}</span>)}
         </div>
       </Card>
       <Card title="Frequency mix by team" className="flush">
@@ -368,7 +368,7 @@ function Continuity({ from, onError }) {
       />
       {data.byFrequency?.length > 0 && (
         <div className="chips static">
-          {data.byFrequency.map((f) => <span key={f.name} className="chip">{f.name}: <b>{f.share}%</b> with usual team ({f.usual}/{f.known})</span>)}
+          {data.byFrequency.map((f) => <span key={f.name} className="chip">{plainFreq(f.name)}: <b>{f.share}%</b> with usual team ({f.usual}/{f.known})</span>)}
         </div>
       )}
       <Card title={`Recurring visits with a different team than usual (${data.changes.length})`} className="flush">

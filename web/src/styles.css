@@ -171,7 +171,9 @@ kbd { margin-left: auto; font-family: 'Geist Mono', ui-monospace, monospace; fon
 /* Stats */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 2px; align-content: start; box-shadow: var(--shadow); min-width: 0; }
-.stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.stat-label { font-size: 12px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 2px; }
+.stat-label .help { margin-left: 3px; flex: none; }
+.stat .help-pop { left: 0; transform: none; }
 .stat-value { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-hint { font-size: 11.5px; color: var(--muted); }
 .stat.ok .stat-value { color: var(--ok); }
@@ -434,6 +436,24 @@ td b + .block { margin-top: 1px; }
 tr.weeks-row th { padding: 6px 4px 0; }
 th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(--text-2); border-bottom: 2px solid var(--border-strong); padding-left: 8px !important; }
 
+/* Help tips, loading, map explainer */
+.help { position: relative; display: inline-flex; vertical-align: middle; margin-left: 5px; }
+.help-btn { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--panel); color: var(--muted); font: 600 10.5px Geist, sans-serif; display: grid; place-items: center; cursor: help; padding: 0; line-height: 1; }
+.help-btn:hover, .help.open .help-btn { border-color: var(--accent); color: var(--accent-ink); }
+.help-pop { position: absolute; z-index: 60; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); width: 240px; background: var(--text); color: var(--panel); font: 400 12.5px/1.45 Geist, sans-serif; text-transform: none; letter-spacing: 0; padding: 9px 11px; border-radius: 8px; box-shadow: var(--shadow-lg); white-space: normal; text-align: left; }
+.help.wide .help-pop { width: 340px; }
+.card-head .help-pop, .page-header .help-pop, .cycle-legend .help-pop { left: 0; transform: none; }
+.loading-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; display: grid; gap: 10px; margin-bottom: 16px; }
+.progress { height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
+.map-explain { position: absolute; left: 60px; top: 10px; z-index: 500; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; max-width: calc(100% - 470px); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 7px 11px; font-size: 12px; box-shadow: var(--shadow); }
+.map-explain b { width: 100%; }
+.map-explain i.ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 3px solid; margin-right: 5px; vertical-align: -2px; }
+.map-explain i.dotm { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #64748b; margin-right: 5px; vertical-align: 1px; }
+.map-explain i.swatch-area { display: inline-block; width: 12px; height: 10px; border-radius: 2px; background: rgba(14, 116, 144, 0.35); border: 1px solid #0e7490; margin-right: 5px; vertical-align: -1px; }
+.map-tiles { filter: grayscale(0.85) brightness(1.04) contrast(0.92); }
+@media (prefers-color-scheme: dark) { .map-tiles { filter: invert(1) hue-rotate(180deg) grayscale(0.8) brightness(0.85) contrast(0.9); } }
+
 /* Quick search */
 .palette-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(2px); display: grid; justify-items: center; align-items: start; padding-top: 12vh; z-index: 50; }
 .palette { width: min(640px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -477,6 +497,9 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
   .map-wrap { height: 420px; }
   .map-controls { left: 10px; right: auto; }
   .map-legend { display: none; }
+  .map-explain { position: static; max-width: none; border-radius: 0; border-width: 0 0 1px; }
+  .map-wrap { display: flex; flex-direction: column; }
+  .map { position: relative; flex: 1; }
   .tl-row { grid-template-columns: 110px minmax(560px, 1fr); }
   .input-icon input { width: 100%; }
 }

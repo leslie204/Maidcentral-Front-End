@@ -1,5 +1,21 @@
 // Small shared building blocks for every page.
+import { useState } from 'react';
 import Icon from './Icon.jsx';
+
+// Plain-language names for booking frequencies (MaidCentral's names stay the data keys).
+const PLAIN = { 'Every 2 weeks': 'Every other week', 'Every 3 weeks': 'Every 3 weeks', 'Every 4 weeks': 'Every 4 weeks', 'Other recurring': 'Other repeating', Unknown: 'Not set' };
+export const plainFreq = (name) => PLAIN[name] || name;
+
+// A small "?" that explains something in a sentence or two.
+export function Help({ children, wide }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className={`help ${open ? 'open' : ''} ${wide ? 'wide' : ''}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button type="button" className="help-btn" aria-label="What is this?" onClick={(e) => (e.stopPropagation(), setOpen((o) => !o))} onBlur={() => setOpen(false)}>?</button>
+      {open && <span className="help-pop" role="tooltip">{children}</span>}
+    </span>
+  );
+}
 
 export function PageHeader({ title, subtitle, back, actions, children }) {
   return (
@@ -26,7 +42,7 @@ export function Stats({ items }) {
     <div className="stats-grid">
       {items.filter(Boolean).map((s, i) => (
         <div key={i} className={`stat ${s.tone || ''}`}>
-          <span className="stat-label">{s.label}</span>
+          <span className="stat-label">{s.label}{s.help && <Help>{s.help}</Help>}</span>
           <span className="stat-value">{s.value ?? '–'}</span>
           {s.hint && <span className="stat-hint">{s.hint}</span>}
         </div>
@@ -78,9 +94,9 @@ export function ErrorNote({ error }) {
 // Booking frequency, in MaidCentral's own colour for it.
 export function FreqPill({ frequency, compact }) {
   if (!frequency) return null;
-  const label = compact ? { Weekly: '1w', 'Every 2 weeks': '2w', 'Every 3 weeks': '3w', 'Every 4 weeks': '4w', 'One-time': '1×', 'On demand': 'OD', 'Other recurring': '↻' }[frequency.short] || frequency.short : frequency.short;
+  const label = compact ? { Weekly: 'weekly', 'Every 2 weeks': 'every other wk', 'Every 3 weeks': 'every 3 wks', 'Every 4 weeks': 'every 4 wks', 'One-time': 'one-time', 'On demand': 'on demand', 'Other recurring': 'repeating' }[frequency.short] || frequency.short : plainFreq(frequency.short);
   return (
-    <span className="freq" title={frequency.name} style={{ '--freq': frequency.color || '#9ca3af' }}>
+    <span className="freq" title={`${plainFreq(frequency.short)} (MaidCentral: ${frequency.name})`} style={{ '--freq': frequency.color || '#9ca3af' }}>
       <i />
       {label}
     </span>

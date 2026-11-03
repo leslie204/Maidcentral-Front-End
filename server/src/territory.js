@@ -15,6 +15,7 @@ import { dayData, analyseDay, parseDay } from './planner.js';
 import { McError } from './mc.js';
 import { office, returnBy } from './office.js';
 import { areaNames, areaKey } from './areas.js';
+import { geocode, localToday, mondayOf } from './geo.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -167,13 +168,90 @@ const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pa
 //   early shift doesn't show up as a 5 AM opening.
 //   Everyone must be back at the office by returnBy() (default 4:45 PM): the last gap of a
 //   day ends early enough to drive back from where the team is.
-export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM', dayEnd }) {
-  const start = parseDay(from);
+// Results are cached per person (never shared: each sees only what MaidCentral shows
+// them). Fresh for 10 minutes; up to an hour old they're returned at once and refreshed in
+// the background. Computed once at the shortest length and filtered per request, so every
+// view (plan, sell, place, any minimum length) reuses the same work.
+const results = new WeakMap(); // McSession -> Map(key -> { at, value, pending })
+const progress = new WeakMap(); // McSession -> { done, total, startedAt }
+
+export function openingsStatus(mc) {
+  const p = progress.get(mc);
+  return p ? { stage: p.stage, done: p.done, total: p.total, seconds: Math.round((Date.now() - p.startedAt) / 1000) } : null;
+}
+
+export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM', dayEnd } = {}) {
+  const key = JSON.stringify([from, dayStart, dayEnd || '']);
+  if (!results.has(mc)) results.set(mc, new Map());
+  const m = results.get(mc);
+  const hit = m.get(key);
+  const age = hit?.value ? Date.now() - hit.at : Infinity;
+  const refresh = () => {
+    if (hit?.pending) return hit.pending;
+    const pending = computeOpenings(mc, { from, dayStart, dayEnd }).then(
+      (value) => (m.set(key, { at: Date.now(), value }), value),
+      (e) => {
+        if (hit?.value) m.set(key, { at: hit.at, value: hit.value });
+        else m.delete(key);
+        throw e;
+      },
+    );
+    m.set(key, { at: hit?.at || 0, value: hit?.value || null, pending });
+    return pending;
+  };
+  let value;
+  if (hit?.value && age < 10 * MIN) value = hit.value;
+  else if (hit?.value && age < 60 * MIN) {
+    refresh().catch(() => {});
+    value = hit.value;
+  } else value = await refresh();
   const minMin = Math.round(Math.min(Math.max(Number(minHours) || 1.5, 0.5), 8) * 60);
+  return filterByLength(value, minMin, Date.now() - (m.get(key)?.at || Date.now()));
+}
+
+// Openings shorter than the minimum are dropped everywhere (list, zones, board).
+function filterByLength(o, minMin, ageMs) {
+  const keep = o.openings.filter((x) => x.end - x.start >= minMin);
+  const ids = new Set(keep.map((x) => x.id));
+  return {
+    ...o,
+    minHours: minMin / 60,
+    ageSeconds: Math.round(ageMs / 1000),
+    openings: keep,
+    zones: o.zones
+      .map((z) => {
+        const os = keep.filter((x) => x.area.zone === z.name);
+        return { ...z, openings: os.length, openWeeklyHours: Math.round(os.reduce((a, x) => a + x.weeklyHours, 0) * 10) / 10 };
+      })
+      .sort((a, b) => b.openWeeklyHours - a.openWeeklyHours),
+    cycle: {
+      ...o.cycle,
+      teams: o.cycle.teams.map((t) => ({
+        ...t,
+        days: Object.fromEntries(Object.entries(t.days).map(([d, v]) => [d, v && { ...v, open: v.open.filter((g) => ids.has(g.id)) }])),
+      })),
+    },
+  };
+}
+
+// Warm the cache (at sign-in and every 15 minutes while someone is active).
+export function prewarm(mc) {
+  return openings(mc, { from: mondayOf(localToday()) }).catch(() => {});
+}
+
+async function computeOpenings(mc, { from, dayStart = '8:00 AM', dayEnd }) {
+  const minHours = 0.5;
+  const start = parseDay(from);
+  const minMin = Math.round(minHours * 60);
   const back = returnBy();
   const open = [[minutes(dayStart) ?? 480, Math.min(minutes(dayEnd) ?? back, back)]];
   const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
-  const [homes, zs, shapes] = await Promise.all([book(mc), zones(mc), zoneShapes(mc).catch(() => ({ features: [] }))]);
+  const prog = { stage: 'locations', done: 0, total: dates.length, startedAt: Date.now() };
+  progress.set(mc, prog);
+  const [homes, zs, shapes] = await Promise.all([book(mc), zones(mc), zoneShapes(mc).catch(() => ({ features: [] }))]).catch((e) => {
+    progress.delete(mc);
+    throw e;
+  });
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
   // Friendly names (area), and the city of each ZIP (from MaidCentral's ZIP outlines).
@@ -181,8 +259,23 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
   const nameOf = (zone) => (zone ? names.get(areaKey(zone))?.label || zone : null);
   const cityOf = new Map(shapes.features.map((f) => [f.properties.zip, f.properties.city]));
   const toOffice = (p) => (base.lat && p ? driveMin(km(p, base)) : 15);
-  const days = [];
-  for (let i = 0; i < dates.length; i += 7) days.push(...(await Promise.all(dates.slice(i, i + 7).map((d) => dayData(mc, d)))));
+  // Read the 28 days, 6 at a time, reporting progress ("week 2 of 4").
+  prog.stage = 'schedule';
+  const days = new Array(dates.length);
+  let next = 0;
+  try {
+    await Promise.all(
+      Array.from({ length: 6 }, async () => {
+        while (next < dates.length) {
+          const i = next++;
+          days[i] = await dayData(mc, dates[i]);
+          prog.done += 1;
+        }
+      }),
+    );
+  } finally {
+    progress.delete(mc);
+  }
   const analysed = days.map((d, i) => ({ ms: dates[i], ...analyseDay(d) }));
 
   const teams = new Map();
@@ -372,11 +465,23 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
 // Where should a new customer go? Openings ranked by distance, frequency and length.
 //   target: zip, zone, or home (name of an existing home in the book)
 //   days: optional weekdays ("Tuesday,Thursday"); part: any | morning | afternoon
-export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
+export async function placeCustomer(mc, { from, address, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
   const homes = await book(mc);
   const zs = await zones(mc);
+  const names = areaNames(zs);
   let target = null;
   let label = null;
+  if (address) {
+    // A new customer's street address: located, and its area taken from the nearest homes.
+    const g = await geocode(address);
+    if (!g) throw new McError('input', "Couldn't find that address. Check the spelling, add the city, or use the ZIP code instead.");
+    const nearest = homes.map((h) => ({ h, d: km(g, h) })).sort((a, b) => a.d - b.d).slice(0, 5);
+    const zoneCount = {};
+    for (const n of nearest) if (n.h.zone) zoneCount[n.h.zone] = (zoneCount[n.h.zone] || 0) + 1;
+    const z = zs.find((x) => g.zip && x.zips.includes(String(g.zip)))?.name || Object.entries(zoneCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    target = { lat: g.lat, lng: g.lng, zone: z };
+    label = `${g.matched}${z ? ` (${names.get(areaKey(z))?.label || z})` : ''}`;
+  }
   if (home) {
     const h = homes.find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
     if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${areaNames(zs).get(areaKey(h.zone))?.label || h.zip})`);
@@ -393,10 +498,10 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone };
     label = zone;
   }
-  if (!target) throw new McError('input', 'Enter a ZIP code, a zone, or an existing home to place the customer near.');
+  if (!target) throw new McError('input', 'Enter an address, a ZIP code, a zone, or an existing home to place the customer near.');
   const want = Number(frequency);
   const need = Math.round(Math.min(Math.max(Number(hours) || 2, 0.5), 8) * 60);
-  const o = await openings(mc, { from, minHours: need / 60, dayStart, dayEnd });
+  const o = await openings(mc, { from, minHours: Math.max(need / 60, 0.5), dayStart, dayEnd });
   const base = await office(mc, homes);
   const back = returnBy();
   const drive = (a, b) => (a && b ? driveMin(km(a, b)) : 15);
@@ -440,13 +545,13 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       if (want === 2) score += x.weeks === 2 ? 30 : x.weeks === 1 ? 5 : -200;
       if (want === 4) score += x.weeks === 4 ? 30 : x.weeks === 2 ? 5 : x.weeks === 1 ? 0 : -200;
       if (want === 0) score += x.weeks === 4 ? 10 : 0;
-      if (x.weeks === want) reasons.push({ text: `Fits ${x.fit.toLowerCase()} exactly`, tone: 'good' });
+      if (x.weeks === want) reasons.push({ text: { 1: 'Free every week', 2: 'Free every other week: right for this customer', 4: 'Free once every 4 weeks: right for this customer' }[x.weeks] || 'Right frequency', tone: 'good' });
       const extra = driveMin(Math.max(detour, 0));
-      if (extra <= 5) reasons.push({ text: `On the way: adds ≈${extra} min of driving`, tone: 'good' });
-      else reasons.push({ text: `Adds ≈${extra} min of driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
+      if (extra <= 5) reasons.push({ text: `On the team's way (≈${extra} min extra driving)`, tone: 'good' });
+      else reasons.push({ text: `≈${extra} min extra driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
       if (x.area.zone && norm(x.area.zone) === norm(target.zone)) (score += 15), reasons.push({ text: `Same area (${x.area.name || x.area.zone})`, tone: 'good' });
       const leftover = x.hours * 60 - need;
-      if (leftover < 30) (score += 8), reasons.push({ text: 'Fills the gap', tone: 'good' });
+      if (leftover < 30) (score += 8), reasons.push({ text: 'Fills the free time exactly', tone: 'good' });
       if (t.lastOfDay) reasons.push({ text: `Back at the office by ${hhmm(t.endAt + (base.lat ? drive(target, base) : 15))}`, tone: 'neutral' });
       const { legs, ...rest } = x;
       return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, detourKm: Math.round(Math.max(detour, 0) * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };

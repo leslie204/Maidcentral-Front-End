@@ -121,3 +121,37 @@ test('area names: place names from zone descriptions, duplicates told apart by Z
   assert.equal(names.get('north').label, 'North Spokane');
   assert.equal(derive('far north - zone - green bluff'), 'Green Bluff');
 });
+
+test('place a customer by street address (geocoded), area from the nearest homes', async () => {
+  const realFetch = globalThis.fetch;
+  const saved = process.env.OFFICE_GEOCODE;
+  delete process.env.OFFICE_GEOCODE;
+  globalThis.fetch = async (url) => ({
+    json: async () => (String(url).includes('nowhere')
+      ? { result: { addressMatches: [] } }
+      : { result: { addressMatches: [{ matchedAddress: '12 S HILL ST, SPOKANE, WA, 99203', coordinates: { x: SOUTH.lng + 0.002, y: SOUTH.lat + 0.002 }, addressComponents: { zip: '99203' } }] } }),
+  });
+  try {
+    const r = await placeCustomer(mc, { from: MONDAYS[0], address: '12 S Hill St, Spokane', frequency: '2', hours: 2 });
+    assert.match(r.target.label, /^12 S HILL ST.*\(south hill|South Hill\)/i);
+    assert.equal(r.results[0].team, 'Red');
+    assert.ok(r.results[0].reasons.some((x) => /every other week/i.test(x.text)));
+    await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], address: 'nowhere at all' }), /Couldn't find that address/);
+  } finally {
+    globalThis.fetch = realFetch;
+    process.env.OFFICE_GEOCODE = saved;
+  }
+});
+
+test('openings are cached per person and filtered by length without re-reading MaidCentral', async () => {
+  let calls = 0;
+  const counting = { ...mc, host: 'count.maidcentral.com', getJson: async (p, q) => (calls++, mc.getJson(p, q)), getHtml: mc.getHtml };
+  const a = await openings(counting, { from: MONDAYS[0], minHours: 1.5 });
+  const after = calls;
+  const b = await openings(counting, { from: MONDAYS[0], minHours: 3 });
+  assert.equal(calls, after, 'second call served from the cache');
+  assert.ok(b.openings.every((x) => x.hours >= 3));
+  assert.ok(b.openings.length < a.openings.length);
+  const blueMonday = (o) => o.cycle.teams.find((t) => t.name === 'Blue').days['2026-11-09'].open.length;
+  assert.ok(blueMonday(b) <= blueMonday(a), 'board filtered too');
+});

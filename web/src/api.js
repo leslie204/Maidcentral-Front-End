@@ -34,6 +34,7 @@ export const api = {
   plannerContinuity: (from) => call('GET', `/api/planner/continuity?from=${from}`),
   plannerSlots: (q) => call('GET', `/api/planner/slots?${new URLSearchParams(q)}`),
   openings: (q) => call('GET', `/api/openings?${new URLSearchParams(q)}`),
+  openingsStatus: () => call('GET', '/api/openings/status'),
   openingsMap: () => call('GET', '/api/openings/map'),
   placeCustomer: (q) => call('GET', `/api/openings/place?${new URLSearchParams(q)}`),
   cleaners: () => call('GET', '/api/cleaners'),

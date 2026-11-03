@@ -5,6 +5,7 @@
 //
 // Everyone has to be back at the office by OFFICE_RETURN_BY (default 4:45 PM).
 import { formValues } from './extract.js';
+import { geocode } from './geo.js';
 
 const located = new Map(); // portal host -> office
 
@@ -25,13 +26,9 @@ export async function office(mc, homes = []) {
   const text = address ? `${address.line}, ${address.city}, ${address.state} ${address.zip}` : null;
   let where = null;
   if (Number(process.env.OFFICE_LAT) && Number(process.env.OFFICE_LNG)) where = { lat: Number(process.env.OFFICE_LAT), lng: Number(process.env.OFFICE_LNG), source: 'OFFICE_LAT/OFFICE_LNG' };
-  if (!where && text && process.env.OFFICE_GEOCODE !== 'off') {
-    try {
-      const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${new URLSearchParams({ address: text, benchmark: 'Public_AR_Current', format: 'json' })}`;
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      const c = (await r.json())?.result?.addressMatches?.[0]?.coordinates;
-      if (c?.x && c?.y) where = { lat: c.y, lng: c.x, source: 'US Census geocoder' };
-    } catch {}
+  if (!where && text) {
+    const g = await geocode(text);
+    if (g) where = { lat: g.lat, lng: g.lng, source: 'US Census geocoder' };
   }
   if (!where && address?.zip) {
     const inZip = homes.filter((h) => h.zip === address.zip);

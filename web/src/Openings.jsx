@@ -5,11 +5,14 @@ import { api } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
-import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card } from './ui.jsx';
+import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
 
 // Frequency colours (MaidCentral's own, from the jobs on the board), with fallbacks.
 const FIT_COLOR = { Weekly: '#92B558', 'Every 2 weeks': '#005960', 'Every 4 weeks': '#578CAC', 'One-time': '#d2691e', 'On demand': '#c48f65' };
-const FIT_SHORT = { Weekly: '1w', 'Every 2 weeks': '2w', 'Every 4 weeks': '4w' };
+// Labels inside the small open blocks on the 4-week plan.
+const FIT_SHORT = { Weekly: 'weekly', 'Every 2 weeks': 'every other', 'Every 4 weeks': 'every 4 wks' };
+// "Good for…" wording for an opening's frequency.
+const GOOD_FOR = { Weekly: 'Weekly customer', 'Every 2 weeks': 'Every-other-week customer', 'Every 4 weeks': 'Every-4-weeks customer' };
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''}${m < 720 ? 'a' : 'p'}`;
 const fullTime = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
 const shortDate = (iso) => {
@@ -36,16 +39,23 @@ export default function Openings({ onError, initialTab = 'plan' }) {
   const [minHours, setMinHours] = useState('1.5');
   const o = useLoad(() => api.openings({ from, minHours }), `${from}:${minHours}`, onError);
   const d = o.data;
+  // While MaidCentral's schedules are being read, show how far along it is.
+  const [prog, setProg] = useState(null);
+  useEffect(() => {
+    if (!o.loading) return setProg(null);
+    const t = setInterval(() => api.openingsStatus().then((r) => setProg(r.progress)).catch(() => {}), 800);
+    return () => clearInterval(t);
+  }, [o.loading]);
   const weekly = d ? d.openings.reduce((s, x) => s + x.weeklyHours, 0) : 0;
 
   return (
     <>
       <PageHeader
         title="Openings"
-        subtitle="Where to add recurring work: free time per team over the 4-week cycle, by frequency and area"
+        subtitle={`Where we can add repeat customers: each team's free time over the next 4 weeks, by area. Teams are back at the office by ${d?.returnBy || '4:45 PM'}.`}
         actions={
           <label className="inline-field">
-            Shortest opening
+            Shortest job
             <select value={minHours} onChange={(e) => setMinHours(e.target.value)}>
               {['1', '1.5', '2', '2.5', '3'].map((h) => <option key={h} value={h}>{h} h</option>)}
             </select>
@@ -55,21 +65,22 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       {d && (
         <Stats
           items={[
-            { label: 'Open, per week', value: `${Math.round(weekly)} h`, hint: 'weekly-equivalent recurring time' },
-            { label: 'Weekly openings', value: d.openings.filter((x) => x.weeks === 1).length },
-            { label: 'Every-2-weeks openings', value: d.openings.filter((x) => x.weeks === 2).length },
-            { label: 'Every-4-weeks openings', value: d.openings.filter((x) => x.weeks === 4).length },
-            { label: 'Jobs located', value: `${Math.round((d.book.matchedJobs / Math.max(d.book.totalJobs, 1)) * 100)}%`, hint: `${d.book.homes} recurring homes on the map` },
+            { label: 'Hours to sell, per week', value: `${Math.round(weekly)} h`, help: 'All open time added up as if it were weekly work. An every-other-week opening counts half, an every-4-weeks opening a quarter.' },
+            { label: 'For weekly customers', value: d.openings.filter((x) => x.weeks === 1).length, hint: 'openings', help: 'Time a team has free on the same day and time every week.' },
+            { label: 'For every-other-week', value: d.openings.filter((x) => x.weeks === 2).length, hint: 'openings', help: 'Time free in weeks 1 & 3 (or 2 & 4). A new every-other-week customer slots in alongside the ones already booked in the other weeks.' },
+            { label: 'For every-4-weeks', value: d.openings.filter((x) => x.weeks === 4).length, hint: 'openings', help: 'Time free in just one week of the four.' },
+            { label: 'Jobs on the map', value: `${Math.round((d.book.matchedJobs / Math.max(d.book.totalJobs, 1)) * 100)}%`, hint: `${d.book.homes} repeat homes`, help: "How many upcoming jobs we could place on the map using MaidCentral's customer locations. Areas and drive times come from these." },
           ]}
         />
       )}
       <Tabs value={tab} onChange={setTab} tabs={[['plan', '4-week plan'], ['sell', 'Where to sell'], ['place', 'Place a customer']]} />
       <ErrorNote error={o.error} />
       {o.loading && (
-        <>
-          <p className="muted small">Reading 4 weeks of schedules and the recurring book from MaidCentral… (first load takes about 20 seconds)</p>
-          <Skeleton rows={8} height={40} />
-        </>
+        <div className="loading-card">
+          <b>{!prog ? 'Getting your openings from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations and areas…' : `Reading the schedule: week ${Math.min(Math.floor(prog.done / 7) + 1, 4)} of 4`}</b>
+          <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 12 : 12 + (prog.done / prog.total) * 88}%` }} /></div>
+          <span className="muted small">This only takes a while the first time; after that it's kept up to date in the background.</span>
+        </div>
       )}
       {d && tab === 'plan' && <CyclePlan data={d} highlight={highlight} onClear={() => setHighlight(null)} />}
       {d && tab === 'sell' && <WhereToSell data={d} onError={onError} onOpen={openInPlan} />}
@@ -114,7 +125,7 @@ function CyclePlan({ data, highlight, onClear }) {
         <div className="hl-banner">
           <Icon name="pin" size={16} />
           <span>
-            <b>{highlight.weekday}s {fullTime(highlight.s)} – {fullTime(highlight.e)}</b> · {highlight.team} · {highlight.fit.toLowerCase()}
+                        <b>{highlight.weekday}s {fullTime(highlight.s)} – {fullTime(highlight.e)}</b> · {highlight.team} · good for an {plainFreq(highlight.fit).toLowerCase()} customer
             {highlight.area ? ` · ${highlight.area}` : ''} · {highlight.dates.map(shortDate).join(', ')}
           </span>
           <button className="btn ghost sm" onClick={onClear}>Clear</button>
@@ -129,16 +140,17 @@ function CyclePlan({ data, highlight, onClear }) {
           {['all', 'Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => (
             <button key={f} className={focus === f ? 'chip on' : 'chip'} onClick={() => setFocus(f)}>
               {f !== 'all' && <i className="dot" style={{ background: freqColors[f] }} />}
-              {f === 'all' ? 'All frequencies' : f}
+              {f === 'all' ? 'All' : plainFreq(f)}
             </button>
           ))}
         </div>
       </div>
       <Card className="flush">
         <div className="cycle-legend">
-          {['Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => <span key={f}><i style={{ background: freqColors[f] }} />{f} job</span>)}
-          <span><i className="hatch" />Open: label shows the frequency it fits (1w / 2w / 4w)</span>
-          <span className="muted">Bars run 7a–6p</span>
+          {['Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => <span key={f}><i style={{ background: freqColors[f] }} />{plainFreq(f)} job</span>)}
+          <span><i className="hatch" />Free time (the label says which customers it suits)</span>
+          <span className="muted">Each bar is one team's day, 7 AM–6 PM</span>
+          <Help wide>Read across a row to see a team's next 4 weeks on that weekday. Coloured blocks are booked jobs, coloured by how often that customer is cleaned. Dashed blocks are free time; their label says what kind of new customer fits there: "weekly" is free every week, "every other" is free in alternate weeks (pairs with existing every-other-week customers), "every 4 wks" is free once in the 4 weeks. Click any opening elsewhere on this page to jump here.</Help>
         </div>
         <div className="tablewrap plain">
           <table className="cycle">
@@ -174,13 +186,13 @@ function CyclePlan({ data, highlight, onClear }) {
                                   const f = j.frequency || 'Unknown';
                                   const dim = focus !== 'all' && f !== focus;
                                   return (
-                                    <div key={i} className={`cbar-job ${dim ? 'dim' : ''}`} style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, background: freqColors[f] || '#9ca3af' }} title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${f}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`} />
+                                    <div key={i} className={`cbar-job ${dim ? 'dim' : ''}`} style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, background: freqColors[f] || '#9ca3af' }} title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${plainFreq(f)}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`} />
                                   );
                                 })}
                                 {day.open.map((g, i) => {
                                   const dim = focus !== 'all' && g.fit !== focus;
                                   return (
-                                    <div key={`o${i}`} className={`cbar-open ${dim ? 'dim' : ''}`} style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }} title={`Open ${hhmm(g.s)}–${hhmm(g.e)} · fits ${g.fit.toLowerCase()}${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}>
+                                    <div key={`o${i}`} className={`cbar-open ${dim ? 'dim' : ''}`} style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }} title={`Free ${hhmm(g.s)}–${hhmm(g.e)} · good for an ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}>
                                       {FIT_SHORT[g.fit]}
                                     </div>
                                   );
@@ -200,7 +212,7 @@ function CyclePlan({ data, highlight, onClear }) {
         </div>
       </Card>
       <p className="muted small">
-        Read across a row to see a team's 4-week rotation. A <b>2w</b> opening is free in weeks 1 & 3 or 2 & 4, so it pairs with an every-2-weeks customer already in the other two weeks; <b>4w</b> is free in one week of the four; <b>1w</b> is free every week.
+        Read across a row to see a team's 4 weeks on that weekday. "Every other" free time is open in weeks 1 & 3 or 2 & 4, so a new every-other-week customer sits alongside the ones already booked in the other weeks.
       </p>
     </>
   );
@@ -240,7 +252,7 @@ function WhereToSell({ data, onError, onOpen }) {
         )}
       </Card>
       <div className="sell-bottom">
-        <Card title="Areas with room to grow" actions={<span className="muted small">open h / week</span>} className="flush zone-card">
+                <Card title={<>Areas with room to grow <Help>Neighbourhoods ranked by how many hours a week we could still sell there without adding much driving. Click one to filter the map and list.</Help></>} actions={<span className="muted small">hours per week</span>} className="flush zone-card">
           <div className="zone-list">
             {zonesWithOpen.map((z) => (
               <button key={z.name} className={`zone-row ${zone === z.name ? 'on' : ''}`} onClick={() => setZone(zone === z.name ? null : z.name)}>
@@ -257,10 +269,10 @@ function WhereToSell({ data, onError, onOpen }) {
           <div className="toolbar">
             {zone && <button className="chip on" onClick={() => setZone(null)}>{data.zones.find((z) => z.name === zone)?.label || zone} <Icon name="close" size={12} /></button>}
             <select value={fit} onChange={(e) => setFit(e.target.value)}>
-              <option value="all">Any frequency</option>
-              <option>Weekly</option>
-              <option>Every 2 weeks</option>
-              <option>Every 4 weeks</option>
+              <option value="all">Any customer type</option>
+              <option value="Weekly">Weekly customers</option>
+              <option value="Every 2 weeks">Every-other-week customers</option>
+              <option value="Every 4 weeks">Every-4-weeks customers</option>
             </select>
             <select value={day} onChange={(e) => setDay(e.target.value)}>
               <option value="all">Any day</option>
@@ -269,9 +281,10 @@ function WhereToSell({ data, onError, onOpen }) {
             <span className="muted small">{list.length} openings · teams back at the office by {data.returnBy}</span>
           </div>
           <Card className="flush">
+            <div className="tablewrap">
             <table className="data">
               <thead>
-                <tr><th>Area</th><th>Day</th><th>Time</th><th>Fits</th><th>Team</th><th>Dates</th><th>h / wk</th><th /></tr>
+                                <tr><th>Area</th><th>Day</th><th>Free time</th><th>Good for</th><th>Team</th><th>Dates</th><th>Hours / week</th><th /></tr>
               </thead>
               <tbody>
                 {list.map((o) => (
@@ -285,7 +298,7 @@ function WhereToSell({ data, onError, onOpen }) {
                     </td>
                     <td>{o.weekday}s</td>
                     <td className="nowrap mono">{o.label}</td>
-                    <td><span className="freq" style={{ '--freq': FIT_COLOR[o.fit] }}><i />{o.fit}</span></td>
+                                        <td><span className="freq" style={{ '--freq': FIT_COLOR[o.fit] }}><i />{GOOD_FOR[o.fit] || plainFreq(o.fit)}</span></td>
                     <td className="nowrap"><span className="team-swatch" style={{ '--team': teamColor({ name: o.team, color: o.color }).bg }} />{o.team}</td>
                     <td className="small muted">{o.dates.map(shortDate).join(', ')}</td>
                     <td><b>{o.weeklyHours}</b></td>
@@ -297,24 +310,22 @@ function WhereToSell({ data, onError, onOpen }) {
                 ))}
               </tbody>
             </table>
+            </div>
             {!list.length && <Empty icon="search" title="No openings match" />}
           </Card>
         </div>
       </div>
-      <p className="muted small">Click an opening to see it in the 4-week plan (the pin shows it on the map). An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. h / wk counts an every-2-weeks opening as half and every-4-weeks as a quarter.</p>
+      <p className="muted small">Click an opening to see it in the 4-week plan (the pin shows it on the map). An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. Hours / week counts an every-other-week opening as half and every-4-weeks as a quarter.</p>
     </div>
   );
 }
 
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const popupHtml = (o) =>
-  `<b>${esc(o.weekday)}s ${esc(o.label)}</b><br>${esc(o.team)} · fits ${esc(o.fit.toLowerCase())}<br>${esc(o.area.name || o.area.zone || '')}${o.area.zip ? ` · ZIP ${esc(o.area.zip)}` : ''}<br>${o.weeklyHours} h/week · ${esc(o.dates.join(', '))}<br><button class="popup-btn" data-opening="${esc(o.id)}">Open in 4-week plan →</button>`;
+  `<b>${esc(o.weekday)}s ${esc(o.label)}</b><br>${esc(o.team)} · good for an ${esc(plainFreq(o.fit).toLowerCase())} customer<br>${esc(o.area.name || o.area.zone || '')}${o.area.zip ? ` · ZIP ${esc(o.area.zip)}` : ''}<br>${o.weeklyHours} hours/week · ${esc(o.dates.join(', '))}<br><button class="popup-btn" data-opening="${esc(o.id)}">Open in 4-week plan →</button>`;
 
-const TILES = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-};
+// OpenStreetMap's own tiles (no key needed), toned down with CSS so the data stands out.
+const OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSelect, teams, focus, onOpen }) {
   const el = useRef(null);
@@ -328,15 +339,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: true, scrollWheelZoom: false, preferCanvas: true });
     map.current = m;
-    let tiles = L.tileLayer(dark ? TILES.dark : TILES.light, { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(m);
-    let failed = 0;
-    tiles.on('tileerror', () => {
-      // If the map tiles are blocked (network or ad-blocker), use OpenStreetMap's own.
-      if (++failed === 4) {
-        m.removeLayer(tiles);
-        tiles = L.tileLayer(TILES.fallback, { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(m);
-      }
-    });
+    L.tileLayer(OSM, { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19, className: 'map-tiles' }).addTo(m);
     // Fit to where most homes are (5th–95th percentile), so a few far-out homes don't
     // shrink the city to a dot.
     const q = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.floor(p * (arr.length - 1))))];
@@ -462,6 +465,13 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
 
   return (
     <div className="map-wrap">
+      <div className="map-explain">
+        <b>What this map shows</b>
+        <span><i className="swatch-area" />Shaded areas: room to sell (darker = more free hours)</span>
+        <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />Rings: free time where a team already is (bigger = more hours)</span>
+        <span><i className="dotm" />Dots: current customers, in their team's colour</span>
+        <span className="muted">Click an area to filter · click a ring to see it in the 4-week plan</span>
+      </div>
       <div ref={el} className="map" />
       <div className="map-controls">
         {[['zones', 'Zones'], ['labels', 'Names'], ['homes', 'Homes'], ['openings', 'Openings']].map(([k, label]) => (
@@ -471,9 +481,9 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
       </div>
       <div className="map-legend">
         <span><i className="ring" style={{ borderColor: FIT_COLOR.Weekly }} />weekly</span>
-        <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />every 2 weeks</span>
+                <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />every other week</span>
         <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 4 weeks'] }} />every 4 weeks</span>
-        <span><i className="dotm" />home (team colour)</span>
+                <span><i className="dotm" />customer (team colour)</span>
         {office && <span><i className="officem">CB</i>office</span>}
         <span className="muted">Click the map to scroll-zoom</span>
       </div>
@@ -486,7 +496,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 function PlaceCustomer({ from, zones, onError, onOpen }) {
-  const [form, setForm] = useState({ where: 'zip', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
+    const [form, setForm] = useState({ where: 'address', address: '', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
   const [days, setDays] = useState([]);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -498,6 +508,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
     setError(null);
     try {
       const q = { from, frequency: form.frequency, hours: form.hours, part: form.part, days: days.join(',') };
+            if (form.where === 'address') q.address = form.address;
       if (form.where === 'zip') q.zip = form.zip;
       if (form.where === 'zone') q.zone = form.zone;
       if (form.where === 'home') q.home = form.home;
@@ -514,14 +525,15 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       <form className="card place-form" onSubmit={submit}>
         <div className="place-where">
           <div className="segmented">
-            {[['zip', 'ZIP code'], ['zone', 'Zone'], ['home', 'Existing home']].map(([k, label]) => (
+                        {[['address', 'Address'], ['zip', 'ZIP'], ['zone', 'Area'], ['home', 'Existing home']].map(([k, label]) => (
               <button type="button" key={k} className={form.where === k ? 'on' : ''} onClick={() => setForm({ ...form, where: k })}>{label}</button>
             ))}
           </div>
+                    {form.where === 'address' && <input placeholder="Street address, city (e.g. 1234 S Grand Blvd, Spokane)" value={form.address} onChange={set('address')} required />}
           {form.where === 'zip' && <input placeholder="e.g. 99203" value={form.zip} onChange={set('zip')} inputMode="numeric" required />}
           {form.where === 'zone' && (
             <select value={form.zone} onChange={set('zone')} required>
-              <option value="">Choose a zone…</option>
+                            <option value="">Choose an area…</option>
               {zones.map((z) => <option key={z.name} value={z.name}>{z.label || z.name}</option>)}
             </select>
           )}
@@ -530,7 +542,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
         <label className="field"><span>Frequency</span>
           <select value={form.frequency} onChange={set('frequency')}>
             <option value="1">Weekly</option>
-            <option value="2">Every 2 weeks</option>
+                        <option value="2">Every other week</option>
             <option value="4">Every 4 weeks</option>
             <option value="0">One-time</option>
           </select>
@@ -554,7 +566,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       {busy && <Skeleton rows={5} height={64} />}
       {result && !busy && (
         <>
-          <p className="muted small">Best openings near <b>{result.target.label}</b>, ranked by extra driving, frequency fit and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
+                    <p className="muted small">Best openings for <b>{result.target.label}</b>, ranked by extra driving, frequency and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
           {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, or more days.</Empty>}
           <div className="slot-list">
             {result.results.map((r, i) => {
@@ -571,7 +583,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
                     <span className="muted small">{r.area.name || 'area unknown'}{r.area.zip ? ` · ${r.area.zip}` : ''}</span>
                   </div>
                   <div className="slot-reasons">
-                    <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.fit}</span>
+                                        <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{plainFreq(r.fit)}</span>
                     {r.reasons.map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
                   </div>
                   <span className="slot-gap muted small">first visits {r.dates.slice(0, 2).map(shortDate).join(', ')}</span>
@@ -582,7 +594,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
           <p className="muted small">Drive times are estimates from straight-line distance. To book, create the job in MaidCentral.</p>
         </>
       )}
-      {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Enter their ZIP, zone or an existing home, how often and how long. You'll get openings where a team is already nearby that day.</Empty>}
+            {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Enter their address, how often and how long the clean is. You'll get times when a team is already nearby, that work on every visit and still get the team back to the office on time.</Empty>}
     </>
   );
 }

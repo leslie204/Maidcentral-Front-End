@@ -17,14 +17,14 @@ import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
 import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
-import { openings, placeCustomer, territoryMap } from './territory.js';
+import { openings, placeCustomer, territoryMap, openingsStatus, prewarm } from './territory.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
 const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000; // MaidCentral's "remember this browser"
 const COOKIE = 'mcfe_sid';
 
-export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir, store = new MemoryStore() } = {}) {
+export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir, store = new MemoryStore(), warm = true } = {}) {
   const app = express();
   const cache = new Map(); // sidHash -> { hash, mc, email, expiresAt, saved, touchedAt }; the store is the source of truth
   const attempts = new Map(); // ip -> [timestamps]
@@ -38,6 +38,16 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   });
 
   app.get('/healthz', (req, res) => res.json({ ok: true }));
+
+  // Keep openings fresh for people active in the last 2 hours, so the page opens at once.
+  if (warm) {
+    setInterval(() => {
+      for (const s of cache.values()) {
+        const lastUsed = s.expiresAt - IDLE_MS;
+        if (s.mc.signedIn && Date.now() - lastUsed < 2 * 60 * 60 * 1000) prewarm(s.mc);
+      }
+    }, 15 * 60 * 1000).unref();
+  }
 
   const sidOf = (req) => /(?:^|;\s*)mcfe_sid=([a-f0-9]{64})/.exec(req.headers.cookie || '')?.[1];
 
@@ -57,6 +67,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
       if (!rec) return null;
       s = { hash, email: rec.email, mc: McSession.fromState(portalUrl, rec.state, { fetchImpl }), expiresAt: rec.expiresAt, saved: JSON.stringify(rec.state), touchedAt: Date.now() };
       cache.set(hash, s);
+      if (warm && s.mc.signedIn) prewarm(s.mc); // after a restart: rebuild the cache
     }
     return s;
   };
@@ -109,6 +120,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
       cache.set(s.hash, s);
       setCookie(res, sid, ttl);
       res.json(result);
+      if (warm && result.status === 'signed-in') prewarm(mc);
     } catch (e) {
       sendError(res, e);
     }
@@ -125,6 +137,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
       await persist(s);
       setCookie(res, sid);
       res.json({ status: result.status });
+      if (warm) prewarm(s.mc);
     } catch (e) {
       sendError(res, e);
     }
@@ -210,6 +223,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     return { ...o, openings: o.openings.map(({ legs, ...x }) => x) };
   }));
   api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
+  api.get('/openings/status', handle(async (req) => ({ progress: openingsStatus(req.mc) })));
   api.get('/openings/map', handle((req) => territoryMap(req.mc)));
   api.get('/planner/overview', handle((req) => planOverview(req.mc, req.query.from, req.query.days)));
   api.get('/planner/day', handle((req) => planDay(req.mc, req.query.date)));

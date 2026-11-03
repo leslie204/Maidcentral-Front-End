@@ -80,12 +80,20 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       MaidCentral's settings, located once with the US Census geocoder (override with
       `OFFICE_LAT`/`OFFICE_LNG`; fallback: centre of the homes in its ZIP). The Planner
       caps team days at the same time and flags jobs that end after it.
-    - Where to sell: zones ranked by open hours per week, a map (zone outlines shaded by
-      open time, recurring homes as dots in their team's colour, openings as rings) and
+    - Speed: results are cached per person (never shared across users), warmed at
+      sign-in and every 15 minutes for anyone active in the last 2 hours, and served at
+      once while a refresh runs in the background; the page shows progress while the
+      first read runs.
+    - Wording: plain language ("every other week", "good for", "hours per week") and
+      "?" help next to anything that needs explaining.
+    - Where to sell: zones ranked by open hours per week, a map (OpenStreetMap tiles, no
+      key; areas shaded by open time, customers as dots in their team's colour, openings
+      as rings; an on-map key explains it) and
       the list of openings by area. An opening's area is where the team is just before
       and after it, from MaidCentral's Customer Efficiency Map report (every recurring
       home's ZIP, zone and coordinates) matched to the jobs.
-    - Place a customer: ZIP, zone or existing home + frequency + length (+ days, time of
+    - Place a customer: street address (located with the US Census geocoder; its area
+      comes from the nearest homes), ZIP, area or existing home + frequency + length (+ days, time of
       day) → openings ranked by the extra driving the new home adds between the jobs
       before and after it (straight-line estimate), frequency fit and length. Each
       result has an exact arrival time that works on every visit date: driving from the
