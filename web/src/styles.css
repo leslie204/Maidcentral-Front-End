@@ -616,3 +616,33 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .obar .cbar-job { display: flex; align-items: center; overflow: hidden; white-space: nowrap; container-type: inline-size; font-size: 10px; font-weight: 600; padding: 0 4px; }
 .obar .cbar-job span { overflow: hidden; text-overflow: clip; }
 @container (max-width: 34px) { .obar .cbar-job span { display: none; } }
+
+/* Reschedule */
+.resched-date { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.resched-date input[type='date'] { height: 36px; }
+.resched-settings { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin-bottom: 14px; }
+.resched-settings > .muted { margin-left: auto; }
+.resched-grid { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 16px; align-items: start; }
+.resched-filter { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.resched-filter input { width: 100%; }
+.resched-list { display: grid; max-height: 640px; overflow-y: auto; }
+.resched-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 10px 14px; border: 0; border-top: 1px solid var(--border); background: none; cursor: pointer; color: var(--text); font: inherit; }
+.resched-row:first-child { border-top: 0; }
+.resched-row:hover { background: var(--panel-2); }
+.resched-row.on { background: var(--accent-soft); }
+.resched-main { display: grid; min-width: 0; }
+.resched-call { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.resched-call select, .resched-call input { height: 32px; }
+.resched-call .call-note { flex: 1; min-width: 180px; }
+.resched-more { padding: 0 16px 12px; }
+.resched-plan td { vertical-align: top; }
+.resched-plan .pill { margin: 0 4px 4px 0; }
+.resched-plan select, .resched-plan input { height: 30px; margin-top: 4px; display: block; }
+.resched-plan .call-note { width: 100%; min-width: 140px; }
+.alt-select { max-width: 260px; }
+.muted-row td { opacity: 0.5; }
+.resched-plan select.tone-ok { border-color: var(--ok); color: var(--ok); }
+.resched-plan select.tone-warn { border-color: var(--warn); color: var(--warn); }
+.resched-plan select.tone-info { border-color: var(--info); color: var(--info); }
+.resched-plan select.tone-bad { border-color: var(--bad); color: var(--bad); }
+@media (max-width: 900px) { .resched-grid { grid-template-columns: 1fr; } .resched-settings > .muted { margin-left: 0; } }

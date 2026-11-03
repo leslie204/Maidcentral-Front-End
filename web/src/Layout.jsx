@@ -9,6 +9,7 @@ export const NAV = [
       { path: '/', label: 'Schedule', icon: 'calendar' },
       { path: '/monitor', label: 'Team Monitor', icon: 'activity' },
       { path: '/callouts', label: 'Call-outs', icon: 'alert' },
+      { path: '/reschedule', label: 'Reschedule', icon: 'repeat' },
       { path: '/openings', label: 'Openings & sales', icon: 'sparkle' },
       { path: '/optimize', label: 'Optimization', icon: 'route' },
     ],

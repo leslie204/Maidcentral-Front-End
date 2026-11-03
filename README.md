@@ -95,6 +95,17 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
+  - Reschedule (`server/src/reschedule.js`, page `/reschedule`): pick a date, then one
+    booking (a customer needs another day) or the whole day (a holiday). Slots are gaps in
+    a team's route on the days before and/or after (3–14 days; optionally other times the
+    same day): drive from the stop before (or the office at 8:15 AM), the clean scaled to
+    the crew, and on to the next stop or back by the return time. Ranked by extra driving,
+    keeping the customer's team and usual time, closeness to the original date, and not
+    landing too close to a recurring customer's previous/next visit. The whole day is
+    planned hardest-first so no two bookings share a slot; choosing an alternative or
+    marking a customer "Agreed" fixes that slot and re-plans the rest; "Skip / cancel"
+    frees it. Call status and notes per booking stay on the device; the list can be
+    copied. Read-only: the move is made in MaidCentral.
   - Schedule optimization (`server/src/optimize.js`, page `/optimize`): a decision-support
     engine over the 4-week cycle from this Monday, answering five questions in five tabs.
     1. Where we are: productive share of paid time, driving per car per day and its yearly
