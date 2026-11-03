@@ -14,6 +14,7 @@ import { root, tables } from './extract.js';
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { McError } from './mc.js';
 import { office, returnBy } from './office.js';
+import { areaNames, areaKey } from './areas.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -108,7 +109,7 @@ export async function zoneShapes(mc) {
       type: 'FeatureCollection',
       features: (geo.features || [])
         .filter((f) => byZip.has(String(f.properties?.zipCode)))
-        .map((f) => ({ type: 'Feature', geometry: f.geometry, properties: { zip: String(f.properties.zipCode), city: f.properties.city, zone: byZip.get(String(f.properties.zipCode)).name, color: f.properties.fill || byZip.get(String(f.properties.zipCode)).color } })),
+        .map((f) => ({ type: 'Feature', geometry: f.geometry, properties: { zip: String(f.properties.zipCode), city: f.properties.city, zone: byZip.get(String(f.properties.zipCode)).name, area: areaNames(zs).get(areaKey(byZip.get(String(f.properties.zipCode)).name))?.label, color: f.properties.fill || byZip.get(String(f.properties.zipCode)).color } })),
     };
   });
 }
@@ -172,9 +173,13 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
   const back = returnBy();
   const open = [[minutes(dayStart) ?? 480, Math.min(minutes(dayEnd) ?? back, back)]];
   const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
-  const [homes, zs] = await Promise.all([book(mc), zones(mc)]);
+  const [homes, zs, shapes] = await Promise.all([book(mc), zones(mc), zoneShapes(mc).catch(() => ({ features: [] }))]);
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
+  // Friendly names (area), and the city of each ZIP (from MaidCentral's ZIP outlines).
+  const names = areaNames(zs);
+  const nameOf = (zone) => (zone ? names.get(areaKey(zone))?.label || zone : null);
+  const cityOf = new Map(shapes.features.map((f) => [f.properties.zip, f.properties.city]));
   const toOffice = (p) => (base.lat && p ? driveMin(km(p, base)) : 15);
   const days = [];
   for (let i = 0; i < dates.length; i += 7) days.push(...(await Promise.all(dates.slice(i, i + 7).map((d) => dayData(mc, d)))));
@@ -252,6 +257,7 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
           const basePts = anchor.length ? anchor : pts;
           const center = basePts.length ? { lat: basePts.reduce((a, p) => a + p.lat, 0) / basePts.length, lng: basePts.reduce((a, p) => a + p.lng, 0) / basePts.length } : null;
           const zoneBefore = anchor[0]?.zone || null;
+          const zipHere = (anchor[0] || pts[0])?.zip || null;
           const zoneAfter = neighbours.find((p) => p.when === 'after')?.zone || null;
           const spread = center && pts.length > 1 ? Math.max(...pts.map((p) => km(center, p))) : 0;
           out.push({
@@ -273,7 +279,10 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
             area: {
               zones: zonesHere,
               zone: zoneBefore || zonesHere[0] || null,
-              between: zoneBefore && zoneAfter && norm(zoneBefore) !== norm(zoneAfter) ? [zoneBefore, zoneAfter] : null,
+              name: nameOf(zoneBefore || zonesHere[0]),
+              zip: zipHere,
+              city: zipHere ? cityOf.get(String(zipHere)) || null : null,
+              between: zoneBefore && zoneAfter && norm(zoneBefore) !== norm(zoneAfter) ? [nameOf(zoneBefore), nameOf(zoneAfter)] : null,
               center,
               spreadKm: Math.round(spread * 10) / 10,
               basis: neighbours.length ? 'neighbouring jobs' : usual.length ? "team's usual area that day" : 'unknown',
@@ -293,7 +302,7 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
   for (const o of out) for (const d of o.dates) {
     const k = `${o.teamId}|${d}`;
     if (!fitsByTeamDate.has(k)) fitsByTeamDate.set(k, []);
-    fitsByTeamDate.get(k).push({ s: o.start, e: o.end, fit: o.fit, weeks: o.weeks, pairs: o.dates, id: o.id, zone: o.area.zone });
+    fitsByTeamDate.get(k).push({ s: o.start, e: o.end, fit: o.fit, weeks: o.weeks, pairs: o.dates, id: o.id, zone: o.area.zone, area: o.area.name });
   }
   const cycle = {
     weeks: [0, 1, 2, 3].map((w) => ({ label: `Week ${w + 1}`, from: analysed[w * 7].date, to: analysed[w * 7 + 6].date })),
@@ -306,7 +315,7 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
           if (!t || (!t.window && !t.jobs.length)) return [d.date, null];
           const jobs = t.jobs.map((j) => {
             const h = lookup(j.title);
-            return { s: mod(Date.parse(`${j.start}Z`)), e: mod(Date.parse(`${j.end}Z`)), title: j.title, frequency: j.frequency?.short || null, color: j.frequency?.color || null, zone: h?.zone || null };
+            return { s: mod(Date.parse(`${j.start}Z`)), e: mod(Date.parse(`${j.end}Z`)), title: j.title, frequency: j.frequency?.short || null, color: j.frequency?.color || null, zone: h?.zone || null, area: nameOf(h?.zone) };
           });
           return [d.date, {
             window: t.window ? { s: mod(Date.parse(`${t.window.start}Z`)), e: mod(Date.parse(`${t.window.end}Z`)) } : null,
@@ -327,6 +336,8 @@ export async function openings(mc, { from, minHours = 1.5, dayStart = '8:00 AM',
     for (const h of zHomes) if (h.weekday >= 0) (presence[WEEKDAYS[h.weekday]] ||= new Set()).add(h.team);
     return {
       name: z.name,
+      label: nameOf(z.name),
+      cities: [...new Set(z.zips.map((zip) => cityOf.get(zip)).filter(Boolean))],
       color: z.color,
       zips: z.zips,
       homes: zHomes.length,
@@ -368,14 +379,14 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
   let label = null;
   if (home) {
     const h = homes.find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
-    if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${h.zone || h.zip})`);
+    if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${areaNames(zs).get(areaKey(h.zone))?.label || h.zip})`);
   }
   if (!target && zip) {
     const inZip = homes.filter((h) => h.zip === String(zip).trim());
     const z = zs.find((x) => x.zips.includes(String(zip).trim()));
     const pts = inZip.length ? inZip : homes.filter((h) => z && norm(h.zone) === norm(z.name));
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone: z?.name || pts[0].zone };
-    label = `ZIP ${zip}${z ? ` (${z.name})` : ''}`;
+    label = `ZIP ${zip}${z ? ` (${areaNames(zs).get(areaKey(z.name))?.label || z.name})` : ''}`;
   }
   if (!target && zone) {
     const pts = homes.filter((h) => norm(h.zone) === norm(zone));
@@ -433,12 +444,12 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       const extra = driveMin(Math.max(detour, 0));
       if (extra <= 5) reasons.push({ text: `On the way: adds ≈${extra} min of driving`, tone: 'good' });
       else reasons.push({ text: `Adds ≈${extra} min of driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
-      if (x.area.zone && norm(x.area.zone) === norm(target.zone)) (score += 15), reasons.push({ text: `Same zone (${x.area.zone})`, tone: 'good' });
+      if (x.area.zone && norm(x.area.zone) === norm(target.zone)) (score += 15), reasons.push({ text: `Same area (${x.area.name || x.area.zone})`, tone: 'good' });
       const leftover = x.hours * 60 - need;
       if (leftover < 30) (score += 8), reasons.push({ text: 'Fills the gap', tone: 'good' });
       if (t.lastOfDay) reasons.push({ text: `Back at the office by ${hhmm(t.endAt + (base.lat ? drive(target, base) : 15))}`, tone: 'neutral' });
       const { legs, ...rest } = x;
-      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, detourKm: Math.round(Math.max(detour, 0) * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };
+      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, detourKm: Math.round(Math.max(detour, 0) * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };
     })
     .filter((x) => x.score > -100)
     .sort((a, b) => b.score - a.score)

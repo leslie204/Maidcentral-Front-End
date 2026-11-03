@@ -9,12 +9,8 @@ export const NAV = [
       { path: '/', label: 'Schedule', icon: 'calendar' },
       { path: '/monitor', label: 'Team Monitor', icon: 'activity' },
       { path: '/planner', label: 'Planner', icon: 'planner' },
-      { path: '/openings', label: 'Openings', icon: 'sparkle' },
+      { path: '/openings', label: 'Openings & sales', icon: 'sparkle' },
     ],
-  },
-  {
-    section: 'Sales',
-    items: [{ path: '/openings?tab=sell', label: 'Where to sell', icon: 'pin' }],
   },
   {
     section: 'People',
@@ -25,12 +21,7 @@ export const NAV = [
   },
 ];
 
-const isActive = (pathname, path) => {
-  const search = typeof location !== 'undefined' ? location.search : '';
-  if (path === '/openings?tab=sell') return pathname === '/openings' && search.includes('tab=sell');
-  if (path === '/openings') return pathname === '/openings' && !search.includes('tab=sell');
-  return path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`) || (path === '/search' && pathname.startsWith('/customers'));
-};
+const isActive = (pathname, path) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`) || (path === '/search' && pathname.startsWith('/customers')));
 
 // App shell: sidebar navigation, quick search (⌘K / Ctrl+K) and the page.
 export default function Layout({ me, pathname, go, onSignOut, children }) {

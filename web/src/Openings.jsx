@@ -11,6 +11,7 @@ import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card } from './ui.
 const FIT_COLOR = { Weekly: '#92B558', 'Every 2 weeks': '#005960', 'Every 4 weeks': '#578CAC', 'One-time': '#d2691e', 'On demand': '#c48f65' };
 const FIT_SHORT = { Weekly: '1w', 'Every 2 weeks': '2w', 'Every 4 weeks': '4w' };
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''}${m < 720 ? 'a' : 'p'}`;
+const fullTime = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
 const shortDate = (iso) => {
   const [y, mo, d] = iso.split('-').map(Number);
   return new Date(y, mo - 1, d).toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -25,6 +26,12 @@ const monday = () => {
 // Openings: where recurring work can be added, by frequency and area, over a 4-week cycle.
 export default function Openings({ onError, initialTab = 'plan' }) {
   const [tab, setTab] = useState(initialTab);
+  // An opening picked anywhere on the page, shown on the 4-week plan.
+  const [highlight, setHighlight] = useState(null);
+  const openInPlan = (o, s = o.start, e = o.end) => {
+    setHighlight({ teamId: o.teamId, team: o.team, weekday: o.weekday, dates: o.dates, s, e, fit: o.fit, label: o.label, area: o.area?.name || o.area?.zone || null });
+    setTab('plan');
+  };
   const [from] = useState(monday());
   const [minHours, setMinHours] = useState('1.5');
   const o = useLoad(() => api.openings({ from, minHours }), `${from}:${minHours}`, onError);
@@ -64,18 +71,24 @@ export default function Openings({ onError, initialTab = 'plan' }) {
           <Skeleton rows={8} height={40} />
         </>
       )}
-      {d && tab === 'plan' && <CyclePlan data={d} />}
-      {d && tab === 'sell' && <WhereToSell data={d} onError={onError} />}
-      {tab === 'place' && <PlaceCustomer from={from} zones={d?.zones || []} onError={onError} />}
+      {d && tab === 'plan' && <CyclePlan data={d} highlight={highlight} onClear={() => setHighlight(null)} />}
+      {d && tab === 'sell' && <WhereToSell data={d} onError={onError} onOpen={openInPlan} />}
+      {tab === 'place' && <PlaceCustomer from={from} zones={d?.zones || []} onError={onError} onOpen={(r) => openInPlan(r, r.arriveMin ?? r.start, r.doneMin ?? r.end)} />}
     </>
   );
 }
 
 // ---------- 4-week plan ----------
 
-function CyclePlan({ data }) {
+function CyclePlan({ data, highlight, onClear }) {
   const [team, setTeam] = useState('all');
   const [focus, setFocus] = useState('all'); // highlight a frequency
+  const hlRow = useRef(null);
+  // Scroll the picked opening's team row into view.
+  useEffect(() => {
+    if (highlight && hlRow.current) hlRow.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlight]);
+  const isHl = (t, dt) => highlight && t.id === highlight.teamId && highlight.dates.includes(dt);
   const { weeks, weekdays, teams } = data.cycle;
   const dayStart = 7 * 60;
   const dayEnd = 18 * 60;
@@ -97,6 +110,16 @@ function CyclePlan({ data }) {
 
   return (
     <>
+      {highlight && (
+        <div className="hl-banner">
+          <Icon name="pin" size={16} />
+          <span>
+            <b>{highlight.weekday}s {fullTime(highlight.s)} – {fullTime(highlight.e)}</b> · {highlight.team} · {highlight.fit.toLowerCase()}
+            {highlight.area ? ` · ${highlight.area}` : ''} · {highlight.dates.map(shortDate).join(', ')}
+          </span>
+          <button className="btn ghost sm" onClick={onClear}>Clear</button>
+        </div>
+      )}
       <div className="toolbar">
         <select value={team} onChange={(e) => setTeam(e.target.value)}>
           <option value="all">All teams</option>
@@ -135,27 +158,29 @@ function CyclePlan({ data }) {
                   </tr>
                   {shown.map((t) => {
                     const c = teamColor(t);
+                    const rowHl = highlight && t.id === highlight.teamId && wd === highlight.weekday;
                     return (
-                      <tr key={t.id}>
+                      <tr key={t.id} ref={rowHl ? hlRow : undefined} className={rowHl ? 'hl-row' : ''}>
                         <td className="sticky nowrap"><span className="team-swatch" style={{ '--team': c.bg }} />{t.name}</td>
                         {dates.map((dt) => {
                           const day = dt && t.days[dt];
                           if (!day) return <td key={dt} className="cycle-cell off"><span className="muted small">off</span></td>;
                           return (
-                            <td key={dt} className="cycle-cell">
+                            <td key={dt} className={`cycle-cell ${isHl(t, dt) ? 'hl' : ''}`}>
                               <div className="cbar">
+                                {isHl(t, dt) && <div className="cbar-hl" style={{ left: `${pct(highlight.s)}%`, width: `${pct(highlight.e) - pct(highlight.s)}%` }} />}
                                 {day.window && <div className="cbar-window" style={{ left: `${pct(day.window.s)}%`, width: `${pct(day.window.e) - pct(day.window.s)}%` }} />}
                                 {day.jobs.map((j, i) => {
                                   const f = j.frequency || 'Unknown';
                                   const dim = focus !== 'all' && f !== focus;
                                   return (
-                                    <div key={i} className={`cbar-job ${dim ? 'dim' : ''}`} style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, background: freqColors[f] || '#9ca3af' }} title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${f}${j.zone ? ` · ${j.zone}` : ''}`} />
+                                    <div key={i} className={`cbar-job ${dim ? 'dim' : ''}`} style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, background: freqColors[f] || '#9ca3af' }} title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${f}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`} />
                                   );
                                 })}
                                 {day.open.map((g, i) => {
                                   const dim = focus !== 'all' && g.fit !== focus;
                                   return (
-                                    <div key={`o${i}`} className={`cbar-open ${dim ? 'dim' : ''}`} style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }} title={`Open ${hhmm(g.s)}–${hhmm(g.e)} · fits ${g.fit.toLowerCase()}${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}${g.zone ? `\nArea: ${g.zone}` : ''}`}>
+                                    <div key={`o${i}`} className={`cbar-open ${dim ? 'dim' : ''}`} style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }} title={`Open ${hhmm(g.s)}–${hhmm(g.e)} · fits ${g.fit.toLowerCase()}${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}>
                                       {FIT_SHORT[g.fit]}
                                     </div>
                                   );
@@ -183,7 +208,7 @@ function CyclePlan({ data }) {
 
 // ---------- Where to sell ----------
 
-function WhereToSell({ data, onError }) {
+function WhereToSell({ data, onError, onOpen }) {
   const [zone, setZone] = useState(null);
   const [fit, setFit] = useState('all');
   const [day, setDay] = useState('all');
@@ -210,6 +235,7 @@ function WhereToSell({ data, onError }) {
             onSelect={setZone}
             teams={data.teams}
             focus={focus}
+            onOpen={onOpen}
           />
         )}
       </Card>
@@ -218,10 +244,10 @@ function WhereToSell({ data, onError }) {
           <div className="zone-list">
             {zonesWithOpen.map((z) => (
               <button key={z.name} className={`zone-row ${zone === z.name ? 'on' : ''}`} onClick={() => setZone(zone === z.name ? null : z.name)}>
-                <span className="zone-name"><i style={{ background: z.color || '#9ca3af' }} />{z.name}</span>
+                <span className="zone-name"><i style={{ background: z.color || '#9ca3af' }} />{z.label || z.name}</span>
                 <span className="zone-bar"><i style={{ width: `${(z.openWeeklyHours / max) * 100}%` }} /></span>
                 <b>{z.openWeeklyHours} h</b>
-                <span className="muted small">{z.openings} openings · {z.homes} homes</span>
+                <span className="muted small">{z.openings} openings · {z.homes} homes · ZIP {z.zips.join(', ')}{z.cities?.length ? ` · ${z.cities.join(', ')}` : ''}</span>
               </button>
             ))}
             {!zonesWithOpen.length && <Empty icon="check" title="No openings in any area" />}
@@ -229,7 +255,7 @@ function WhereToSell({ data, onError }) {
         </Card>
         <div>
           <div className="toolbar">
-            {zone && <button className="chip on" onClick={() => setZone(null)}>{zone} <Icon name="close" size={12} /></button>}
+            {zone && <button className="chip on" onClick={() => setZone(null)}>{data.zones.find((z) => z.name === zone)?.label || zone} <Icon name="close" size={12} /></button>}
             <select value={fit} onChange={(e) => setFit(e.target.value)}>
               <option value="all">Any frequency</option>
               <option>Weekly</option>
@@ -245,15 +271,17 @@ function WhereToSell({ data, onError }) {
           <Card className="flush">
             <table className="data">
               <thead>
-                <tr><th>Area</th><th>Day</th><th>Time</th><th>Fits</th><th>Team</th><th>Dates</th><th>h / wk</th></tr>
+                <tr><th>Area</th><th>Day</th><th>Time</th><th>Fits</th><th>Team</th><th>Dates</th><th>h / wk</th><th /></tr>
               </thead>
               <tbody>
                 {list.map((o) => (
-                  <tr key={o.id} className={`clickable ${focus?.id === o.id ? 'selected' : ''}`} onClick={() => setFocus(o)} title="Show on the map">
+                  <tr key={o.id} className={`clickable ${focus?.id === o.id ? 'selected' : ''}`} onClick={() => onOpen(o)} title="Open in the 4-week plan">
                     <td>
-                      <b className="cap">{o.area.zone || 'Unknown area'}</b>
-                      {o.area.between && <span className="muted small block">between {o.area.between[0]} → {o.area.between[1]}</span>}
-                      {!o.area.between && o.area.basis !== 'neighbouring jobs' && <span className="muted small block">{o.area.basis}</span>}
+                      <b>{o.area.name || 'Unknown area'}</b>
+                      <span className="muted small block">
+                        {[o.area.zip && `ZIP ${o.area.zip}`, o.area.city].filter(Boolean).join(' · ')}
+                        {o.area.between ? ` · between ${o.area.between[0]} → ${o.area.between[1]}` : o.area.basis !== 'neighbouring jobs' ? ` · ${o.area.basis}` : ''}
+                      </span>
                     </td>
                     <td>{o.weekday}s</td>
                     <td className="nowrap mono">{o.label}</td>
@@ -261,6 +289,10 @@ function WhereToSell({ data, onError }) {
                     <td className="nowrap"><span className="team-swatch" style={{ '--team': teamColor({ name: o.team, color: o.color }).bg }} />{o.team}</td>
                     <td className="small muted">{o.dates.map(shortDate).join(', ')}</td>
                     <td><b>{o.weeklyHours}</b></td>
+                    <td className="row-actions">
+                      <button className="icon-button" title="Show on the map" onClick={(e) => (e.stopPropagation(), setFocus(o), scrollTo({ top: 0, behavior: 'smooth' }))}><Icon name="pin" size={15} /></button>
+                      <Icon name="chevronRight" size={16} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -269,10 +301,14 @@ function WhereToSell({ data, onError }) {
           </Card>
         </div>
       </div>
-      <p className="muted small">An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. h / wk counts an every-2-weeks opening as half and every-4-weeks as a quarter.</p>
+      <p className="muted small">Click an opening to see it in the 4-week plan (the pin shows it on the map). An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. h / wk counts an every-2-weeks opening as half and every-4-weeks as a quarter.</p>
     </div>
   );
 }
+
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const popupHtml = (o) =>
+  `<b>${esc(o.weekday)}s ${esc(o.label)}</b><br>${esc(o.team)} · fits ${esc(o.fit.toLowerCase())}<br>${esc(o.area.name || o.area.zone || '')}${o.area.zip ? ` · ZIP ${esc(o.area.zip)}` : ''}<br>${o.weeklyHours} h/week · ${esc(o.dates.join(', '))}<br><button class="popup-btn" data-opening="${esc(o.id)}">Open in 4-week plan →</button>`;
 
 const TILES = {
   light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
@@ -280,7 +316,7 @@ const TILES = {
   fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
 
-function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSelect, teams, focus }) {
+function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSelect, teams, focus, onOpen }) {
   const el = useRef(null);
   const map = useRef(null);
   const layers = useRef({});
@@ -342,7 +378,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
           return { color: on ? '#0e7490' : dark ? '#64748b' : '#94a3b8', weight: on ? 3 : 1, fillColor: h ? '#0e7490' : '#94a3b8', fillOpacity: on ? 0.35 : h ? 0.06 + (h / max) * 0.3 : 0.03 };
         },
         onEachFeature: (f, layer) => {
-          layer.bindTooltip(`<b class="cap">${f.properties.zone}</b><br>ZIP ${f.properties.zip}${f.properties.city ? ` · ${f.properties.city}` : ''}<br>${open[f.properties.zone] || 0} h/week open`, { sticky: true });
+          layer.bindTooltip(`<b>${f.properties.area || f.properties.zone}</b><br>ZIP ${f.properties.zip}${f.properties.city ? ` · ${f.properties.city}` : ''}<br>${open[f.properties.zone] || 0} h/week open`, { sticky: true });
           layer.on('click', () => onSelect(f.properties.zone === selected ? null : f.properties.zone));
         },
       }).addTo(m);
@@ -352,7 +388,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
         zones.filter((z) => z.center && (z.openWeeklyHours > 0 || z.name === selected)).map((z) =>
           L.marker([z.center.lat, z.center.lng], {
             interactive: false,
-            icon: L.divIcon({ className: 'zone-label', html: `<span>${z.name}${z.openWeeklyHours ? `<b>${z.openWeeklyHours} h</b>` : ''}</span>`, iconSize: null }),
+            icon: L.divIcon({ className: 'zone-label', html: `<span>${z.label || z.name}${z.openWeeklyHours ? `<b>${z.openWeeklyHours} h</b>` : ''}</span>`, iconSize: null }),
           }),
         ),
       ).addTo(m);
@@ -377,7 +413,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
     const byTeam = Object.fromEntries(teams.map((t) => [t.name, teamColor(t).bg]));
     if (show.homes) {
       layers.current.homes = L.layerGroup(
-        homes.map((h) => L.circleMarker([h.lat, h.lng], { radius: 3.5, weight: 1, color: dark ? '#0b0f14' : '#fff', fillOpacity: 0.9, fillColor: byTeam[h.team] || '#64748b' }).bindTooltip(`${h.team || 'No team'} · ${h.frequency || ''}${h.weekday ? ` · ${h.weekday}s` : ''}<br><span class="cap">${h.zone || ''}</span>`)),
+        homes.map((h) => L.circleMarker([h.lat, h.lng], { radius: 3.5, weight: 1, color: dark ? '#0b0f14' : '#fff', fillOpacity: 0.9, fillColor: byTeam[h.team] || '#64748b' }).bindTooltip(`${h.team || 'No team'} · ${h.frequency || ''}${h.weekday ? ` · ${h.weekday}s` : ''}<br>${zones.find((z) => z.name === h.zone)?.label || h.zone || ''}`)),
       ).addTo(m);
     }
     if (office) {
@@ -386,7 +422,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
         zIndexOffset: 1000,
       }).bindTooltip(`<b>Office</b><br>${office.address || ''}`).addTo(m);
     }
-  }, [homes, teams, show.homes, office, dark]);
+  }, [homes, teams, show.homes, office, dark, zones]);
 
   // Openings as rings (size = hours per week) at the team's position before the opening.
   useEffect(() => {
@@ -397,16 +433,31 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
     layers.current.openings = L.layerGroup(
       openings.filter((o) => o.area.center).map((o) =>
         L.circleMarker([o.area.center.lat, o.area.center.lng], { radius: 7 + o.weeklyHours * 2.5, color: FIT_COLOR[o.fit], weight: 3, fillColor: FIT_COLOR[o.fit], fillOpacity: 0.15 })
-          .bindPopup(`<b>${o.weekday}s ${o.label}</b><br>${o.team} · fits ${o.fit.toLowerCase()}<br><span class="cap">${o.area.zone || ''}</span><br>${o.weeklyHours} h/week · ${o.dates.join(', ')}`),
+          .bindPopup(popupHtml(o)),
       ),
     ).addTo(m);
   }, [openings, show.openings]);
+
+  // "Open in 4-week plan" inside map popups.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const onPopup = (e) => {
+      const btn = e.popup.getElement()?.querySelector('[data-opening]');
+      if (btn) btn.onclick = () => {
+        const o = openings.find((x) => x.id === btn.dataset.opening) || (focus?.id === btn.dataset.opening ? focus : null);
+        if (o) onOpen(o);
+      };
+    };
+    m.on('popupopen', onPopup);
+    return () => m.off('popupopen', onPopup);
+  }, [openings, focus, onOpen]);
 
   // Fly to an opening picked in the list.
   useEffect(() => {
     if (!focus?.area?.center || !map.current) return;
     map.current.flyTo([focus.area.center.lat, focus.area.center.lng], 14, { duration: 0.6 });
-    L.popup().setLatLng([focus.area.center.lat, focus.area.center.lng]).setContent(`<b>${focus.weekday}s ${focus.label}</b><br>${focus.team} · fits ${focus.fit.toLowerCase()}<br><span class="cap">${focus.area.zone || ''}</span>`).openOn(map.current);
+    L.popup().setLatLng([focus.area.center.lat, focus.area.center.lng]).setContent(popupHtml(focus)).openOn(map.current);
   }, [focus]);
 
   return (
@@ -434,7 +485,7 @@ function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSele
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-function PlaceCustomer({ from, zones, onError }) {
+function PlaceCustomer({ from, zones, onError, onOpen }) {
   const [form, setForm] = useState({ where: 'zip', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
   const [days, setDays] = useState([]);
   const [result, setResult] = useState(null);
@@ -471,7 +522,7 @@ function PlaceCustomer({ from, zones, onError }) {
           {form.where === 'zone' && (
             <select value={form.zone} onChange={set('zone')} required>
               <option value="">Choose a zone…</option>
-              {zones.map((z) => <option key={z.name}>{z.name}</option>)}
+              {zones.map((z) => <option key={z.name} value={z.name}>{z.label || z.name}</option>)}
             </select>
           )}
           {form.where === 'home' && <input placeholder="Home or customer name" value={form.home} onChange={set('home')} required />}
@@ -509,7 +560,7 @@ function PlaceCustomer({ from, zones, onError }) {
             {result.results.map((r, i) => {
               const c = teamColor({ name: r.team, color: r.color });
               return (
-                <div key={r.id} className={`slot place ${i === 0 ? 'best' : ''}`}>
+                <div key={r.id} className={`slot place clickable ${i === 0 ? 'best' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
                   <div className="slot-when">
                     <b>{r.weekday}s</b>
                     <span>{r.arrive} – {r.done}</span>
@@ -517,7 +568,7 @@ function PlaceCustomer({ from, zones, onError }) {
                   </div>
                   <div className="slot-team">
                     <b><span className="team-swatch" style={{ '--team': c.bg }} />{r.team}</b>
-                    <span className="muted small">{r.area.zone || 'area unknown'}</span>
+                    <span className="muted small">{r.area.name || 'area unknown'}{r.area.zip ? ` · ${r.area.zip}` : ''}</span>
                   </div>
                   <div className="slot-reasons">
                     <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.fit}</span>

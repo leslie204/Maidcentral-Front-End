@@ -373,6 +373,19 @@ tr.cycle-day td.sticky { background: var(--panel-2); }
 .cbar-job { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; box-shadow: 0 0 0 1px var(--panel); transition: opacity 0.12s; }
 .cbar-open { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; border: 1.5px dashed var(--fit); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--fit) 18%, transparent) 0 4px, transparent 4px 8px); font: 600 10px 'Geist Mono', ui-monospace, monospace; color: var(--fit); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .cbar-job.dim, .cbar-open.dim { opacity: 0.15; }
+.cbar-hl { position: absolute; top: -3px; bottom: -3px; border-radius: 6px; border: 2.5px solid var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); z-index: 2; animation: hlpulse 1.4s ease-in-out 3; pointer-events: none; }
+@keyframes hlpulse { 50% { box-shadow: 0 0 0 8px transparent; } }
+tr.hl-row td { background: var(--accent-soft); }
+tr.hl-row td.sticky { background: var(--accent-soft); font-weight: 600; }
+.cycle-cell.hl .cbar-meta { color: var(--accent-ink); font-weight: 600; }
+.hl-banner { display: flex; align-items: center; gap: 10px; background: var(--panel); color: var(--accent-ink); border: 1px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 12px; position: sticky; top: 8px; z-index: 20; }
+@media (max-width: 900px) { .hl-banner { top: 60px; } }
+.hl-banner span { flex: 1; }
+.row-actions { white-space: nowrap; text-align: right; color: var(--muted); }
+.row-actions .icon-button { width: 28px; height: 28px; vertical-align: middle; }
+.slot.clickable { cursor: pointer; }
+.slot.clickable:hover { border-color: var(--accent); }
+.popup-btn { margin-top: 6px; border: 0; background: #0e7490; color: #fff; border-radius: 6px; padding: 4px 8px; font: 600 12px Geist, sans-serif; cursor: pointer; }
 .cbar-meta { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 /* Openings: where to sell */

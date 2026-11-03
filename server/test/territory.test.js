@@ -106,3 +106,18 @@ test('place a customer: nearby team and matching frequency first', async () => {
 test('distance', () => {
   assert.ok(Math.abs(km(NORTH, SOUTH) - 12.2) < 0.5);
 });
+
+test('area names: place names from zone descriptions, duplicates told apart by ZIP', async () => {
+  const { areaNames, derive } = await import('../src/areas.js');
+  const names = areaNames([
+    { name: 'very far east - valley - liberty lake', zips: ['99019'] },
+    { name: 'east - valley', zips: ['99206'] },
+    { name: 'east - spokane valley', zips: ['99037', '99216'] },
+    { name: 'north', zips: ['99208'] },
+  ]);
+  assert.equal(names.get('very far east - valley - liberty lake').label, 'Liberty Lake');
+  assert.equal(names.get('east - valley').label, 'Spokane Valley (99206)');
+  assert.equal(names.get('east - spokane valley').label, 'Spokane Valley (99037, 99216)');
+  assert.equal(names.get('north').label, 'North Spokane');
+  assert.equal(derive('far north - zone - green bluff'), 'Green Bluff');
+});
