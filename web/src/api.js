@@ -40,7 +40,6 @@ export const api = {
   calloutPlan: (q) => call('GET', `/api/callouts/plan?${new URLSearchParams(q)}`),
   openings: (q) => call('GET', `/api/openings?${new URLSearchParams(q)}`),
   openingsStatus: () => call('GET', '/api/openings/status'),
-  openingsMap: () => call('GET', '/api/openings/map'),
   placeCustomer: (q) => call('GET', `/api/openings/place?${new URLSearchParams(q)}`),
   cleaners: () => call('GET', '/api/cleaners'),
   cleaner: (id) => call('GET', `/api/cleaners/${encodeURIComponent(id)}`),

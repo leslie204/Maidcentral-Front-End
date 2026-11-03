@@ -85,10 +85,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       first read runs.
     - Wording: plain language ("every other week", "good for", "hours per week") and
       "?" help next to anything that needs explaining.
-    - Where to sell: zones ranked by open hours per week, a map (OpenStreetMap tiles, no
-      key; areas shaded by open time, customers as dots in their team's colour, openings
-      as rings; an on-map key explains it) and
-      the list of openings by area. An opening's area is where the team is just before
+    - Where to sell: areas ranked by open hours per week and the list of openings by
+      area (filter by area, customer type and day). An opening's area is where the team is just before
       and after it, from MaidCentral's Customer Efficiency Map report (every recurring
       home's ZIP, zone and coordinates) matched to the jobs.
     - Place a customer: ZIP, area or existing home + frequency + length (+ days, time of

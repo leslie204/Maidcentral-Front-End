@@ -570,14 +570,3 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
     .slice(0, 25);
   return { target: { ...target, label }, frequency: want, hours: need / 60, returnBy: hhmm(back), office: { address: base.address, located: Boolean(base.lat) }, results: ranked };
 }
-
-// For the map: zone shapes and home dots (location, team, frequency; no names).
-export async function territoryMap(mc) {
-  const [shapes, homes] = await Promise.all([zoneShapes(mc).catch(() => ({ type: 'FeatureCollection', features: [] })), book(mc)]);
-  const base = await office(mc, homes);
-  return {
-    shapes,
-    office: base.lat ? { lat: base.lat, lng: base.lng, address: base.address } : null,
-    homes: homes.map((h) => ({ lat: Math.round(h.lat * 1e4) / 1e4, lng: Math.round(h.lng * 1e4) / 1e4, team: h.team, zone: h.zone, frequency: h.frequency?.short || null, weekday: h.weekday >= 0 ? WEEKDAYS[h.weekday] : null })),
-  };
-}

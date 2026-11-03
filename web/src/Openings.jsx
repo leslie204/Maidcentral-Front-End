@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
@@ -86,7 +84,7 @@ export default function Openings({ onError, initialTab = 'plan' }) {
         </div>
       )}
       {d && tab === 'plan' && <CyclePlan data={d} highlight={highlight} onClear={() => setHighlight(null)} />}
-      {d && tab === 'sell' && <WhereToSell data={d} onError={onError} onOpen={openInPlan} />}
+      {d && tab === 'sell' && <WhereToSell data={d} onOpen={openInPlan} />}
       {tab === 'capacity' && <CapacityTab from={from} onError={onError} />}
       {tab === 'place' && <PlaceCustomer from={from} zones={d?.zones || []} onError={onError} onOpen={(r) => openInPlan(r, r.arriveMin ?? r.start, r.doneMin ?? r.end)} />}
     </>
@@ -235,12 +233,10 @@ function CyclePlan({ data, highlight, onClear }) {
 
 // ---------- Where to sell ----------
 
-function WhereToSell({ data, onError, onOpen }) {
+function WhereToSell({ data, onOpen }) {
   const [zone, setZone] = useState(null);
   const [fit, setFit] = useState('all');
   const [day, setDay] = useState('all');
-  const [focus, setFocus] = useState(null); // an opening to fly to
-  const map = useLoad(() => api.openingsMap(), 'openings-map', onError);
   const zonesWithOpen = data.zones.filter((z) => z.openings > 0);
   const list = data.openings.filter((o) => (!zone || o.area.zone === zone) && (fit === 'all' || o.fit === fit) && (day === 'all' || o.weekday === day));
   const days = [...new Set(data.openings.map((o) => o.weekday))];
@@ -248,26 +244,8 @@ function WhereToSell({ data, onError, onOpen }) {
 
   return (
     <div className="sell">
-      <Card className="flush map-card">
-        {map.loading && <Skeleton rows={1} height={520} />}
-        <ErrorNote error={map.error} />
-        {map.data && (
-          <TerritoryMap
-            shapes={map.data.shapes}
-            homes={map.data.homes}
-            office={map.data.office}
-            zones={data.zones}
-            openings={list}
-            selected={zone}
-            onSelect={setZone}
-            teams={data.teams}
-            focus={focus}
-            onOpen={onOpen}
-          />
-        )}
-      </Card>
       <div className="sell-bottom">
-                <Card title={<>Areas with room to grow <Help>Neighbourhoods ranked by how many hours a week we could still sell there without adding much driving. Click one to filter the map and list.</Help></>} actions={<span className="muted small">hours per week</span>} className="flush zone-card">
+                <Card title={<>Areas with room to grow <Help>Neighbourhoods ranked by how many hours a week we could still sell there without adding much driving. Click one to filter the list.</Help></>} actions={<span className="muted small">hours per week</span>} className="flush zone-card">
           <div className="zone-list">
             {zonesWithOpen.map((z) => (
               <button key={z.name} className={`zone-row ${zone === z.name ? 'on' : ''}`} onClick={() => setZone(zone === z.name ? null : z.name)}>
@@ -303,7 +281,7 @@ function WhereToSell({ data, onError, onOpen }) {
               </thead>
               <tbody>
                 {list.map((o) => (
-                  <tr key={o.id} className={`clickable ${focus?.id === o.id ? 'selected' : ''}`} onClick={() => onOpen(o)} title="Open in the 4-week plan">
+                  <tr key={o.id} className="clickable" onClick={() => onOpen(o)} title="Open in the 4-week plan">
                     <td>
                       <b>{o.area.name || 'Unknown area'}</b>
                       <span className="muted small block">
@@ -318,7 +296,6 @@ function WhereToSell({ data, onError, onOpen }) {
                     <td className="small muted">{o.dates.map(shortDate).join(', ')}</td>
                     <td><b>{o.weeklyHours}</b></td>
                     <td className="row-actions">
-                      <button className="icon-button" title="Show on the map" onClick={(e) => (e.stopPropagation(), setFocus(o), scrollTo({ top: 0, behavior: 'smooth' }))}><Icon name="pin" size={15} /></button>
                       <Icon name="chevronRight" size={16} />
                     </td>
                   </tr>
@@ -330,178 +307,7 @@ function WhereToSell({ data, onError, onOpen }) {
           </Card>
         </div>
       </div>
-      <p className="muted small">Click an opening to see it in the 4-week plan (the pin shows it on the map). An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. Hours / week counts an every-other-week opening as half and every-4-weeks as a quarter.</p>
-    </div>
-  );
-}
-
-const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const popupHtml = (o) =>
-  `<b>${esc(o.weekday)}s ${esc(o.label)}</b><br>${esc(o.team)} · good for an ${esc(plainFreq(o.fit).toLowerCase())} customer<br>${esc(o.area.name || o.area.zone || '')}${o.area.zip ? ` · ZIP ${esc(o.area.zip)}` : ''}<br>${o.weeklyHours} hours/week · ${esc(o.dates.join(', '))}<br><button class="popup-btn" data-opening="${esc(o.id)}">Open in 4-week plan →</button>`;
-
-// OpenStreetMap's own tiles (no key needed), toned down with CSS so the data stands out.
-const OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-function TerritoryMap({ shapes, homes, office, zones, openings, selected, onSelect, teams, focus, onOpen }) {
-  const el = useRef(null);
-  const map = useRef(null);
-  const layers = useRef({});
-  const [show, setShow] = useState({ zones: true, homes: true, openings: true, labels: true });
-  const dark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
-  const home = useRef(null);
-
-  // Create the map once; keep it sized to its box (fixes grey or half-loaded tiles).
-  useEffect(() => {
-    const m = L.map(el.current, { zoomControl: true, scrollWheelZoom: false, preferCanvas: true });
-    map.current = m;
-    L.tileLayer(OSM, { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19, className: 'map-tiles' }).addTo(m);
-    // Fit to where most homes are (5th–95th percentile), so a few far-out homes don't
-    // shrink the city to a dot.
-    const q = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.floor(p * (arr.length - 1))))];
-    const lats = homes.map((h) => h.lat).sort((a, b) => a - b);
-    const lngs = homes.map((h) => h.lng).sort((a, b) => a - b);
-    home.current = homes.length ? L.latLngBounds([q(lats, 0.05), q(lngs, 0.05)], [q(lats, 0.95), q(lngs, 0.95)]).pad(0.15) : null;
-    if (home.current) m.fitBounds(home.current);
-    else m.setView([47.66, -117.42], 11);
-    // Zone names only once zoomed in enough to read them.
-    const labelsFor = () => el.current?.classList.toggle('hide-labels', m.getZoom() < 12);
-    m.on('zoomend', labelsFor);
-    labelsFor();
-    m.on('click focus', () => m.scrollWheelZoom.enable());
-    m.on('mouseout blur', () => m.scrollWheelZoom.disable());
-    const ro = new ResizeObserver(() => m.invalidateSize());
-    ro.observe(el.current);
-    setTimeout(() => m.invalidateSize(), 0);
-    return () => {
-      ro.disconnect();
-      m.remove();
-      map.current = null;
-    };
-  }, []);
-
-  const open = useMemo(() => Object.fromEntries(zones.map((z) => [z.name, z.openWeeklyHours])), [zones]);
-
-  // Zones shaded by open hours, with names; click to filter and zoom.
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    layers.current.zones?.remove();
-    layers.current.labels?.remove();
-    const max = Math.max(...Object.values(open), 1);
-    if (show.zones) {
-      layers.current.zones = L.geoJSON(shapes, {
-        style: (f) => {
-          const h = open[f.properties.zone] || 0;
-          const on = selected === f.properties.zone;
-          return { color: on ? '#0e7490' : dark ? '#64748b' : '#94a3b8', weight: on ? 3 : 1, fillColor: h ? '#0e7490' : '#94a3b8', fillOpacity: on ? 0.35 : h ? 0.06 + (h / max) * 0.3 : 0.03 };
-        },
-        onEachFeature: (f, layer) => {
-          layer.bindTooltip(`<b>${f.properties.area || f.properties.zone}</b><br>ZIP ${f.properties.zip}${f.properties.city ? ` · ${f.properties.city}` : ''}<br>${open[f.properties.zone] || 0} h/week open`, { sticky: true });
-          layer.on('click', () => onSelect(f.properties.zone === selected ? null : f.properties.zone));
-        },
-      }).addTo(m);
-    }
-    if (show.labels) {
-      layers.current.labels = L.layerGroup(
-        zones.filter((z) => z.center && (z.openWeeklyHours > 0 || z.name === selected)).map((z) =>
-          L.marker([z.center.lat, z.center.lng], {
-            interactive: false,
-            icon: L.divIcon({ className: 'zone-label', html: `<span>${z.label || z.name}${z.openWeeklyHours ? `<b>${z.openWeeklyHours} h</b>` : ''}</span>`, iconSize: null }),
-          }),
-        ),
-      ).addTo(m);
-    }
-  }, [shapes, zones, open, selected, onSelect, show.zones, show.labels, dark]);
-
-  // Zoom to the selected zone's homes (or back out).
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    const pts = homes.filter((h) => h.zone === selected).map((h) => [h.lat, h.lng]);
-    if (selected && pts.length) m.flyToBounds(L.latLngBounds(pts).pad(0.4), { duration: 0.5, maxZoom: 14 });
-    else if (!selected && home.current) m.flyToBounds(home.current, { duration: 0.5 });
-  }, [selected, homes]);
-
-  // Homes as small dots in their team's colour, and the office.
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    layers.current.homes?.remove();
-    layers.current.office?.remove();
-    const byTeam = Object.fromEntries(teams.map((t) => [t.name, teamColor(t).bg]));
-    if (show.homes) {
-      layers.current.homes = L.layerGroup(
-        homes.map((h) => L.circleMarker([h.lat, h.lng], { radius: 3.5, weight: 1, color: dark ? '#0b0f14' : '#fff', fillOpacity: 0.9, fillColor: byTeam[h.team] || '#64748b' }).bindTooltip(`${h.team || 'No team'} · ${h.frequency || ''}${h.weekday ? ` · ${h.weekday}s` : ''}<br>${zones.find((z) => z.name === h.zone)?.label || h.zone || ''}`)),
-      ).addTo(m);
-    }
-    if (office) {
-      layers.current.office = L.marker([office.lat, office.lng], {
-        icon: L.divIcon({ className: 'office-pin', html: '<span>CB</span>', iconSize: [30, 30], iconAnchor: [15, 15] }),
-        zIndexOffset: 1000,
-      }).bindTooltip(`<b>Office</b><br>${office.address || ''}`).addTo(m);
-    }
-  }, [homes, teams, show.homes, office, dark, zones]);
-
-  // Openings as rings (size = hours per week) at the team's position before the opening.
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    layers.current.openings?.remove();
-    if (!show.openings) return;
-    layers.current.openings = L.layerGroup(
-      openings.filter((o) => o.area.center).map((o) =>
-        L.circleMarker([o.area.center.lat, o.area.center.lng], { radius: 7 + o.weeklyHours * 2.5, color: FIT_COLOR[o.fit], weight: 3, fillColor: FIT_COLOR[o.fit], fillOpacity: 0.15 })
-          .bindPopup(popupHtml(o)),
-      ),
-    ).addTo(m);
-  }, [openings, show.openings]);
-
-  // "Open in 4-week plan" inside map popups.
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    const onPopup = (e) => {
-      const btn = e.popup.getElement()?.querySelector('[data-opening]');
-      if (btn) btn.onclick = () => {
-        const o = openings.find((x) => x.id === btn.dataset.opening) || (focus?.id === btn.dataset.opening ? focus : null);
-        if (o) onOpen(o);
-      };
-    };
-    m.on('popupopen', onPopup);
-    return () => m.off('popupopen', onPopup);
-  }, [openings, focus, onOpen]);
-
-  // Fly to an opening picked in the list.
-  useEffect(() => {
-    if (!focus?.area?.center || !map.current) return;
-    map.current.flyTo([focus.area.center.lat, focus.area.center.lng], 14, { duration: 0.6 });
-    L.popup().setLatLng([focus.area.center.lat, focus.area.center.lng]).setContent(popupHtml(focus)).openOn(map.current);
-  }, [focus]);
-
-  return (
-    <div className="map-wrap">
-      <div className="map-explain">
-        <b>What this map shows</b>
-        <span><i className="swatch-area" />Shaded areas: room to sell (darker = more free hours)</span>
-        <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />Rings: free time where a team already is (bigger = more hours)</span>
-        <span><i className="dotm" />Dots: current customers, in their team's colour</span>
-        <span className="muted">Click an area to filter · click a ring to see it in the 4-week plan</span>
-      </div>
-      <div ref={el} className="map" />
-      <div className="map-controls">
-        {[['zones', 'Zones'], ['labels', 'Names'], ['homes', 'Homes'], ['openings', 'Openings']].map(([k, label]) => (
-          <label key={k}><input type="checkbox" checked={show[k]} onChange={(e) => setShow({ ...show, [k]: e.target.checked })} />{label}</label>
-        ))}
-        <button className="btn sm" onClick={() => (onSelect(null), home.current && map.current?.flyToBounds(home.current, { duration: 0.5 }))}>Reset view</button>
-      </div>
-      <div className="map-legend">
-        <span><i className="ring" style={{ borderColor: FIT_COLOR.Weekly }} />weekly</span>
-                <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 2 weeks'] }} />every other week</span>
-        <span><i className="ring" style={{ borderColor: FIT_COLOR['Every 4 weeks'] }} />every 4 weeks</span>
-                <span><i className="dotm" />customer (team colour)</span>
-        {office && <span><i className="officem">CB</i>office</span>}
-        <span className="muted">Click the map to scroll-zoom</span>
-      </div>
+      <p className="muted small">Click an opening to see it in the 4-week plan. An opening's area is where the team is just before and after it, so a customer there keeps the route tight. Last openings of the day already leave time to drive back to the office by {data.returnBy}. Hours / week counts an every-other-week opening as half and every-4-weeks as a quarter.</p>
     </div>
   );
 }

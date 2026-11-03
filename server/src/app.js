@@ -17,7 +17,7 @@ import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
 import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
-import { openings, placeCustomer, territoryMap, openingsStatus, prewarm } from './territory.js';
+import { openings, placeCustomer, openingsStatus, prewarm } from './territory.js';
 import { callOutScenarios, roster } from './callouts.js';
 import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
 
@@ -226,7 +226,6 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   }));
   api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
   api.get('/openings/status', handle(async (req) => ({ progress: openingsStatus(req.mc) })));
-  api.get('/openings/map', handle((req) => territoryMap(req.mc)));
   api.get('/callouts/roster', handle((req) => roster(req.mc, req.query)));
   api.get('/callouts/plan', handle((req) => callOutScenarios(req.mc, req.query)));
   api.get('/optimize/current', handle((req) => currentState(req.mc, req.query)));

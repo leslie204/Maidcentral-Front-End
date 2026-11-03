@@ -390,11 +390,9 @@ tr.hl-row td.sticky { background: var(--accent-soft); font-weight: 600; }
 .row-actions .icon-button { width: 28px; height: 28px; vertical-align: middle; }
 .slot.clickable { cursor: pointer; }
 .slot.clickable:hover { border-color: var(--accent); }
-.popup-btn { margin-top: 6px; border: 0; background: #0e7490; color: #fff; border-radius: 6px; padding: 4px 8px; font: 600 12px Geist, sans-serif; cursor: pointer; }
 .cbar-meta { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 /* Openings: where to sell */
-.sell .map-card { margin-bottom: 16px; }
 .sell-bottom { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 16px; align-items: start; }
 .sell-bottom .card { margin-bottom: 16px; }
 .zone-list { display: grid; max-height: 640px; overflow-y: auto; }
@@ -410,20 +408,6 @@ tr.hl-row td.sticky { background: var(--accent-soft); font-weight: 600; }
 .zone-row > .muted { grid-area: meta; }
 .cap { text-transform: capitalize; }
 tr.selected td { background: var(--accent-soft) !important; }
-.map-wrap { position: relative; height: 560px; }
-.map { position: absolute; inset: 0; }
-.map-controls { position: absolute; right: 10px; top: 10px; z-index: 500; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font-size: 12.5px; box-shadow: var(--shadow); }
-.map-controls label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
-.map-controls input { height: auto; width: auto; margin: 0; accent-color: var(--accent); }
-.map-legend { position: absolute; left: 10px; bottom: 10px; z-index: 500; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font-size: 11.5px; box-shadow: var(--shadow); max-width: calc(100% - 20px); }
-.map-legend i.ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 3px solid; margin-right: 5px; vertical-align: -2px; }
-.map-legend i.dotm { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #64748b; margin-right: 5px; vertical-align: 1px; }
-.map-legend i.officem { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 5px; background: #f59e0b; color: #78350f; font: 700 8px Geist, sans-serif; font-style: normal; margin-right: 5px; vertical-align: -3px; }
-.zone-label span { display: inline-block; transform: translate(-50%, -50%); white-space: nowrap; font: 600 11px Geist, sans-serif; color: #0f172a; text-transform: capitalize; background: rgba(255, 255, 255, 0.85); border-radius: 6px; padding: 2px 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); pointer-events: none; }
-.zone-label b { margin-left: 5px; color: #0e7490; }
-.hide-labels .zone-label { display: none; }
-.office-pin span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #78350f; font: 700 11px Geist, sans-serif; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); border: 2px solid #fff; }
-.leaflet-container { font: inherit; background: var(--panel-2); }
 td b + .block { margin-top: 1px; }
 
 /* Openings: place a customer */
@@ -449,13 +433,6 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
 .loading-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; display: grid; gap: 10px; margin-bottom: 16px; }
 .progress { height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
 .progress i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
-.map-explain { position: absolute; left: 60px; top: 10px; z-index: 500; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; max-width: calc(100% - 470px); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 7px 11px; font-size: 12px; box-shadow: var(--shadow); }
-.map-explain b { width: 100%; }
-.map-explain i.ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 3px solid; margin-right: 5px; vertical-align: -2px; }
-.map-explain i.dotm { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #64748b; margin-right: 5px; vertical-align: 1px; }
-.map-explain i.swatch-area { display: inline-block; width: 12px; height: 10px; border-radius: 2px; background: rgba(14, 116, 144, 0.35); border: 1px solid #0e7490; margin-right: 5px; vertical-align: -1px; }
-.map-tiles { filter: grayscale(0.85) brightness(1.04) contrast(0.92); }
-@media (prefers-color-scheme: dark) { .map-tiles { filter: invert(1) hue-rotate(180deg) grayscale(0.8) brightness(0.85) contrast(0.9); } }
 
 /* Call-outs */
 .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
@@ -553,12 +530,6 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
   .plan-nums { justify-items: start; }
   .callout-settings .btn { margin-left: 0; width: 100%; }
   .sell-bottom { grid-template-columns: 1fr; }
-  .map-wrap { height: 420px; }
-  .map-controls { left: 10px; right: auto; }
-  .map-legend { display: none; }
-  .map-explain { position: static; max-width: none; border-radius: 0; border-width: 0 0 1px; }
-  .map-wrap { display: flex; flex-direction: column; }
-  .map { position: relative; flex: 1; }
   .tl-row { grid-template-columns: 110px minmax(560px, 1fr); }
   .input-icon input { width: 100%; }
 }
