@@ -16,6 +16,7 @@ import { MemoryStore, hashSid } from './store.js';
 import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
 import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
+import { scheduleKey, frequencyOf } from './schedulekey.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -168,21 +169,23 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   api.get('/schedule', handle(async (req) => {
     const date = mcDay(req.query.date);
-    const [jobs, teams] = await Promise.all([
+    const [jobs, teams, key] = await Promise.all([
       req.mc.getJson('/Job/ReadJobs', { date, view: 'HalfHourView' }),
       req.mc.getJson('/Job/TeamMonitorTeams', { date, view: 'HalfHourView' }),
+      scheduleKey(req.mc),
     ]);
-    return { date: req.query.date, teams: teams.map(team), jobs: jobs.map(job) };
+    return { date: req.query.date, teams: teams.map(team), jobs: jobs.map((j) => job(j, key)) };
   }));
 
   api.get('/monitor', handle(async (req) => {
     const date = mcDay(req.query.date);
-    const [items, teams] = await Promise.all([
+    const [items, teams, key] = await Promise.all([
       req.mc.getJson('/Job/TeamMonitorData', { date, view: 'HalfHourView', showJobClocks: 'true' }),
       req.mc.getJson('/Job/TeamMonitorTeams', { date, view: 'HalfHourView', showJobClocks: 'true' }),
+      scheduleKey(req.mc),
     ]);
     // ScheduleActualType 1 = scheduled, 2 = clocked (actual).
-    return { date: req.query.date, teams: teams.map(team), items: items.map((i) => ({ ...job(i), actual: i.ScheduleActualType === 2 })) };
+    return { date: req.query.date, teams: teams.map(team), items: items.map((i) => ({ ...job(i, key), actual: i.ScheduleActualType === 2 })) };
   }));
 
   api.get('/search', handle(async (req) => {
@@ -214,9 +217,10 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     const now = Math.floor(Date.now() / 1000);
     const from = req.query.from ? Math.floor(Date.parse(req.query.from) / 1000) : now - 180 * day;
     const to = req.query.to ? Math.floor(Date.parse(req.query.to) / 1000) : now + 90 * day;
-    const jobs = await req.mc.postFormJson('/Customer/Jobs', { id, start: String(from), end: String(to) });
+    const [jobs, key] = await Promise.all([req.mc.postFormJson('/Customer/Jobs', { id, start: String(from), end: String(to) }), scheduleKey(req.mc)]);
     return {
-      jobs: jobs.map((j) => ({ id: j.id, title: j.title, start: j.start, end: j.end, color: j.color, late: j.late, outOfRotation: j.outOfRotation })),
+      // The calendar colours jobs by frequency (when the colour is in the schedule key).
+      jobs: jobs.map((j) => ({ id: j.id, title: j.title, start: j.start, end: j.end, color: j.color, frequency: frequencyOf(key, j.color), late: j.late, outOfRotation: j.outOfRotation })),
       mcUrl: `/Customer/Details/${id}?cid=${id}`,
     };
   }));
@@ -258,8 +262,9 @@ function team(t) {
   return { id: t.TeamID, name: t.TeamName, color: cssColor(t.Color) || cssColor(t.RgbBackgroundColor), textColor: cssColor(t.RgbTextColor), jobs: t.CountJobs, scheduledHours: t.ScheduledHours, allowedHours: t.AllowedHours, disabled: t.IsDisabled };
 }
 
-function job(j) {
+function job(j, key) {
   return {
+    frequency: frequencyOf(key, j.FrequencyColor),
     id: j.JobInformationId,
     teamId: j.TeamID,
     title: j.Title,

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
-import DataTable, { Pairs, asObjects } from './DataTable.jsx';
+import DataTable, { asObjects } from './DataTable.jsx';
+import Icon from './Icon.jsx';
+import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Card } from './ui.jsx';
 
 const TABS = [
   ['overview', 'Overview'],
@@ -23,44 +25,36 @@ export default function Cleaner({ id, onError, portal }) {
   const counts = p && { jobs: jobs.length, scorecards: p.scorecards?.rows?.length, inspections: p.inspections?.rows?.length, notes: Array.isArray(p.notes) ? p.notes.length : 0 };
 
   return (
-    <section>
-      <div className="pagehead">
-        <button className="link" onClick={() => history.back()}>‹ Back</button>
-        <h2>{p?.name || `Cleaner ${id}`}</h2>
-        {p?.profile?.roles?.map((r) => <span key={r} className="pill">{r}</span>)}
-        {portal && (
-          <a className="link small right" href={`https://${portal}/Employee/Details/${id}`} target="_blank" rel="noreferrer">
-            Open in MaidCentral ↗
-          </a>
-        )}
-      </div>
-      {error && <p className="error">{error.message}</p>}
-      {loading && <p className="muted">Loading the cleaner from MaidCentral…</p>}
+    <>
+      <PageHeader
+        title={p?.name || `Cleaner ${id}`}
+        subtitle={p?.stats?.period ? `Attendance ${p.stats.period}` : 'MaidCentral employee'}
+        back={() => history.back()}
+        actions={
+          portal && (
+            <a className="btn ghost" href={`https://${portal}/Employee/Details/${id}`} target="_blank" rel="noreferrer">
+              Open in MaidCentral <Icon name="external" size={14} />
+            </a>
+          )
+        }
+      >
+        <div className="badges">{p?.profile?.roles?.map((r) => <span key={r} className="pill">{r}</span>)}</div>
+      </PageHeader>
+      <ErrorNote error={error} />
+      {loading && <Skeleton rows={6} height={48} />}
       {p && (
         <>
-          {p.stats?.pairs && (
-            <>
-              <p className="muted small">Attendance, {p.stats.period}</p>
-              <Pairs pairs={[...p.stats.pairs, ...productivity(jobs)]} />
-            </>
-          )}
-          <div className="tabs">
-            {TABS.map(([t, label]) => (
-              <button key={t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}>
-                {label}
-                {counts[t] ? <span className="count">{counts[t]}</span> : null}
-              </button>
-            ))}
-          </div>
+          {p.stats?.pairs && <Stats items={[...p.stats.pairs, ...productivity(jobs)].map((x) => ({ label: x.label, value: x.value || '–' }))} />}
+          <Tabs value={tab} onChange={setTab} tabs={TABS.map(([t, label]) => [t, label, counts[t]])} />
           {tab === 'overview' && <Overview p={p} />}
           {tab === 'jobs' && <Jobs table={p.jobs} jobs={jobs} />}
           {tab === 'attendance' && <Attendance p={p} />}
-          {tab === 'scorecards' && <DataTable table={p.scorecards} empty="No scorecards." />}
-          {tab === 'inspections' && <DataTable table={p.inspections} empty="No inspections." />}
+          {tab === 'scorecards' && <Card className="flush"><DataTable table={p.scorecards} empty="No scorecards." /></Card>}
+          {tab === 'inspections' && <Card className="flush"><DataTable table={p.inspections} empty="No inspections." /></Card>}
           {tab === 'notes' && <Notes p={p} />}
         </>
       )}
-    </section>
+    </>
   );
 }
 
@@ -94,14 +88,13 @@ function Overview({ p }) {
   const week = (Array.isArray(p.defaultSchedule) ? p.defaultSchedule : []).map((s) => ({ ...s, ms: Date.parse(s.start), endMs: Date.parse(s.end) })).sort((a, b) => a.ms - b.ms);
   return (
     <div className="grid2">
-      <div className="card">
-        <h3>Profile</h3>
+      <Card title="Profile">
         {p.profile?.error && <p className="error small">{p.profile.error}</p>}
         {[...(p.profile?.summary || []), ...(p.profile?.defaults || [])].map((x, i) => (
           <div className="kv" key={i}><span className="muted">{x.label}</span><span>{x.value || '–'}</span></div>
         ))}
         {f['Termination Date'] && <div className="kv"><span className="muted">Termination date</span><span>{f['Termination Date']}</span></div>}
-        <h3>Contact</h3>
+        <h3 className="sub">Contact</h3>
         {contacts.map((c, i) => (
           <div className="kv" key={i}>
             <span className="muted">{c['Contact Type']}</span>
@@ -114,11 +107,10 @@ function Overview({ p }) {
         {(f['Emergency Contact Name'] || f['Emergency Contact Phone']) && (
           <div className="kv"><span className="muted">Emergency contact</span><span>{[f['Emergency Contact Name'], f['Emergency Contact Phone']].filter(Boolean).join(' · ')}</span></div>
         )}
-        {f['Internal Memo'] && <><h3>Internal memo</h3><p>{f['Internal Memo']}</p></>}
-        {f['Bio for Scorecards'] && <><h3>Bio</h3><p>{f['Bio for Scorecards']}</p></>}
-      </div>
-      <div className="card">
-        <h3>Default schedule</h3>
+        {f['Internal Memo'] && <><h3 className="sub">Internal memo</h3><p>{f['Internal Memo']}</p></>}
+        {f['Bio for Scorecards'] && <><h3 className="sub">Bio</h3><p>{f['Bio for Scorecards']}</p></>}
+      </Card>
+      <Card title="Default schedule">
         {Array.isArray(p.defaultSchedule) && !week.length && <p className="muted">No default schedule.</p>}
         {p.defaultSchedule?.error && <p className="error small">{p.defaultSchedule.error}</p>}
         {week.map((s, i) => (
@@ -127,9 +119,9 @@ function Overview({ p }) {
             <span>{fmtTime(s.ms)}–{fmtTime(s.endMs)}</span>
           </div>
         ))}
-        <h3>Recent clock events</h3>
+        <h3 className="sub">Recent clock events</h3>
         <DataTable table={p.clocks} empty="No clock events." limit={10} />
-      </div>
+      </Card>
     </div>
   );
 }
@@ -145,11 +137,14 @@ function Jobs({ table, jobs }) {
   }).length;
   return (
     <>
-      <div className="pagehead">
-        <input placeholder="Filter jobs by customer, home, date…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="toolbar">
+        <div className="input-icon">
+          <Icon name="search" size={16} />
+          <input placeholder="Filter jobs by customer, home, date…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
         {low > 0 && <span className="pill warn">{low} jobs under 80% productivity</span>}
       </div>
-      <DataTable table={filtered} empty="No jobs in MaidCentral's history." />
+      <Card className="flush"><DataTable table={filtered} empty="No jobs in MaidCentral's history." /></Card>
     </>
   );
 }
@@ -161,11 +156,9 @@ function Attendance({ p }) {
   return (
     <>
       <p className="muted small">The last 60 days and the next 30, as MaidCentral's attendance calendar shows them.</p>
-      <div className="pairs">
-        {Object.entries(byStatus).map(([s, n]) => <div key={s}><span className="muted small">{s}</span><b>{n}</b></div>)}
-      </div>
+      <Stats items={Object.entries(byStatus).map(([label, value]) => ({ label, value }))} />
       {!items.length && <p className="muted">No attendance entries.</p>}
-      <div className="tablewrap">
+      <div className="card flush">
         <table className="data">
           <thead><tr><th>Date</th><th>Time</th><th>Status</th></tr></thead>
           <tbody>
@@ -173,7 +166,7 @@ function Attendance({ p }) {
               <tr key={i}>
                 <td>{new Date(a.ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</td>
                 <td>{a.allDay ? 'All day' : `${fmtTime(a.ms)}–${fmtTime(a.endMs)}`}</td>
-                <td><span className="pill" style={{ background: a.color || undefined, color: a.color ? '#fff' : undefined }}>{a.status}</span>{a.late && <span className="pill warn">late</span>}</td>
+                <td><span className="pill" style={{ '--dot': a.color || '#9ca3af' }}>{a.status}</span>{a.late && <span className="pill warn">late</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -186,7 +179,7 @@ function Attendance({ p }) {
 function Notes({ p }) {
   return (
     <>
-      <h3>Notes</h3>
+      <Card title="Notes">
       {p.notes?.error && <p className="error small">{p.notes.error}</p>}
       {Array.isArray(p.notes) && !p.notes.length && <p className="muted">No notes.</p>}
       {Array.isArray(p.notes) &&
@@ -197,10 +190,9 @@ function Notes({ p }) {
             {n.closeNote && <span className="muted small">Closed{n.closedBy ? ` by ${n.closedBy}` : ''}: {n.closeNote}</span>}
           </div>
         ))}
-      <h3>Contact tickets</h3>
-      <DataTable table={p.tickets} empty="No contact tickets." />
-      <h3>Employment history</h3>
-      <DataTable table={p.history} empty="No history." />
+      </Card>
+      <Card title="Contact tickets" className="flush"><DataTable table={p.tickets} empty="No contact tickets." /></Card>
+      <Card title="Employment history" className="flush"><DataTable table={p.history} empty="No history." /></Card>
     </>
   );
 }

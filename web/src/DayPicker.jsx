@@ -1,13 +1,15 @@
 import { today, shiftDay, dayLabel } from './api.js';
+import Icon from './Icon.jsx';
 
 export default function DayPicker({ date, setDate }) {
   return (
     <div className="daypicker">
-      <button onClick={() => setDate(shiftDay(date, -1))} aria-label="Previous day">‹</button>
-      <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
-      <button onClick={() => setDate(shiftDay(date, 1))} aria-label="Next day">›</button>
-      {date !== today() && <button className="link" onClick={() => setDate(today())}>Today</button>}
-      <span className="muted">{dayLabel(date)}</span>
+      <div className="segmented">
+        <button onClick={() => setDate(shiftDay(date, -1))} aria-label="Previous day"><Icon name="chevronLeft" size={16} /></button>
+        <button className={date === today() ? 'on' : ''} onClick={() => setDate(today())}>Today</button>
+        <button onClick={() => setDate(shiftDay(date, 1))} aria-label="Next day"><Icon name="chevronRight" size={16} /></button>
+      </div>
+      <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label={dayLabel(date)} />
     </div>
   );
 }

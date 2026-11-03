@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
+import Icon from './Icon.jsx';
+import { PageHeader, ErrorNote, Skeleton, Card } from './ui.jsx';
 
 // All cleaners (MaidCentral's employee list), searchable.
 export default function Cleaners({ go, onError }) {
@@ -9,33 +11,46 @@ export default function Cleaners({ go, onError }) {
   const headers = data?.headers || [];
   const col = (name) => headers.indexOf(name);
   const rows = (data?.rows || []).filter((r) => !q || r.cells.join(' ').toLowerCase().includes(q.toLowerCase()));
-  const show = ['Last Name', 'First Name', 'User Role', 'Skills', 'Contact', 'Hire Date'].filter((h) => col(h) >= 0);
+  const cell = (r, h) => (col(h) >= 0 ? r.cells[col(h)] : '');
 
   return (
-    <section>
-      <div className="pagehead">
-        <h2>Cleaners</h2>
-        {data && <span className="muted">{data.rows.length} people</span>}
-        <input className="right" placeholder="Filter by name, role, skill…" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
-      {error && <p className="error">{error.message}</p>}
-      {loading && <p className="muted">Loading from MaidCentral…</p>}
+    <>
+      <PageHeader
+        title="Cleaners"
+        subtitle={data ? `${data.rows.length} people in MaidCentral` : 'Everyone in MaidCentral'}
+        actions={
+          <div className="input-icon">
+            <Icon name="search" size={16} />
+            <input placeholder="Filter by name, role, skill…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        }
+      />
+      <ErrorNote error={error} />
+      {loading && <Skeleton rows={8} height={44} />}
       {data && (
-        <div className="tablewrap">
+        <Card className="flush">
           <table className="data">
             <thead>
-              <tr>{show.map((h) => <th key={h}>{h}</th>)}</tr>
+              <tr><th>Name</th><th>Role</th><th>Skills</th><th>Contact</th><th>Hired</th><th /></tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.id || i} className={r.id ? 'clickable' : ''} onClick={() => r.id && go(`/cleaners/${r.id}`)}>
-                  {show.map((h) => <td key={h}>{r.cells[col(h)]}</td>)}
-                </tr>
-              ))}
+              {rows.map((r, i) => {
+                const name = [cell(r, 'First Name'), cell(r, 'Last Name')].filter(Boolean).join(' ');
+                return (
+                  <tr key={r.id || i} className={r.id ? 'clickable' : ''} onClick={() => r.id && go(`/cleaners/${r.id}`)}>
+                    <td><span className="person"><span className="avatar soft">{(name || '?')[0]}</span><b>{name}</b></span></td>
+                    <td>{cell(r, 'User Role')}</td>
+                    <td className="muted">{cell(r, 'Skills')}</td>
+                    <td className="muted small">{cell(r, 'Contact')}</td>
+                    <td className="nowrap">{cell(r, 'Hire Date')}</td>
+                    <td><Icon name="chevronRight" size={16} /></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
-    </section>
+    </>
   );
 }

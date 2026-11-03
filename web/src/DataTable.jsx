@@ -3,7 +3,7 @@ export default function DataTable({ table, empty = 'None.', limit, onRow }) {
   if (!table) return null;
   if (table.error) return <p className="error small">{table.error}</p>;
   const rows = limit ? table.rows.slice(0, limit) : table.rows;
-  if (!rows.length) return <p className="muted">{empty}</p>;
+  if (!rows.length) return <p className="muted empty-inline">{empty}</p>;
   return (
     <div className="tablewrap">
       <table className="data">

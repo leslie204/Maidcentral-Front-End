@@ -4,58 +4,78 @@ import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import DayPicker from './DayPicker.jsx';
 import { groupByTeam } from './Schedule.jsx';
+import { PageHeader, Stats, Skeleton, ErrorNote, Empty, FreqPill } from './ui.jsx';
 
 // Scheduled vs clocked times per team, refreshed every minute (MaidCentral's Team Monitor).
 export default function Monitor({ onError }) {
   const [date, setDate] = useState(today());
-  const { data, error, loading } = useLoad(() => api.monitor(date), date, onError, date === today() ? 60_000 : 0);
+  const live = date === today();
+  const { data, error, loading } = useLoad(() => api.monitor(date), date, onError, live ? 60_000 : 0);
 
   const teams = data ? groupByTeam(data.teams, data.items).filter((t) => t.jobs.length) : [];
   const now = Date.now();
+  const rows = teams.flatMap((t) => {
+    const clocked = t.jobs.filter((j) => j.actual);
+    return t.jobs.filter((j) => !j.actual).map((j) => ({ j, c: clocked.find((x) => x.id === j.id), status: null })).map((r) => ({ ...r, status: statusOf(r.j, r.c, now, live) }));
+  });
+  const count = (cls) => rows.filter((r) => r.status.cls === cls).length;
 
   return (
-    <section>
-      <div className="pagehead">
-        <h2>Team Monitor</h2>
-        <DayPicker date={date} setDate={setDate} />
-        {date === today() && <span className="pill live">Live · refreshes every minute</span>}
-      </div>
-      {error && <p className="error">{error.message}</p>}
-      {loading && <p className="muted">Loading from MaidCentral…</p>}
-      {data && teams.length === 0 && <p className="muted">Nothing scheduled.</p>}
-      <div className="monitor">
-        {teams.map((t) => {
-          const scheduled = t.jobs.filter((j) => !j.actual);
-          const clocked = t.jobs.filter((j) => j.actual);
-          return (
-            <div className="mteam" key={t.id}>
-              <div className="teamhead" style={{ background: teamColor(t).bg, color: teamColor(t).fg }}>
-                {t.name} <span>{scheduled.length} scheduled · {clocked.length} clocked</span>
-              </div>
-              <table>
-                <thead>
-                  <tr><th>Scheduled</th><th>Job</th><th>Clocked</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {scheduled.map((j) => {
-                    const c = clocked.find((x) => x.id === j.id);
-                    const status = statusOf(j, c, now, date === today());
-                    return (
-                      <tr key={`${j.id}-${j.start}`}>
-                        <td className="nowrap">{time(j.start)}–{time(j.end)}</td>
-                        <td>{j.title}</td>
-                        <td className="nowrap">{c ? `${time(c.start)}–${c.end && c.end !== c.start ? time(c.end) : '…'}` : '–'}</td>
-                        <td><span className={`pill ${status.cls}`}>{status.label}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <>
+      <PageHeader
+        title="Team Monitor"
+        subtitle={live ? 'Live · refreshes every minute' : 'Scheduled vs clocked times'}
+        actions={<DayPicker date={date} setDate={setDate} />}
+      >
+        {live && <span className="live-dot" title="Live" />}
+      </PageHeader>
+      <ErrorNote error={error} />
+      {loading && <Skeleton rows={6} height={44} />}
+      {data && (
+        <>
+          <Stats
+            items={[
+              { label: 'Jobs', value: rows.length },
+              { label: 'Done', value: count('ok') + rows.filter((r) => r.status.label === 'Done (started late)').length, tone: 'ok' },
+              { label: 'On site', value: rows.filter((r) => r.status.label.startsWith('On site')).length, tone: 'info' },
+              { label: 'Late starts', value: rows.filter((r) => /late/.test(r.status.label)).length, tone: 'warn' },
+              live && { label: 'Not clocked in', value: count('bad'), tone: count('bad') ? 'bad' : '' },
+            ]}
+          />
+          {!teams.length && <Empty icon="activity" title="Nothing scheduled" />}
+          <div className="monitor-list">
+            {teams.map((t) => {
+              const c = teamColor(t);
+              const scheduled = rows.filter((r) => r.j.teamId === t.id);
+              return (
+                <section className="card flush" key={t.id}>
+                  <div className="card-head" style={{ '--team': c.bg }}>
+                    <h2><span className="team-swatch" />{t.name}</h2>
+                    <span className="muted small">{scheduled.length} scheduled · {scheduled.filter((r) => r.c).length} clocked</span>
+                  </div>
+                  <table className="data">
+                    <thead>
+                      <tr><th>Scheduled</th><th>Job</th><th>Frequency</th><th>Clocked</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      {scheduled.map(({ j, c: ck, status }) => (
+                        <tr key={`${j.id}-${j.start}`}>
+                          <td className="nowrap mono">{time(j.start)} – {time(j.end)}</td>
+                          <td>{j.title}</td>
+                          <td><FreqPill frequency={j.frequency} /></td>
+                          <td className="nowrap mono">{ck ? `${time(ck.start)} – ${ck.end && ck.end !== ck.start ? time(ck.end) : '…'}` : '–'}</td>
+                          <td><span className={`pill ${status.cls}`}>{status.label}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 

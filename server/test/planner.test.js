@@ -6,12 +6,13 @@ import { analyseDay, planOverview, findSlots, continuity } from '../src/planner.
 // MaidCentral style: wall-clock times as if UTC.
 const at = (day, hhmm) => `/Date(${Date.parse(`${day}T${hhmm}:00Z`)})/`;
 const DAYS = ['2026-11-09', '2026-11-10'];
+import { parseKey, frequencyOf } from '../src/schedulekey.js';
 function fixture(day) {
   return {
     jobs: [
-      { JobInformationId: 1, TeamID: 10, Title: 'Ana Lee - Lee Home', Start: at(day, '09:00'), End: at(day, '11:00'), AllowedTime: 2 },
-      { JobInformationId: 2, TeamID: 10, Title: 'Bo Chan - Chan Home', Start: at(day, '13:00'), End: at(day, '15:00'), AllowedTime: 2 },
-      { JobInformationId: 3, TeamID: 20, Title: 'Cy Park - Park Home', Start: at(day, '07:00'), End: at(day, '09:30'), AllowedTime: 2.5 },
+      { JobInformationId: 1, TeamID: 10, Title: 'Ana Lee - Lee Home', Start: at(day, '09:00'), End: at(day, '11:00'), AllowedTime: 2, FrequencyColor: '#92B558' },
+      { JobInformationId: 2, TeamID: 10, Title: 'Bo Chan - Chan Home', Start: at(day, '13:00'), End: at(day, '15:00'), AllowedTime: 2, FrequencyColor: '#005960' },
+      { JobInformationId: 3, TeamID: 20, Title: 'Cy Park - Park Home', Start: at(day, '07:00'), End: at(day, '09:30'), AllowedTime: 2.5, FrequencyColor: '#d2691e' },
       { JobInformationId: 4, TeamID: 20, Title: 'Di Ross - Ross Home', Start: at(day, '09:00'), End: at(day, '10:00'), AllowedTime: 1 },
       { JobInformationId: 5, TeamID: 0, Title: 'Ed Wu - Wu Home', Start: at(day, '10:00'), End: at(day, '12:00'), AllowedTime: 2 },
     ],
@@ -28,7 +29,12 @@ function fixture(day) {
 }
 
 // A stand-in for McSession: answers the four day calls from the fixture.
+const KEY_HTML = '<ul><li><span class="label" style="background:#92B558;">Every Week</span></li><li><span class="label" style="background:#005960;">Every Two Weeks</span></li><li><span class="label" style="background:#d2691e;">Single</span></li><li><span class="label" style="background:#ec2d01;">Behind Schedule</span></li><li><span class="label" style="background:#9acd32;">4 - We\'re Thrilled - Great Work</span></li></ul>';
 const fakeMc = (overrides = {}) => ({
+  async getHtml(path) {
+    if (path === '/Job/Schedule') return KEY_HTML;
+    throw new Error(`unexpected ${path}`);
+  },
   async getJson(path, q) {
     const [m, d, y] = q.date.split('/').map(Number);
     const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -95,4 +101,40 @@ test('continuity: homes that usually have one team, and upcoming visits with ano
   assert.equal(c.changes[0].title, 'Ana Lee - Lee Home');
   assert.equal(c.changes[0].usualTeam, 'Blue');
   assert.equal(c.changes[0].team, 'Red');
+});
+
+test('schedule key: colours to frequencies, progress and scorecards', () => {
+  const key = parseKey(KEY_HTML);
+  assert.deepEqual(frequencyOf(key, '#92b558'), { name: 'Every Week', short: 'Weekly', weeks: 1, color: '#92b558', recurring: true });
+  assert.equal(frequencyOf(key, '#D2691E').short, 'One-time');
+  assert.equal(frequencyOf(key, '#D2691E').recurring, false);
+  assert.equal(frequencyOf(key, '#000000'), null);
+  assert.equal(key.progress['#ec2d01'].name, 'Behind Schedule');
+  assert.equal(key.scorecard['#9acd32'].score, 4);
+});
+
+test('frequency mix per team and over the period', async () => {
+  const o = await planOverview(fakeMc(), DAYS[0], 2);
+  const blue = o.teams.find((t) => t.name === 'Blue').cells[0];
+  assert.deepEqual(blue.mix, { Weekly: 2, 'Every 2 weeks': 2 });
+  assert.equal(blue.recurring, 4);
+  const names = o.frequencies.map((f) => f.name);
+  assert.ok(names.includes('Weekly') && names.includes('One-time') && names.includes('Unknown'));
+  assert.equal(o.frequencies.find((f) => f.name === 'Weekly').jobs, 2);
+});
+
+test('recurring slots are checked on every repeat visit', async () => {
+  // Blue is fully booked 15:00-17:00 on the second visit (two weeks later).
+  const busy = (iso) => {
+    const f = fixture(iso);
+    f.jobs.push({ JobInformationId: 9, TeamID: 10, Title: 'Fay Ng - Ng Home', Start: at(iso, '15:00'), End: at(iso, '17:00'), AllowedTime: 2 });
+    return f;
+  };
+  const mc = fakeMc({ '2026-11-23': busy('2026-11-23') });
+  const r = await findSlots(mc, { from: DAYS[0], days: 1, duration: 2, repeat: 2, now: '2026-11-09T00:00' });
+  assert.equal(r.visits, 3);
+  const blueLate = r.slots.find((x) => x.team === 'Blue' && x.start.endsWith('15:00:00'));
+  assert.deepEqual(blueLate.repeats, { fits: 2, of: 3, missed: ['2026-11-23'] });
+  const full = r.slots.find((x) => x.repeats.fits === 3);
+  assert.ok(full && full.score > blueLate.score, 'slots free on every visit rank higher');
 });

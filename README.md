@@ -69,6 +69,13 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     fit a job, ranked; prefers the home's usual team). It suggests; changes are made in
     MaidCentral.
   - Search (customers, homes, cleaners, leads).
+- **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
+  MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,
+  On Demand) so every job shows its frequency. The planner has a Frequency tab (mix per
+  day and per team), recurring vs one-off hours in the capacity grid, recurring-only
+  continuity, and find-a-slot for recurring bookings (checked on each repeat visit).
+- **Design:** same system as the Launch27 app (Geist, sidebar, ⌘K quick search, light
+  and dark mode following the device, works on phones).
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
   them as local ISO strings without a zone, so they show the same as in MaidCentral.
 - **Config:** `MC_PORTAL_URL` (required), `DATABASE_URL` + `SESSION_KEY` (64 hex

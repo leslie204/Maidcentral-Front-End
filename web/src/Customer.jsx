@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
-import DataTable, { Pairs, asObjects } from './DataTable.jsx';
+import DataTable, { asObjects } from './DataTable.jsx';
+import Icon from './Icon.jsx';
+import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, FreqPill, Card } from './ui.jsx';
 
 const TABS = [
   ['overview', 'Overview'],
@@ -29,40 +31,41 @@ export default function Customer({ id, onError, portal }) {
   };
 
   return (
-    <section>
-      <div className="pagehead">
-        <button className="link" onClick={() => history.back()}>‹ Back</button>
-        <h2>{p?.name || listName || `Customer ${id}`}</h2>
-        {p?.overview?.badges?.map((b) => <span key={b} className="pill">{b}</span>)}
-        {portal && (
-          <a className="link small right" href={`https://${portal}/Customer/Details/${id}?cid=${id}`} target="_blank" rel="noreferrer">
-            Open in MaidCentral ↗
-          </a>
-        )}
-      </div>
-      {profile.error && <p className="error">{profile.error.message}</p>}
-      {profile.loading && <p className="muted">Loading the customer from MaidCentral…</p>}
+    <>
+      <PageHeader
+        title={p?.name || listName || `Customer ${id}`}
+        subtitle={`MaidCentral customer #${id}`}
+        back={() => history.back()}
+        actions={
+          portal && (
+            <a className="btn ghost" href={`https://${portal}/Customer/Details/${id}?cid=${id}`} target="_blank" rel="noreferrer">
+              Open in MaidCentral <Icon name="external" size={14} />
+            </a>
+          )
+        }
+      >
+        <div className="badges">{p?.overview?.badges?.map((b) => <span key={b} className="pill">{b}</span>)}</div>
+      </PageHeader>
+      <ErrorNote error={profile.error} />
+      {profile.loading && <Skeleton rows={6} height={48} />}
       {p && (
         <>
-          <Pairs pairs={[...(Array.isArray(p.stats) ? p.stats : []), ...balances(p)]} />
-          <div className="tabs">
-            {TABS.map(([t, label]) => (
-              <button key={t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}>
-                {label}
-                {counts[t] ? <span className="count">{counts[t]}</span> : null}
-              </button>
-            ))}
-          </div>
+          <Stats items={[...(Array.isArray(p.stats) ? p.stats : []), ...balances(p)].map((x) => ({ label: x.label, value: x.value || '–' }))} />
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            tabs={TABS.map(([t, label]) => [t, label, counts[t]])}
+          />
           {tab === 'overview' && <Overview p={p} jobs={jobs} />}
           {tab === 'jobs' && <Jobs jobs={jobs} />}
-          {tab === 'notes' && <DataTable table={p.notes} empty="No notes." />}
-          {tab === 'scorecards' && <DataTable table={p.scorecards} empty="No scorecards yet." />}
-          {tab === 'quotes' && <DataTable table={p.quotes} empty="No quotes." />}
-          {tab === 'payments' && <DataTable table={p.payments} empty="No card charges." />}
+          {tab === 'notes' && <Card className="flush"><DataTable table={p.notes} empty="No notes." /></Card>}
+          {tab === 'scorecards' && <Card className="flush"><DataTable table={p.scorecards} empty="No scorecards yet." /></Card>}
+          {tab === 'quotes' && <Card className="flush"><DataTable table={p.quotes} empty="No quotes." /></Card>}
+          {tab === 'payments' && <Card className="flush"><DataTable table={p.payments} empty="No card charges." /></Card>}
           {tab === 'more' && <More p={p} />}
         </>
       )}
-    </section>
+    </>
   );
 }
 
@@ -82,8 +85,7 @@ function Overview({ p, jobs }) {
   const upcoming = (jobs.data?.jobs || []).map((j) => ({ ...j, ms: Date.parse(j.start) })).filter((j) => j.ms >= Date.now()).sort((a, b) => a.ms - b.ms).slice(0, 5);
   return (
     <div className="grid2">
-      <div className="card">
-        <h3>Contact</h3>
+      <Card title="Contact">
         {p.contacts?.error && <p className="error small">{p.contacts.error}</p>}
         {contacts.length === 0 && !p.contacts?.error && <p className="muted">No contact details.</p>}
         {contacts.map((c, i) => (
@@ -93,7 +95,7 @@ function Overview({ p, jobs }) {
             {c.Notes && <span className="muted small">{c.Notes}</span>}
           </div>
         ))}
-        <h3>Billing address</h3>
+        <h3 className="sub">Billing address</h3>
         {asObjects(p.billing).map((b, i) => (
           <p key={i}>
             {[b['First name'], b['Last name']].filter(Boolean).join(' ')}
@@ -104,11 +106,10 @@ function Overview({ p, jobs }) {
           </p>
         ))}
         {!asObjects(p.billing).length && <p className="muted">None on file.</p>}
-      </div>
-      <div className="card">
-        <h3>Homes</h3>
+      </Card>
+      <Card title="Homes & visits">
         <DataTable table={p.homes} empty="No homes." />
-        <h3>Next visits</h3>
+        <h3 className="sub">Next visits</h3>
         {jobs.loading && <p className="muted">Loading…</p>}
         {jobs.data && !upcoming.length && <p className="muted">Nothing scheduled in the next 3 months.</p>}
         {upcoming.map((j) => (
@@ -116,9 +117,10 @@ function Overview({ p, jobs }) {
             <b>{new Date(j.ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</b>
             <span className="muted">{new Date(j.ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
             <span>{j.title}</span>
+            <FreqPill frequency={j.frequency} />
           </div>
         ))}
-        <h3>Notifications</h3>
+        <h3 className="sub">Notifications</h3>
         {Array.isArray(p.notifications) && p.notifications.length === 0 && <p className="muted">None set up.</p>}
         {Array.isArray(p.notifications) &&
           p.notifications.map((g) => (
@@ -127,7 +129,7 @@ function Overview({ p, jobs }) {
               <ul className="plain">{g.items.map((it, i) => <li key={i}>{it}</li>)}</ul>
             </div>
           ))}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -148,11 +150,7 @@ function Jobs({ jobs }) {
   const past = all.filter((j) => j.ms < now);
   return (
     <>
-      <div className="pairs">
-        <div><span className="muted small">Upcoming (3 months)</span><b>{upcoming.length}</b></div>
-        <div><span className="muted small">Past 6 months</span><b>{past.length}</b></div>
-        <div><span className="muted small">Marked late</span><b>{past.filter((j) => j.late).length}</b></div>
-      </div>
+      <Stats items={[{ label: 'Upcoming (3 months)', value: upcoming.length }, { label: 'Past 6 months', value: past.length }, { label: 'Marked late', value: past.filter((j) => j.late).length }]} />
       <JobList title="Upcoming" jobs={upcoming} />
       <JobList title="Past 6 months" jobs={past} />
     </>
@@ -169,6 +167,7 @@ function JobList({ title, jobs }) {
           <b>{new Date(j.ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</b>
           <span className="muted"> {new Date(j.ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
           <span> · {j.title}</span>
+          <FreqPill frequency={j.frequency} />
           {j.late && <span className="pill warn">late</span>}
           {j.outOfRotation && <span className="pill">out of rotation</span>}
         </div>
@@ -180,12 +179,9 @@ function JobList({ title, jobs }) {
 function More({ p }) {
   return (
     <>
-      <h3>Technician preferences</h3>
-      <DataTable table={p.preferences} empty="No preferences." />
-      <h3>Agreements</h3>
-      <DataTable table={p.agreements} empty="No agreements." />
-      <h3>Attachments</h3>
-      <DataTable table={p.attachments} empty="No attachments." />
+      <Card title="Technician preferences" className="flush"><DataTable table={p.preferences} empty="No preferences." /></Card>
+      <Card title="Agreements" className="flush"><DataTable table={p.agreements} empty="No agreements." /></Card>
+      <Card title="Attachments" className="flush"><DataTable table={p.attachments} empty="No attachments." /></Card>
     </>
   );
 }

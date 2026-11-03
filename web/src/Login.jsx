@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from './api.js';
+import Icon from './Icon.jsx';
 
 export default function Login({ onSignedIn }) {
   const [step, setStep] = useState('password');
@@ -34,38 +35,50 @@ export default function Login({ onSignedIn }) {
 
   return (
     <div className="login">
-      <form onSubmit={submit} className="card">
-        <h1>Clean Bee</h1>
-        <p className="muted">Sign in with your MaidCentral account.</p>
+      <form onSubmit={submit} className="login-card">
+        <div className="login-brand">
+          <div className="brand-mark">CB</div>
+          <div>
+            <b>Clean Bee</b>
+            <span className="muted">Operations</span>
+          </div>
+        </div>
         {step === 'password' ? (
           <>
-            <label>
-              Email
+            <h1>Sign in</h1>
+            <p className="muted">Use your MaidCentral email and password.</p>
+            <label className="field">
+              <span>Email</span>
               <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
             </label>
-            <label>
-              Password
+            <label className="field">
+              <span>Password</span>
               <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </label>
           </>
         ) : (
           <>
-            <p>MaidCentral sent a one-time code{sentTo ? ` by ${sentTo}` : ''}. It is valid for 5 minutes.</p>
-            <label>
-              Verification code
-              <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />
+            <h1>Check your {sentTo || 'email'}</h1>
+            <p className="muted">MaidCentral sent a one-time code. It's valid for 5 minutes.</p>
+            <label className="field">
+              <span>Verification code</span>
+              <input className="code-input" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />
             </label>
             <p className="muted small">This browser will be remembered for 30 days, like in MaidCentral.</p>
           </>
         )}
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={busy}>{busy ? 'Checking…' : step === 'password' ? 'Sign in' : 'Verify'}</button>
+        {error && <div className="error-note"><Icon name="alert" size={16} /> {error}</div>}
+        <button className="btn primary block" type="submit" disabled={busy}>
+          {busy ? 'Checking…' : step === 'password' ? 'Continue' : 'Verify'}
+        </button>
         {step === 'code' && (
-          <button type="button" className="link" onClick={() => (setStep('password'), setCode(''), setError(''))}>
+          <button type="button" className="btn ghost block" onClick={() => (setStep('password'), setCode(''), setError(''))}>
             Start again
           </button>
         )}
-        <p className="muted small">Your password goes to MaidCentral only; this app never stores it.</p>
+        <p className="login-foot muted small">
+          <Icon name="lock" size={13} /> Your password goes only to MaidCentral. This app never stores it.
+        </p>
       </form>
     </div>
   );

@@ -82,7 +82,8 @@ export function startFakePortal({ twoFactor = false } = {}) {
     }
     if (p === '/Dashboard/GetPipelineData' && req.method === 'POST') return send(res, 200, [{ LeadId: 4, Name: 'Jane Doe', Total: 180.25 }], 'application/json');
     if (p === '/Job/MonthlyData' && req.method === 'POST') return send(res, 200, { events: [{ JobId: 7, Title: 'John Roe - 12 Elm Street' }] }, 'application/json');
-    if (p === '/Job/ReadJobs') return send(res, 200, [{ JobInformationId: 7, TeamID: 1, Title: 'Jane Doe - Weekly', Start: '/Date(1793610000000)/', End: '/Date(1793617200000)/', AllowedTime: 2, JobStatusId: 2, IsRecurringEvent: true }], 'application/json');
+    if (p === '/Job/ReadJobs') return send(res, 200, [{ JobInformationId: 7, TeamID: 1, Title: 'Jane Doe - Weekly', Start: '/Date(1793610000000)/', End: '/Date(1793617200000)/', AllowedTime: 2, JobStatusId: 2, IsRecurringEvent: true, FrequencyColor: '#005960' }], 'application/json');
+    if (p === '/Job/Schedule') return send(res, 200, layout('Job Schedule', '<h4>Job Schedule Key</h4><ul><li><span class="label" style="background:#92B558;">Every Week</span></li><li><span class="label" style="background:#005960;">Every Two Weeks</span></li><li><span class="label" style="background:#d2691e;">Single</span></li><li><span class="label" style="background:#d91e18;">0 - We are Considering Another Company</span></li></ul>'));
     if (p === '/Job/TeamMonitorTeams') return send(res, 200, [{ TeamID: 1, TeamName: 'Team A', RgbBackgroundColor: '#ffcc00', CountJobs: 1 }], 'application/json');
     if (p === '/api/dashboard/stats') return send(res, 200, { jobsToday: 12, revenueToday: 1840.5, topClient: 'Jane Doe' }, 'application/json');
     if (p === '/Clients') {
