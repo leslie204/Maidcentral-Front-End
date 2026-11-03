@@ -70,6 +70,19 @@ async function dispatchBoard(mc) {
   }
 }
 
+// Revenue per cleaner-hour from today's Dispatch Board (the only screen with prices), for
+// estimating other days. Cached for 30 minutes per person.
+const rates = new WeakMap();
+export async function revenueRate(mc) {
+  const hit = rates.get(mc);
+  if (hit && Date.now() - hit.at < 30 * MIN) return hit;
+  const priced = [...(await dispatchBoard(mc)).values()].filter((b) => b.revenue && b.cleanerHours);
+  const hours = priced.reduce((s, b) => s + b.cleanerHours, 0);
+  const v = { at: Date.now(), rate: hours ? priced.reduce((s, b) => s + b.revenue, 0) / hours : null, jobs: priced.length };
+  rates.set(mc, v);
+  return v;
+}
+
 // The day as cars, people (with roles) and jobs.
 export async function dayState(mc, date, roleOverrides = new Map()) {
   const dayMs = parseDay(date);

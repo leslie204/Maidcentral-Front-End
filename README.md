@@ -97,6 +97,40 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
+  - Schedule optimization (`server/src/optimize.js`, page `/optimize`): a decision-support
+    engine over the 4-week cycle from this Monday, answering five questions in five tabs.
+    1. Where we are: productive share of paid time, driving per car per day and its yearly
+       cost, idle gaps (free time under 2 h), free time worth selling (2 h+ blocks), late
+       returns; per team, per area (how many teams and visits an area's jobs are spread
+       over) and the recurring visits that add the most driving.
+    2. What's possible: four strategies side by side (Minimum disruption = conservative,
+       Balanced = realistic, Maximum profit = aggressive, Rebuild from scratch = theoretical
+       ceiling) with driving, idle time, sellable capacity, extra cleans, hard savings vs
+       gross profit that depends on new demand, all annualised; plus the least team-days
+       the work could fit in.
+    3. Roadmap: every change as a recommendation (re-order a route; move or swap a customer
+       between teams; move a customer to another day), each with its yearly value, customer
+       impact, effort, confidence, the customers affected (before/after team, day, time)
+       and why. Phase 1 quick wins (same team and day, ≤ 30 min), phase 2 team rebalancing,
+       phase 3 day changes via natural rescheduling. Tick changes to see their combined
+       effect (re-evaluated, not added up; changes that rely on another are flagged).
+       Changes that don't pay with the office's assumptions are listed separately.
+    4. Scenario lab: how far appointments may move, team / day changes, territories,
+       protecting weekly customers, maximum driving per day, smallest sellable block; and
+       what loosening each rule is worth.
+    5. Keep it optimized: where new customers should go (free blocks after the plan, by
+       area, day and team), day changes to offer when customers next reschedule, areas to
+       consolidate, and the rules that keep routes tight as customers come and go.
+    How it works: jobs are grouped into series (one customer's visits on one weekday) so a
+    customer keeps one team, day and frequency. Days are re-planned as early as allowed
+    from the 8:15 AM departure and must be back by the return time. A local search moves
+    and swaps series between teams and days when that cuts driving and fragmented idle
+    time; the accepted changes are then replayed in order so each one's benefit is its
+    marginal effect. The engine works in minutes and km; dollars are applied in the
+    browser from editable assumptions (labour cost per cleaner-hour, paid until back at the
+    office vs a fixed day, vehicle cost per km, revenue per cleaner-hour from today's
+    Dispatch Board, variable costs, the share of freed time you'd sell per scenario).
+    Drive times are straight-line estimates (±25%); every number is labelled with that.
   - Call-outs (`server/src/callouts.js`): tap everyone who called out (any number,
     today or tomorrow) and compare the ways to rearrange the day, ranked by how many
     jobs they keep (then revenue, fewest calls, least driving). Revenue shows only as an

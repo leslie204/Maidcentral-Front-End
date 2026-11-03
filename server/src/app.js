@@ -19,6 +19,7 @@ import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './
 import { scheduleKey, frequencyOf } from './schedulekey.js';
 import { openings, placeCustomer, territoryMap, openingsStatus, prewarm } from './territory.js';
 import { callOutScenarios, roster } from './callouts.js';
+import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -228,6 +229,15 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   api.get('/openings/map', handle((req) => territoryMap(req.mc)));
   api.get('/callouts/roster', handle((req) => roster(req.mc, req.query)));
   api.get('/callouts/plan', handle((req) => callOutScenarios(req.mc, req.query)));
+  api.get('/optimize/current', handle((req) => currentState(req.mc, req.query)));
+  api.get('/optimize/status', handle(async (req) => ({ progress: optimizeStatus(req.mc) })));
+  api.get('/optimize/run', handle(async (req) => {
+    const { _recs, ...r } = await optimize(req.mc, req.query);
+    void _recs;
+    return r;
+  }));
+  api.get('/optimize/apply', handle((req) => applyChosen(req.mc, req.query)));
+  api.get('/optimize/compare', handle((req) => compare(req.mc, req.query)));
   api.get('/planner/overview', handle((req) => planOverview(req.mc, req.query.from, req.query.days)));
   api.get('/planner/day', handle((req) => planDay(req.mc, req.query.date)));
   api.get('/planner/continuity', handle((req) => continuity(req.mc, req.query.from)));

@@ -562,3 +562,55 @@ th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(-
   .tl-row { grid-template-columns: 110px minmax(560px, 1fr); }
   .input-icon input { width: 100%; }
 }
+
+/* Schedule optimization */
+.warn-text { color: var(--warn); }
+.linkish { border: 0; background: none; color: var(--accent-ink); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.assume-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 18px; }
+.assume-grid small { color: var(--muted); font-weight: 400; }
+.capture { display: flex; flex-wrap: wrap; gap: 8px; }
+.capture label { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; font-size: 12px; }
+.capture input { width: 56px; }
+.headline-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.headline-grid .card { margin-bottom: 0; }
+.headline { display: grid; gap: 4px; padding: 16px 18px; }
+.big-num { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; color: var(--accent-ink); }
+table.compare th span { display: block; font-weight: 400; color: var(--muted); }
+table.compare th b { color: var(--text); font-size: 13px; }
+table.compare tr.sub td { background: var(--panel-2); font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-top: 6px; padding-bottom: 6px; }
+table.compare .row-label { color: var(--text-2); white-space: nowrap; }
+.roadmap-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }
+.impact-bar { position: sticky; top: 8px; z-index: 5; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; background: var(--panel); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 14px; }
+.impact-bar > div { display: grid; gap: 1px; }
+.impact-bar b { font-size: 20px; }
+.rec { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 12px 16px; border-top: 1px solid var(--border); }
+.rec:first-child { border-top: 0; }
+.rec.on { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.rec input[type='checkbox'] { margin-top: 3px; width: 16px; height: 16px; }
+.rec-body { display: grid; gap: 4px; min-width: 0; }
+.rec-title { display: flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--text); font: inherit; }
+.rec-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.rec-detail { margin-top: 6px; border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+.rec-detail p { padding: 8px 12px; margin: 0; }
+.rec-value { display: grid; justify-items: end; text-align: right; gap: 1px; }
+.rec-value b { font-size: 16px; }
+.lab { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; align-items: start; }
+.lab-controls { display: grid; gap: 12px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.lever { display: grid; grid-template-columns: 1.4fr auto 1.4fr auto; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border); }
+.lever:first-child { border-top: 0; }
+.rules { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 13.5px; color: var(--text-2); }
+.mini-bar { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 110px; }
+.mini-bar::before { content: ''; position: absolute; left: 0; width: 64px; height: 6px; border-radius: 3px; background: var(--border); }
+.mini-bar i { position: relative; display: block; height: 6px; border-radius: 3px; max-width: 64px; }
+.mini-bar b { margin-left: 70px; position: absolute; font-size: 12.5px; }
+.scroll-y { max-height: 460px; overflow-y: auto; }
+.small-pill { margin-left: 6px; font-size: 10.5px; padding: 0 7px; }
+.method { margin-top: 18px; }
+@media (max-width: 900px) {
+  .lab { grid-template-columns: 1fr; }
+  .lever { grid-template-columns: 1fr auto; }
+  .rec { grid-template-columns: auto 1fr; }
+  .rec-value { grid-column: 2; justify-items: start; text-align: left; }
+}
