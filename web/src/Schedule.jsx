@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, today, time } from './api.js';
 import { useLoad } from './hooks.js';
+import { teamColor } from './teamColor.js';
 import DayPicker from './DayPicker.jsx';
 
 // The day's jobs, one column per team (MaidCentral's Job Schedule as data).
@@ -31,7 +32,7 @@ export default function Schedule({ onError }) {
           <div className="teams">
             {teams.filter((t) => t.jobs.length).map((t) => (
               <div className="team" key={t.id}>
-                <div className="teamhead" style={{ background: t.color || '#e5e7eb', color: t.textColor || '#111' }}>
+                <div className="teamhead" style={{ background: teamColor(t).bg, color: teamColor(t).fg }}>
                   {t.name} <span>{t.jobs.length} jobs · {t.jobs.reduce((s, j) => s + (j.allowedHours || 0), 0).toFixed(1)} h</span>
                 </div>
                 {t.jobs.map((j) => (
@@ -57,6 +58,6 @@ export function groupByTeam(teams, jobs) {
     if (!byId.has(j.teamId)) byId.set(j.teamId, { id: j.teamId, name: `Team ${j.teamId}`, jobs: [] });
     byId.get(j.teamId).jobs.push(j);
   }
-  for (const t of byId.values()) t.jobs.sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
+  for (const t of byId.values()) t.jobs.sort((a, b) => (Date.parse(a.start) || 0) - (Date.parse(b.start) || 0));
   return [...byId.values()];
 }

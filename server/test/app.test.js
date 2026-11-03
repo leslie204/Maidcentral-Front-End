@@ -50,7 +50,7 @@ test('sign-in with 2FA, then read-only data; the browser is remembered next time
 
   const day = await call('GET', '/api/schedule?date=2026-11-02');
   assert.equal(day.status, 200);
-  assert.deepEqual(day.body.jobs[0], { id: 7, teamId: 1, title: 'Jane Doe - Weekly', start: 1793610000000, end: 1793617200000, allowedHours: 2, statusId: 2, color: null, frequencyColor: null, instructions: null, tags: null, recurring: true });
+  assert.deepEqual(day.body.jobs[0], { id: 7, teamId: 1, title: 'Jane Doe - Weekly', start: '2026-11-02T09:00:00', end: '2026-11-02T11:00:00', allowedHours: 2, statusId: 2, color: null, frequencyColor: null, instructions: null, tags: null, recurring: true });
   assert.equal(day.body.teams[0].name, 'Team A');
   assert.equal((await call('GET', '/api/schedule?date=nope')).status, 400);
 

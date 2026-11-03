@@ -15,6 +15,7 @@ import { McSession, McError, mcDate } from './mc.js';
 import { MemoryStore, hashSid } from './store.js';
 import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
+import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -200,6 +201,10 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   api.get('/customers/:id', handle((req) => customerProfile(req.mc, req.params.id)));
   api.get('/cleaners', handle((req) => cleanerDirectory(req.mc)));
+  api.get('/planner/overview', handle((req) => planOverview(req.mc, req.query.from, req.query.days)));
+  api.get('/planner/day', handle((req) => planDay(req.mc, req.query.date)));
+  api.get('/planner/continuity', handle((req) => continuity(req.mc, req.query.from)));
+  api.get('/planner/slots', handle((req) => findSlots(req.mc, req.query)));
   api.get('/cleaners/:id', handle((req) => cleanerProfile(req.mc, req.params.id)));
 
   api.get('/customers/:id/jobs', handle(async (req) => {
@@ -250,7 +255,7 @@ function mcDay(value) {
 }
 
 function team(t) {
-  return { id: t.TeamID, name: t.TeamName, color: t.RgbBackgroundColor || t.Color || null, textColor: t.RgbTextColor || null, jobs: t.CountJobs, scheduledHours: t.ScheduledHours, allowedHours: t.AllowedHours, disabled: t.IsDisabled };
+  return { id: t.TeamID, name: t.TeamName, color: cssColor(t.Color) || cssColor(t.RgbBackgroundColor), textColor: cssColor(t.RgbTextColor), jobs: t.CountJobs, scheduledHours: t.ScheduledHours, allowedHours: t.AllowedHours, disabled: t.IsDisabled };
 }
 
 function job(j) {
@@ -258,8 +263,9 @@ function job(j) {
     id: j.JobInformationId,
     teamId: j.TeamID,
     title: j.Title,
-    start: mcDate(j.Start),
-    end: mcDate(j.End),
+    // MaidCentral's wall-clock time, as a local ISO string (no zone).
+    start: wall(mcDate(j.Start)),
+    end: wall(mcDate(j.End)),
     allowedHours: j.AllowedTime,
     statusId: j.JobStatusId,
     color: j.StatusColor || j.Color || null,

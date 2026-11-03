@@ -7,10 +7,12 @@ import Search from './Search.jsx';
 import Customer from './Customer.jsx';
 import Cleaners from './Cleaners.jsx';
 import Cleaner from './Cleaner.jsx';
+import Planner from './Planner.jsx';
 
 const NAV = [
   { path: '/', label: 'Schedule' },
   { path: '/monitor', label: 'Team Monitor' },
+  { path: '/planner', label: 'Planner' },
   { path: '/cleaners', label: 'Cleaners' },
   { path: '/search', label: 'Search' },
 ];
@@ -53,6 +55,7 @@ export default function App() {
   const cleaner = /^\/cleaners\/(\d+)/.exec(pathname);
   let page;
   if (cleaner) page = <Cleaner id={cleaner[1]} onError={onError} portal={me.portal} />;
+  else if (pathname === '/planner') page = <Planner onError={onError} />;
   else if (pathname === '/cleaners') page = <Cleaners go={go} onError={onError} />;
   else if (customer) page = <Customer id={customer[1]} go={go} onError={onError} portal={me.portal} />;
   else if (pathname === '/monitor') page = <Monitor onError={onError} />;

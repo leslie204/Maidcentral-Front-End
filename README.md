@@ -48,11 +48,29 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   12 hours without use; expired rows are deleted hourly. Without `DATABASE_URL`, sessions
   live in memory (local development).
 - **Read-only by construction:** the server has fixed endpoints (`/api/schedule`,
-  `/api/monitor`, `/api/search`, `/api/customers/:id/jobs`), not a general proxy, and every
+  `/api/monitor`, `/api/search`, `/api/customers/:id`, `/api/cleaners/:id`,
+  `/api/planner/*`…), not a general proxy, and every
   MaidCentral call goes through the crawler's safety rules (`assertRead` in
   `server/src/mc.js`): GETs that name no action, and POSTs on `capture/read-posts.txt` only.
-- **Pages:** Schedule (jobs per team for a day), Team Monitor (scheduled vs clocked, live),
-  Search (customers, homes, employees, leads), Customer (jobs, last 6 months and next 3).
+- **Pages:**
+  - Schedule (jobs per team for a day) and Team Monitor (scheduled vs clocked, live).
+  - Customer: every tab of MaidCentral's customer page (overview, balances, stats,
+    contacts, homes, billing, jobs, notes, scorecards, quotes, card payments, preferences,
+    agreements, attachments, notification settings). MaidCentral serves most tabs as HTML;
+    `server/src/extract.js` turns them into data.
+  - Cleaners: directory and cleaner page (profile, 180-day attendance stats, job history
+    with productivity, attendance calendar, default schedule, scorecards, inspections,
+    clock events, tickets, notes). Licence, birth date, tax and pay details are never
+    read out of the page (allow-listed fields only).
+  - Scheduling planner (`server/src/planner.js`): capacity per team and day (booked hours
+    vs the team's shift window) with a day timeline, things needing attention (no team,
+    nobody scheduled, over capacity, outside hours, overlaps, absences, cleaners without
+    a team), same-team continuity (last 4 weeks vs next 2), and find-a-slot (gaps that
+    fit a job, ranked; prefers the home's usual team). It suggests; changes are made in
+    MaidCentral.
+  - Search (customers, homes, cleaners, leads).
+- **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
+  them as local ISO strings without a zone, so they show the same as in MaidCentral.
 - **Config:** `MC_PORTAL_URL` (required), `DATABASE_URL` + `SESSION_KEY` (64 hex
   characters; changing it signs everyone out), `ALLOWED_EMAILS` (optional comma-separated
   list of who may sign in), `PORT`. Railway: `railway.json` (build `npm run build`, start

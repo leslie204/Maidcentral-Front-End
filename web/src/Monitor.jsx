@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, today, time } from './api.js';
 import { useLoad } from './hooks.js';
+import { teamColor } from './teamColor.js';
 import DayPicker from './DayPicker.jsx';
 import { groupByTeam } from './Schedule.jsx';
 
@@ -28,7 +29,7 @@ export default function Monitor({ onError }) {
           const clocked = t.jobs.filter((j) => j.actual);
           return (
             <div className="mteam" key={t.id}>
-              <div className="teamhead" style={{ background: t.color || '#e5e7eb', color: t.textColor || '#111' }}>
+              <div className="teamhead" style={{ background: teamColor(t).bg, color: teamColor(t).fg }}>
                 {t.name} <span>{scheduled.length} scheduled · {clocked.length} clocked</span>
               </div>
               <table>
@@ -58,12 +59,16 @@ export default function Monitor({ onError }) {
   );
 }
 
+// Times are MaidCentral's local wall-clock strings; Date.parse reads them as local time.
 function statusOf(j, c, now, isToday) {
+  const js = Date.parse(j.start);
   if (c) {
-    const late = c.start - j.start > 10 * 60 * 1000;
-    if (c.end && c.end > c.start) return { label: late ? 'Done (started late)' : 'Done', cls: late ? 'warn' : 'ok' };
+    const cs = Date.parse(c.start);
+    const ce = Date.parse(c.end);
+    const late = cs - js > 10 * 60 * 1000;
+    if (ce && ce > cs) return { label: late ? 'Done (started late)' : 'Done', cls: late ? 'warn' : 'ok' };
     return { label: late ? 'On site (late)' : 'On site', cls: late ? 'warn' : 'info' };
   }
-  if (isToday && now > j.start + 10 * 60 * 1000) return { label: 'Not clocked in', cls: 'bad' };
+  if (isToday && now > js + 10 * 60 * 1000) return { label: 'Not clocked in', cls: 'bad' };
   return { label: 'Upcoming', cls: '' };
 }
