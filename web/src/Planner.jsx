@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, today, dayLabel } from './api.js';
+import { api, dayLabel } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
@@ -28,10 +28,17 @@ const dayOnly = (iso) => {
 
 // The scheduling planner: capacity, things to handle, continuity and free slots, from
 // MaidCentral's live schedule. Read-only: it suggests; changes are made in MaidCentral.
-export default function Planner({ onError }) {
+// The 4-week cycle starts on this week's Monday.
+const cycleStart = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export default function Planner({ onError, go }) {
   const [tab, setTab] = useState('attention');
-  const [from] = useState(today());
-  const overview = useLoad(() => api.plannerOverview(from, 14), `overview:${from}`, onError);
+  const [from] = useState(cycleStart());
+  const overview = useLoad(() => api.plannerOverview(from, 28), `overview:${from}`, onError);
   const [day, setDay] = useState(null);
   const o = overview.data;
   const issues = o?.issues || [];
@@ -41,11 +48,15 @@ export default function Planner({ onError }) {
 
   return (
     <>
-      <PageHeader title="Scheduling planner" subtitle="Next 14 days from MaidCentral. The planner suggests; you make changes in MaidCentral." />
+      <PageHeader
+        title="Scheduling planner"
+        subtitle="The 4-week cycle from this Monday, live from MaidCentral. The planner suggests; you make changes in MaidCentral."
+        actions={<button className="btn primary" onClick={() => go('/openings')}><Icon name="sparkle" size={15} /> Find openings</button>}
+      />
       {o && (
         <Stats
           items={[
-            { label: 'Jobs, next 14 days', value: o.totals.reduce((s, t) => s + t.jobs, 0) },
+            { label: 'Jobs, 4-week cycle', value: o.totals.reduce((s, t) => s + t.jobs, 0) },
             { label: 'Booked', value: `${Math.round(allHours)} h`, hint: `of ${Math.round(capacity)} h team time (${capacity ? Math.round((allHours / capacity) * 100) : 0}%)` },
             { label: 'Recurring share', value: allHours ? `${Math.round((recurringHours / allHours) * 100)}%` : '–', hint: 'of booked hours' },
             { label: 'Needs attention', value: issues.length, tone: issues.length ? 'warn' : 'ok' },
@@ -60,7 +71,6 @@ export default function Planner({ onError }) {
           ['capacity', 'Capacity'],
           ['frequency', 'Frequency'],
           ['continuity', 'Same team'],
-          ['find', 'Find a slot'],
         ]}
       />
       {['attention', 'capacity', 'frequency'].includes(tab) && <ErrorNote error={overview.error} />}
@@ -69,7 +79,7 @@ export default function Planner({ onError }) {
       {tab === 'capacity' && o && <Capacity data={o} day={day} setDay={setDay} onError={onError} />}
       {tab === 'frequency' && o && <Frequencies data={o} />}
       {tab === 'continuity' && <Continuity from={from} onError={onError} />}
-      {tab === 'find' && <FindSlot from={from} onError={onError} />}
+
     </>
   );
 }
@@ -92,7 +102,7 @@ function Attention({ data, openDay }) {
         </div>
       )}
       {!data.issues.length && (
-        <Empty icon="check" title="Nothing to handle in the next 14 days">
+        <Empty icon="check" title="Nothing to handle in this 4-week cycle">
           Every job has a team, every team has people scheduled, and nobody is over capacity.
         </Empty>
       )}
@@ -150,6 +160,12 @@ function Capacity({ data, day, setDay, onError }) {
         <div className="tablewrap plain">
           <table className="capacity">
             <thead>
+              <tr className="weeks-row">
+                <th className="sticky" />
+                {Array.from({ length: Math.ceil(data.days.length / 7) }, (_, w) => (
+                  <th key={w} colSpan={Math.min(7, data.days.length - w * 7)} className="week-head">Week {w + 1}</th>
+                ))}
+              </tr>
               <tr>
                 <th className="sticky">Team</th>
                 {data.days.map((d) => {
@@ -374,71 +390,6 @@ function Continuity({ from, onError }) {
           </table>
         )}
       </Card>
-    </>
-  );
-}
-
-function FindSlot({ from, onError }) {
-  const [form, setForm] = useState({ duration: '2', repeat: '0', days: '14', part: 'any', home: '' });
-  const [result, setResult] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const search = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    const d = new Date();
-    const now = `${today()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    try {
-      setResult(await api.plannerSlots({ from, ...form, now }));
-    } catch (err) {
-      onError(err);
-      setError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const every = { 1: 'every week', 2: 'every 2 weeks', 3: 'every 3 weeks', 4: 'every 4 weeks' };
-  return (
-    <>
-      <form className="card slotform" onSubmit={search}>
-        <label className="field"><span>Job length</span><select value={form.duration} onChange={set('duration')}>{[1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8].map((h) => <option key={h} value={h}>{h} hours</option>)}</select></label>
-        <label className="field"><span>Repeats</span><select value={form.repeat} onChange={set('repeat')}><option value="0">One-time</option><option value="1">Weekly</option><option value="2">Every 2 weeks</option><option value="3">Every 3 weeks</option><option value="4">Every 4 weeks</option></select></label>
-        <label className="field"><span>First visit within</span><select value={form.days} onChange={set('days')}><option value="7">7 days</option><option value="14">14 days</option><option value="28">28 days</option></select></label>
-        <label className="field"><span>Time of day</span><select value={form.part} onChange={set('part')}><option value="any">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option></select></label>
-        <label className="field grow"><span>Home (optional)</span><input placeholder="Prefer the team that cleans this home" value={form.home} onChange={set('home')} /></label>
-        <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Searching…' : 'Find slots'}</button>
-      </form>
-      <ErrorNote error={error} />
-      {busy && <Skeleton rows={5} height={56} />}
-      {result && !busy && !result.slots.length && <Empty icon="calendar" title={`No team has a ${result.duration} h gap in that period`} />}
-      {result && !busy && result.repeat > 0 && <p className="muted small">Recurring {every[result.repeat]}: each slot is checked on the next {result.visits} visits.</p>}
-      {!busy && (
-        <div className="slot-list">
-          {result?.slots.map((s, i) => {
-            const c = teamColor({ name: s.team, color: s.color });
-            return (
-              <div key={i} className="slot">
-                <div className="slot-when">
-                  <b>{shortDay(s.date)}</b>
-                  <span>{clock(s.start)} – {clock(s.end)}</span>
-                </div>
-                <div className="slot-team">
-                  <b><span className="team-swatch" style={{ '--team': c.bg }} />{s.team}</b>
-                  <span className="muted small">{s.members.join(', ')}</span>
-                </div>
-                <div className="slot-reasons">
-                  {s.repeats && <span className={`pill ${s.repeats.fits === s.repeats.of ? 'ok' : 'warn'}`}><Icon name="repeat" size={12} /> {s.repeats.fits}/{s.repeats.of} visits free</span>}
-                  {s.reasons.filter((r) => !/visits/.test(r.text)).map((r, n) => <span key={n} className={`pill ${r.tone === 'good' ? 'ok' : r.tone === 'warn' ? 'warn' : ''}`}>{r.text}</span>)}
-                </div>
-                <span className="slot-gap muted small">gap {clock(s.gap.start)}–{clock(s.gap.end)}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {result && !busy && <p className="muted small">To book, create the job in MaidCentral. Slots use each team's working window and existing jobs; drive time isn't included yet.</p>}
     </>
   );
 }

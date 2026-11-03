@@ -62,12 +62,27 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     with productivity, attendance calendar, default schedule, scorecards, inspections,
     clock events, tickets, notes). Licence, birth date, tax and pay details are never
     read out of the page (allow-listed fields only).
-  - Scheduling planner (`server/src/planner.js`): capacity per team and day (booked hours
+  - Scheduling planner (`server/src/planner.js`), 4-week cycle from this Monday: capacity per team and day (booked hours
     vs the team's shift window) with a day timeline, things needing attention (no team,
     nobody scheduled, over capacity, outside hours, overlaps, absences, cleaners without
     a team), same-team continuity (last 4 weeks vs next 2), and find-a-slot (gaps that
     fit a job, ranked; prefers the home's usual team). It suggests; changes are made in
     MaidCentral.
+  - Openings (`server/src/territory.js`), for scheduling and sales, over the 4-week
+    cycle from this Monday:
+    - 4-week plan: per weekday, each team's day in weeks 1–4 as a bar of jobs coloured
+      by frequency (weekly, every 2/4 weeks, one-time) with open time labelled by the
+      frequency it fits: free every week → weekly; free in weeks 1 & 3 or 2 & 4 → every 2
+      weeks (pairs with an existing every-2-weeks customer); free in one week → every 4
+      weeks. Openings are limited to bookable hours (default 8:00 AM–5:30 PM).
+    - Where to sell: zones ranked by open hours per week, a map (zone outlines shaded by
+      open time, recurring homes as dots in their team's colour, openings as rings) and
+      the list of openings by area. An opening's area is where the team is just before
+      and after it, from MaidCentral's Customer Efficiency Map report (every recurring
+      home's ZIP, zone and coordinates) matched to the jobs.
+    - Place a customer: ZIP, zone or existing home + frequency + length (+ days, time of
+      day) → openings ranked by the extra driving the new home adds between the jobs
+      before and after it (straight-line estimate), frequency fit and length.
   - Search (customers, homes, cleaners, leads).
 - **Booking frequency:** jobs only carry a colour; `server/src/schedulekey.js` reads
   MaidCentral's own "Job Schedule Key" legend (Every Week, Every Two Weeks, … Single,

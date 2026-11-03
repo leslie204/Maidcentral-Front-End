@@ -351,6 +351,65 @@ tr.totals td.cell span { font-size: 11px; color: var(--muted); }
 .slot-team b { display: flex; align-items: center; }
 .slot-reasons { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* Openings: 4-week plan */
+.inline-field { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.chips .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.toolbar .chips { margin: 0; }
+.cycle-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+.cycle-legend i { display: inline-block; width: 14px; height: 8px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.cycle-legend i.hatch { background: repeating-linear-gradient(45deg, var(--heat-2) 0 3px, transparent 3px 6px); border: 1px dashed var(--ok); }
+table.cycle { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+table.cycle th { text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 1px solid var(--border); background: var(--panel-2); position: sticky; top: 0; z-index: 2; }
+table.cycle th span { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+table.cycle td { padding: 6px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.cycle .sticky { position: sticky; left: 0; background: var(--panel); z-index: 1; min-width: 120px; }
+table.cycle th.sticky { z-index: 3; background: var(--panel-2); }
+tr.cycle-day td { background: var(--panel-2); padding-top: 8px; padding-bottom: 6px; }
+tr.cycle-day td.sticky { background: var(--panel-2); }
+.cycle-cell { min-width: 220px; }
+.cycle-cell.off { text-align: center; }
+.cbar { position: relative; height: 22px; border-radius: 5px; background: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px calc(100% / 11)); }
+.cbar-window { position: absolute; top: 0; bottom: 0; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; }
+.cbar-job { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; box-shadow: 0 0 0 1px var(--panel); transition: opacity 0.12s; }
+.cbar-open { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; border: 1.5px dashed var(--fit); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--fit) 18%, transparent) 0 4px, transparent 4px 8px); font: 600 10px 'Geist Mono', ui-monospace, monospace; color: var(--fit); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.cbar-job.dim, .cbar-open.dim { opacity: 0.15; }
+.cbar-meta { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Openings: where to sell */
+.sell-top { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; align-items: stretch; margin-bottom: 4px; }
+.sell-top .card { margin-bottom: 16px; }
+.zone-list { display: grid; max-height: 460px; overflow-y: auto; }
+.zone-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name hours' 'bar bar' 'meta meta'; gap: 4px 10px; text-align: left; border: 0; border-top: 1px solid var(--border); background: transparent; padding: 10px 16px; cursor: pointer; }
+.zone-row:first-child { border-top: 0; }
+.zone-row:hover { background: var(--panel-2); }
+.zone-row.on { background: var(--accent-soft); }
+.zone-name { grid-area: name; font-weight: 600; display: flex; align-items: center; gap: 8px; text-transform: capitalize; }
+.zone-name i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.zone-row > b { grid-area: hours; }
+.zone-bar { grid-area: bar; height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+.zone-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.zone-row > .muted { grid-area: meta; }
+.map-wrap { position: relative; height: 100%; min-height: 460px; }
+.map { position: absolute; inset: 0; }
+.map-legend { position: absolute; left: 10px; bottom: 10px; z-index: 500; display: flex; gap: 12px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 11.5px; box-shadow: var(--shadow); }
+.map-legend i.ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid; margin-right: 5px; vertical-align: -1px; }
+.map-legend i.dotm { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #64748b; margin-right: 5px; vertical-align: 1px; }
+.leaflet-container { font: inherit; background: var(--panel-2); }
+td b + .block { margin-top: 1px; }
+
+/* Openings: place a customer */
+.place-form { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; padding: 16px; }
+.place-where { display: grid; gap: 6px; min-width: 260px; }
+.place-where input, .place-where select { width: 100%; }
+.daychips { display: flex; gap: 4px; }
+.daychips .chip { padding: 5px 10px; }
+.slot.place { grid-template-columns: 150px 200px 1fr auto; }
+.slot.best { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Planner: week groups */
+tr.weeks-row th { padding: 6px 4px 0; }
+th.week-head { text-align: left; font-size: 12px; font-weight: 600; color: var(--text-2); border-bottom: 2px solid var(--border-strong); padding-left: 8px !important; }
+
 /* Quick search */
 .palette-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(2px); display: grid; justify-items: center; align-items: start; padding-top: 12vh; z-index: 50; }
 .palette { width: min(640px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -389,7 +448,9 @@ tr.totals td.cell span { font-size: 11px; color: var(--muted); }
   .page-title h1 { font-size: 19px; }
   .stat-value { font-size: 18px; }
   .grid2, .results-grid { grid-template-columns: 1fr; }
-  .slot { grid-template-columns: 1fr; gap: 6px; }
+  .slot, .slot.place { grid-template-columns: 1fr; gap: 6px; }
+  .sell-top { grid-template-columns: 1fr; }
+  .map-wrap { min-height: 340px; }
   .tl-row { grid-template-columns: 110px minmax(560px, 1fr); }
   .input-icon input { width: 100%; }
 }

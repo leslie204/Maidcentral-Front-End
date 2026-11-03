@@ -17,6 +17,7 @@ import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
 import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
+import { openings, placeCustomer, territoryMap } from './territory.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -204,6 +205,12 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   api.get('/customers/:id', handle((req) => customerProfile(req.mc, req.params.id)));
   api.get('/cleaners', handle((req) => cleanerDirectory(req.mc)));
+  api.get('/openings', handle(async (req) => {
+    const o = await openings(req.mc, req.query);
+    return { ...o, openings: o.openings.map(({ legs, ...x }) => x) };
+  }));
+  api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
+  api.get('/openings/map', handle((req) => territoryMap(req.mc)));
   api.get('/planner/overview', handle((req) => planOverview(req.mc, req.query.from, req.query.days)));
   api.get('/planner/day', handle((req) => planDay(req.mc, req.query.date)));
   api.get('/planner/continuity', handle((req) => continuity(req.mc, req.query.from)));
