@@ -28,6 +28,9 @@ export const api = {
   schedule: (date) => call('GET', `/api/schedule?date=${date}`),
   monitor: (date) => call('GET', `/api/monitor?date=${date}`),
   search: (q) => call('GET', `/api/search?q=${encodeURIComponent(q)}`),
+  customer: (id) => call('GET', `/api/customers/${encodeURIComponent(id)}`),
+  cleaners: () => call('GET', '/api/cleaners'),
+  cleaner: (id) => call('GET', `/api/cleaners/${encodeURIComponent(id)}`),
   customerJobs: (id) => call('GET', `/api/customers/${encodeURIComponent(id)}/jobs`),
 };
 

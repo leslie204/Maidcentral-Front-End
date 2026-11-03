@@ -5,10 +5,13 @@ import Schedule from './Schedule.jsx';
 import Monitor from './Monitor.jsx';
 import Search from './Search.jsx';
 import Customer from './Customer.jsx';
+import Cleaners from './Cleaners.jsx';
+import Cleaner from './Cleaner.jsx';
 
 const NAV = [
   { path: '/', label: 'Schedule' },
   { path: '/monitor', label: 'Team Monitor' },
+  { path: '/cleaners', label: 'Cleaners' },
   { path: '/search', label: 'Search' },
 ];
 
@@ -47,8 +50,11 @@ export default function App() {
 
   const pathname = path.split('?')[0];
   const customer = /^\/customers\/(\d+)/.exec(pathname);
+  const cleaner = /^\/cleaners\/(\d+)/.exec(pathname);
   let page;
-  if (customer) page = <Customer id={customer[1]} go={go} onError={onError} />;
+  if (cleaner) page = <Cleaner id={cleaner[1]} onError={onError} portal={me.portal} />;
+  else if (pathname === '/cleaners') page = <Cleaners go={go} onError={onError} />;
+  else if (customer) page = <Customer id={customer[1]} go={go} onError={onError} portal={me.portal} />;
   else if (pathname === '/monitor') page = <Monitor onError={onError} />;
   else if (pathname === '/search') page = <Search go={go} onError={onError} initial={new URLSearchParams(path.split('?')[1]).get('q') || ''} />;
   else page = <Schedule onError={onError} />;
@@ -61,7 +67,7 @@ export default function App() {
         </div>
         <nav>
           {NAV.map((n) => (
-            <a key={n.path} href={n.path} className={pathname === n.path ? 'active' : ''} onClick={(e) => (e.preventDefault(), go(n.path))}>
+            <a key={n.path} href={n.path} className={pathname === n.path || (n.path !== '/' && pathname.startsWith(n.path)) ? 'active' : ''} onClick={(e) => (e.preventDefault(), go(n.path))}>
               {n.label}
             </a>
           ))}

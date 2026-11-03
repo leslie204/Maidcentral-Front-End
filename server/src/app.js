@@ -13,6 +13,8 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { McSession, McError, mcDate } from './mc.js';
 import { MemoryStore, hashSid } from './store.js';
+import { customerProfile } from './customer.js';
+import { cleanerDirectory, cleanerProfile } from './employee.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -196,6 +198,10 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     };
   }));
 
+  api.get('/customers/:id', handle((req) => customerProfile(req.mc, req.params.id)));
+  api.get('/cleaners', handle((req) => cleanerDirectory(req.mc)));
+  api.get('/cleaners/:id', handle((req) => cleanerProfile(req.mc, req.params.id)));
+
   api.get('/customers/:id/jobs', handle(async (req) => {
     const id = String(req.params.id);
     if (!/^\d{1,10}$/.test(id)) throw new McError('input', 'Bad customer id');
@@ -231,7 +237,7 @@ function handle(fn) {
 }
 
 function sendError(res, e) {
-  const status = { credentials: 401, code: 401, expired: 401, state: 400, input: 400, blocked: 403 }[e.code] || 502;
+  const status = { credentials: 401, code: 401, expired: 401, state: 400, input: 400, blocked: 403, notfound: 404 }[e.code] || 502;
   if (!(e instanceof McError)) console.error(e);
   res.status(status).json({ error: e instanceof McError ? e.message : 'Could not reach MaidCentral.', code: e.code || 'error' });
 }

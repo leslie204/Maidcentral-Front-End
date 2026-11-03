@@ -161,6 +161,34 @@ export class McSession {
     return this.json(await this.request('GET', url.href, { headers: { 'x-requested-with': 'XMLHttpRequest', accept: 'application/json' } }));
   }
 
+  // An HTML page or snippet (customer/employee tabs). Same expiry handling as json().
+  async getHtml(pathname, query = {}) {
+    const url = new URL(pathname, this.origin);
+    for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
+    const res = await this.request('GET', url.href, { headers: { 'x-requested-with': 'XMLHttpRequest' } });
+    this.checkSignedIn(res);
+    if (res.status >= 400) throw new McError('upstream', `MaidCentral answered ${res.status}`);
+    return res.text;
+  }
+
+  // An HTML snippet loaded by POST (reviewed reads only, e.g. /Employee/Stats).
+  async postFormHtml(pathname, fields) {
+    const res = await this.request('POST', new URL(pathname, this.origin).href, {
+      body: new URLSearchParams(fields).toString(),
+      headers: { 'content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'x-requested-with': 'XMLHttpRequest' },
+    });
+    this.checkSignedIn(res);
+    if (res.status >= 400) throw new McError('upstream', `MaidCentral answered ${res.status}`);
+    return res.text;
+  }
+
+  checkSignedIn(res) {
+    if (new URL(res.url).pathname.toLowerCase().startsWith('/account/login') || res.status === 401) {
+      this.signedIn = false;
+      throw new McError('expired', 'Your MaidCentral session has ended. Please sign in again.');
+    }
+  }
+
   async postFormJson(pathname, fields) {
     const res = await this.request('POST', new URL(pathname, this.origin).href, {
       body: new URLSearchParams(fields).toString(),

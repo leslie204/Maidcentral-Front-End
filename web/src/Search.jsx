@@ -45,8 +45,10 @@ export default function Search({ go, onError, initial }) {
               <span className="muted right">{name(h)}{h.zone ? ` · ${h.zone}` : ''}</span>
             </a>
           )} />
-          <Group title="Employees" items={result.employees} render={(x, i) => (
-            <div key={i} className="row"><b>{name(x)}</b><span className="muted right">{[x.phone, x.email].filter(Boolean).join(' · ')}</span></div>
+          <Group title="Cleaners & staff" items={result.employees} render={(x, i) => (
+            <a key={x.id || i} className="row" href={x.id ? `/cleaners/${x.id}` : '#'} onClick={(e) => (e.preventDefault(), x.id && go(`/cleaners/${x.id}`))}>
+              <b>{name(x)}</b><span className="muted right">{[x.phone, x.email].filter(Boolean).join(' · ')}</span>
+            </a>
           )} />
           <Group title="Leads" items={result.leads} render={(l, i) => (
             <div key={i} className="row"><b>{name(l)}</b> <span className="muted">{l.address}</span>
