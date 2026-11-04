@@ -11,9 +11,6 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const IMPACT = { none: 'No impact', low: 'Low impact', medium: 'Medium impact', high: 'High impact' };
 const IMPACT_TONE = { none: 'ok', low: 'info', medium: 'warn', high: 'bad' };
 const Impact = ({ level }) => <span className={`pill ${IMPACT_TONE[level]}`}>{IMPACT[level]}</span>;
-const DAY_START = 7 * 60;
-const DAY_END = 18 * 60;
-const pct = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / (DAY_END - DAY_START)) * 100;
 const ROLES = ['lead', 'cleaner', 'trainee'];
 const ROLE_NAME = { lead: 'Lead', cleaner: 'Cleaner', trainee: 'Trainee' };
 const ROLE_HELP = { lead: 'washrooms, kitchen', cleaner: 'floors, dusting', trainee: 'learning' };
@@ -286,23 +283,52 @@ function Person({ p, role, changed, out, avail, onToggle, onRole }) {
   );
 }
 
+// Minutes since midnight as "9:30 AM"; a length as "1h 20m".
+const t12 = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(Math.round(m) % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
+const len = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${Math.round(m % 60)}m` : ''}` : `${Math.round(m)}m`);
+const toMin = (s) => {
+  const x = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(s || '').trim());
+  return x ? ((Number(x[1]) % 12) + (/pm/i.test(x[3]) ? 12 : 0)) * 60 + Number(x[2]) : null;
+};
+const crewText = (n) => `${n} cleaner${n === 1 ? '' : 's'}`;
+// Dark or white text, whichever reads better on a team colour.
+const ink = (bg, fallback) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(bg || '').trim());
+  if (!m) return fallback;
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.62 ? '#1f2937' : '#fff';
+};
+
+// Why a visit's time or length changes, in a sentence.
+function explain(c) {
+  const bits = [];
+  if (c.moved) bits.push(`${c.to} takes this visit (${c.from} is short-handed today).`);
+  if (c.resized && c.nowCrew !== c.wasCrew) {
+    bits.push(`${c.to} has ${crewText(c.nowCrew)}, so the clean takes ${len(c.nowDur)} instead of ${len(c.wasDur)}.`);
+  } else if (c.resized) bits.push(`The clean takes ${len(c.nowDur)} instead of ${len(c.wasDur)}.`);
+  const shift = toMin(c.now) - toMin(c.was);
+  if (Math.abs(shift) >= 15) bits.push(`They arrive ${len(Math.abs(shift))} ${shift > 0 ? 'later' : 'earlier'} than booked.`);
+  return bits.join(' ');
+}
+
 function PlanDetail({ plan, result, calls, setCall }) {
   const list = [
     ...plan.reschedule.map((x) => ({ ...x, kind: x.customerChoice ? x.customerChoice : 'reschedule' })),
-    ...plan.changes.map((x) => ({ ...x, kind: x.moved ? 'moved' : x.shifted ? 'time' : 'same' })),
+    ...plan.changes.map((x) => ({ ...x, kind: x.moved ? 'moved' : x.shifted ? 'time' : x.resized ? (x.nowDur < x.wasDur ? 'shorter' : 'longer') : 'same' })),
   ];
-  const label = { reschedule: 'Rebook', skip: 'Skipping', moved: 'New team', time: 'New time', same: 'No change' };
-  const tone = { reschedule: 'bad', skip: 'bad', moved: 'info', time: 'warn', same: 'ok' };
+  const label = { reschedule: 'Rebook', skip: 'Skipping', moved: 'New team', time: 'New time', shorter: 'Shorter visit', longer: 'Longer visit', same: 'Confirm' };
+  const tone = { reschedule: 'bad', skip: 'bad', moved: 'info', time: 'warn', shorter: 'ok', longer: 'warn', same: 'ok' };
   return (
-    <div className="grid2 plan-detail">
+    <div className="plan-detail2">
       <Card
         title={
           <>
-            Calls to make{' '}
+            Calls to make <span className="muted small">{list.length}</span>{' '}
             <Help>
-              Customers whose visit changes with this plan. After each call, pick what they said: the plans re-work around it (agreed times are locked in, "no answer"
-              keeps their booked time, rebooked visits come off today). Notes are for the office and stay on this device. Phone numbers come from MaidCentral's
-              Dispatch Board (today only).
+              Customers whose visit changes with this plan: a new team, a new time, or a different length (a car of three cleans faster than a car of two). After each
+              call, pick what they said: the plans re-work around it (agreed times are locked in, "no answer" keeps their booked time, rebooked visits come off today).
+              Notes stay on this device. Phone numbers come from MaidCentral's Dispatch Board (today only).
             </Help>
           </>
         }
@@ -312,19 +338,40 @@ function PlanDetail({ plan, result, calls, setCall }) {
         {list.map((c) => {
           const k = calls[c.jobId] || {};
           const def = OUTCOMES.find((o) => o.value === k.outcome);
-          const offToday = c.kind === 'reschedule';
+          const offToday = c.kind === 'reschedule' || c.kind === 'skip';
           return (
-            <div key={c.jobId} className={`call ${c.kind} ${k.outcome ? 'logged' : ''}`}>
-              <span className={`pill ${tone[c.kind]}`}>{label[c.kind]}</span>
-              <div className="call-body">
-                <b>{c.title} {c.impact && (offToday || c.kind === 'skip') && <Impact level={c.impact} />}</b>
-                <span className="muted small">
-                  {offToday || c.kind === 'skip'
-                    ? `Was ${c.was} with ${c.from}${c.frequency ? ` · ${plainFreq(c.frequency)}` : ''}`
-                    : `${c.was}${c.now !== c.was ? ` → ${c.now}` : ''}${c.moved ? ` · ${c.from} → ${c.to}` : ` · ${c.to}`}`}
-                </span>
+            <div key={c.jobId} className={`call2 ${k.outcome ? 'logged' : ''}`}>
+              <div className="call2-top">
+                <span className={`pill ${tone[c.kind]}`}>{label[c.kind]}</span>
+                <b>{c.title}</b>
+                {c.impact && offToday && <Impact level={c.impact} />}
+                {c.phone && <a className="btn ghost sm call2-phone" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}><Icon name="phone" size={14} /> {c.phone}</a>}
               </div>
-              {c.phone ? <a className="btn ghost sm" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}><Icon name="phone" size={14} /> {c.phone}</a> : <span />}
+              {offToday ? (
+                <div className="call2-compare one">
+                  <div><span className="cmp-tag">Booked</span><b>{c.was}</b><span>{c.from}</span>{c.frequency && <span className="muted">{plainFreq(c.frequency)}</span>}</div>
+                  <div className="cmp-off"><span className="cmp-tag">Today</span><b>Can't fit</b><span className="muted">{c.kind === 'skip' ? 'Skipping this visit' : 'Rebook another day'}</span></div>
+                </div>
+              ) : (
+                <>
+                  <div className="call2-compare">
+                    <div>
+                      <span className="cmp-tag">Booked</span>
+                      <b>{c.was} – {c.wasEnd}</b>
+                      <span>{c.from} · {crewText(c.wasCrew)}</span>
+                      <span className="muted">{len(c.wasDur)} clean</span>
+                    </div>
+                    <Icon name="chevronRight" size={18} />
+                    <div className="cmp-new">
+                      <span className="cmp-tag">New</span>
+                      <b><span className={c.shifted ? 'chg' : ''}>{c.now}</span> – <span className={c.shifted || c.resized ? 'chg' : ''}>{c.nowEnd}</span></b>
+                      <span><span className={c.moved ? 'chg' : ''}>{c.to}</span> · <span className={c.nowCrew !== c.wasCrew ? 'chg' : ''}>{crewText(c.nowCrew)}</span></span>
+                      <span className={c.resized ? 'chg' : 'muted'}>{len(c.nowDur)} clean{c.resized ? ` (${c.nowDur < c.wasDur ? '−' : '+'}${len(Math.abs(c.nowDur - c.wasDur))})` : ''}</span>
+                    </div>
+                  </div>
+                  {explain(c) && <p className="call2-why">{explain(c)}</p>}
+                </>
+              )}
               <div className="call-log">
                 <select
                   aria-label={`What ${c.title} said`}
@@ -337,45 +384,100 @@ function PlanDetail({ plan, result, calls, setCall }) {
                 >
                   {OUTCOMES.filter((o) => !(o.moveOnly && offToday)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                {def?.time && (
-                  <input type="time" aria-label="Time" value={toTime(k.time)} step={900} onChange={(e) => setCall(c.jobId, { time: fromTime(e.target.value) })} />
-                )}
+                {def?.time && <input type="time" aria-label="Time" value={toTime(k.time)} step={900} onChange={(e) => setCall(c.jobId, { time: fromTime(e.target.value) })} />}
                 <input className="call-note" placeholder="Note (e.g. call back at 10)" value={k.note || ''} onChange={(e) => setCall(c.jobId, { note: e.target.value })} />
               </div>
             </div>
           );
         })}
       </Card>
-      <Card title={<>The day with this plan <Help>Each bar is a car's day from 7 AM to 6 PM. Outlined blocks are jobs that moved to this car. "Back" is when the car gets back to the office.</Help></>} className="flush">
-        <div className="plan-cars">
-          {plan.cars.map((c) => {
-            const col = teamColor(c);
-            return (
-              <div key={c.id} className="plan-car">
-                <div className="plan-car-head">
-                  <span className="team-swatch" style={{ '--team': col.bg }} />
-                  <b>{c.name}</b>
-                  <span className="muted small">{c.people.map((p, i) => `${p}${c.roles?.[i] ? ` (${c.roles[i]})` : ''}`).join(', ') || 'nobody'}</span>
-                  {c.back && <span className="muted small right">back {c.back}</span>}
-                </div>
-                <div className="cbar">
-                  {c.stops.map((x) => (
-                    <div
-                      key={x.jobId}
-                      className={`cbar-job ${x.moved ? 'moved' : ''}`}
-                      style={{ left: `${pct(x.start)}%`, width: `${Math.max(pct(x.end) - pct(x.start), 0.8)}%`, background: col.bg }}
-                      title={`${x.label} ${x.title}${x.moved ? ` (from ${x.from})` : ''}${x.was !== x.label.split(' – ')[0] ? ` · was ${x.was}` : ''}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="card-foot muted small">
-          Leave the office from {result.options.leaveAt} · back by {result.options.returnBy} · customers moved up to {result.options.early} min earlier / {result.options.late / 60} h later · cars of up to {result.options.maxCar}
-        </div>
-      </Card>
+      <DayChart plan={plan} result={result} />
     </div>
+  );
+}
+
+// Each car's day: an hour scale, the visits (start, customer, length), driving between
+// them, the booked time of anything that moved (dashed), and the return-by line.
+function DayChart({ plan, result }) {
+  const backBy = toMin(result.options.returnBy) ?? 16 * 60 + 45;
+  const leaveAt = toMin(result.options.leaveAt) ?? 8 * 60 + 15;
+  const cars = plan.cars;
+  const all = cars.flatMap((c) => c.stops.flatMap((s) => [s.start - (s.drive || 0), s.end, s.wasStart ?? s.start, s.wasEnd ?? s.end]));
+  const s0 = Math.floor(Math.min(leaveAt, ...all, 8 * 60) / 60) * 60;
+  const e0 = Math.ceil(Math.max(backBy + 15, ...cars.map((c) => c.backMin || 0), ...all) / 60) * 60;
+  const x = (m) => ((Math.min(Math.max(m, s0), e0) - s0) / (e0 - s0)) * 100;
+  const hours = [];
+  for (let h = s0; h <= e0; h += 60) hours.push(h);
+  return (
+    <Card
+      title={<>The day with this plan <Help wide>One row per car. Solid blocks are visits at their new time (start, customer, length); a dashed outline is the time it was booked; thin lines are driving. Blue outline: a visit that joined this car. Red line: everyone back at the office by {result.options.returnBy}.</Help></>}
+      className="flush"
+    >
+      <div className="dc-legend">
+        <span><i className="lg-solid" />new time</span>
+        <span><i className="lg-ghost" />booked time</span>
+        <span><i className="lg-moved" />joined this car</span>
+        <span><i className="lg-drive" />driving</span>
+        <span><i className="lg-back" />back by {result.options.returnBy}</span>
+      </div>
+      <div className="dc">
+        <div className="dc-axis">
+          {hours.map((h) => <span key={h} style={{ left: `${x(h)}%` }}>{((h / 60 + 11) % 12) + 1}{h < 720 ? 'a' : 'p'}</span>)}
+        </div>
+        {cars.map((c) => {
+          const col = teamColor(c);
+          const cleaning = c.stops.reduce((s, v) => s + (v.end - v.start), 0);
+          const driving = c.stops.reduce((s, v) => s + (v.drive || 0), 0) + (c.backMin && c.stops.length ? c.backMin - c.stops[c.stops.length - 1].end : 0);
+          const late = c.backMin && c.backMin > backBy;
+          return (
+            <div key={c.id} className="dc-car">
+              <div className="dc-head">
+                <span className="team-swatch" style={{ '--team': col.bg }} />
+                <b>{c.name}</b>
+                <span className="pill">{crewText(c.people.length)}</span>
+                <span className="muted small dc-people">{c.people.map((p, i) => `${p.split(' ')[0]}${c.roles?.[i] === 'lead' ? ' (lead)' : ''}`).join(', ') || 'nobody'}</span>
+                <span className={`small dc-times ${late ? 'bad-text' : 'muted'}`}>
+                  {c.stops.length ? `${c.leave != null ? `leaves ${t12(c.leave)} · ` : ''}back ${c.back}${late ? ` (after ${result.options.returnBy})` : ''}` : 'no visits'}
+                </span>
+              </div>
+              <div className="dc-track">
+                {hours.map((h) => <i key={h} className="dc-grid" style={{ left: `${x(h)}%` }} />)}
+                <i className="dc-backby" style={{ left: `${x(backBy)}%` }} />
+                {c.stops.map((s) => (
+                  <span key={`d${s.jobId}`}>
+                    {s.drive > 0 && <i className="dc-drive" style={{ left: `${x(s.start - s.drive)}%`, width: `${x(s.start) - x(s.start - s.drive)}%` }} title={`${s.drive} min driving`} />}
+                    {(s.moved || s.shifted || s.resized) && s.wasStart != null && (
+                      <i className="dc-ghost" style={{ left: `${x(s.wasStart)}%`, width: `${Math.max(x(s.wasEnd) - x(s.wasStart), 0.8)}%` }} title={`Booked ${t12(s.wasStart)} – ${t12(s.wasEnd)}`} />
+                    )}
+                  </span>
+                ))}
+                {c.backMin && c.stops.length > 0 && (
+                  <i className="dc-drive" style={{ left: `${x(c.stops[c.stops.length - 1].end)}%`, width: `${x(c.backMin) - x(c.stops[c.stops.length - 1].end)}%` }} title="Driving back to the office" />
+                )}
+                {c.stops.map((s) => (
+                  <div
+                    key={s.jobId}
+                    className={`dc-job ${s.moved ? 'moved' : ''}`}
+                    style={{ left: `${x(s.start)}%`, width: `${Math.max(x(s.end) - x(s.start), 0.8)}%`, background: col.bg, color: ink(col.bg, col.fg) }}
+                    title={`${s.label} · ${s.title}\n${len(s.end - s.start)} clean${s.moved ? `\nFrom ${s.from}` : ''}${s.wasStart != null && (s.shifted || s.resized) ? `\nBooked ${t12(s.wasStart)} – ${t12(s.wasEnd)}` : ''}${s.drive ? `\n${s.drive} min drive before` : ''}`}
+                  >
+                    <b>{t12(s.start).replace(' AM', '').replace(' PM', '')}</b>
+                    <span>{s.title.split(' - ')[0].replace(/ Home$/i, '')}</span>
+                    <em>{len(s.end - s.start)}</em>
+                  </div>
+                ))}
+              </div>
+              <div className="dc-sum muted small">
+                {c.stops.length} visit{c.stops.length === 1 ? '' : 's'} · {len(cleaning)} cleaning · {len(driving)} driving
+                {c.stops.some((s) => s.moved) && <> · <span className="info-text">{c.stops.filter((s) => s.moved).map((s) => `${s.title.split(' - ')[0]} from ${s.from}`).join(', ')}</span></>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="card-foot muted small">
+        Leave the office from {result.options.leaveAt} · back by {result.options.returnBy} · customers moved up to {result.options.early} min earlier / {result.options.late / 60} h later · cars of up to {result.options.maxCar}
+      </div>
+    </Card>
   );
 }

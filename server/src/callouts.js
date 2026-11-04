@@ -184,7 +184,7 @@ function route(car, jobs, size, opts, office, backBy) {
       if (start > latest) return null;
       end = start + Math.ceil(j.cleanerMinutes / size / 5) * 5;
     }
-    stops.push({ job: j, start, end });
+    stops.push({ job: j, start, end, drive: d });
     t = end;
     at = j.loc || at;
   }
@@ -442,7 +442,10 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
       for (const s of p.routes.get(c.id)?.stops || []) {
         const moved = s.job.carId !== c.id;
         const shifted = Math.abs(s.start - s.job.start) >= 15;
-        if (moved || shifted || s.job.outcome) changes.push({ jobId: s.job.id, title: s.job.title, phone: s.job.phone, from: state.cars.find((x) => x.id === s.job.carId)?.name, to: c.name, was: hhmm(s.job.start), now: hhmm(s.start), nowMin: s.start, moved, shifted, outcome: s.job.outcome || null });
+        // Duration follows the crew: a car of three cleans a two-person job faster.
+        const wasCrew = state.cars.find((x) => x.id === s.job.carId)?.size || c.size;
+        const resized = s.end - s.start !== s.job.end - s.job.start;
+        if (moved || shifted || resized || s.job.outcome) changes.push({ jobId: s.job.id, title: s.job.title, phone: s.job.phone, from: state.cars.find((x) => x.id === s.job.carId)?.name, to: c.name, was: hhmm(s.job.start), wasEnd: hhmm(s.job.end), now: hhmm(s.start), nowEnd: hhmm(s.end), nowMin: s.start, wasDur: s.job.end - s.job.start, nowDur: s.end - s.start, wasCrew, nowCrew: c.size, cleanerMinutes: s.job.cleanerMinutes, moved, shifted, resized, outcome: s.job.outcome || null });
       }
     }
     const jobsLost = p.lost.length + notToday.length;
@@ -469,7 +472,10 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
             people: c.members.map((m) => m.name),
             roles: c.members.map((m) => m.role),
             back: r?.back != null ? hhmm(r.back) : null,
-            stops: (r?.stops || []).map((s) => ({ jobId: s.job.id, title: s.job.title, start: s.start, end: s.end, label: `${hhmm(s.start)} – ${hhmm(s.end)}`, was: hhmm(s.job.start), moved: s.job.carId !== c.id, from: state.cars.find((x) => x.id === s.job.carId)?.name, revenue: s.job.revenue, frequency: s.job.frequency, area: s.job.area })),
+            size: c.size,
+            leave: r?.stops?.length ? r.stops[0].start - (r.stops[0].drive || 0) : null,
+            backMin: r?.back ?? null,
+            stops: (r?.stops || []).map((s) => ({ jobId: s.job.id, title: s.job.title, start: s.start, end: s.end, label: `${hhmm(s.start)} – ${hhmm(s.end)}`, was: hhmm(s.job.start), wasStart: s.job.start, wasEnd: s.job.end, drive: s.drive ?? null, moved: s.job.carId !== c.id, shifted: Math.abs(s.start - s.job.start) >= 15, resized: s.end - s.start !== s.job.end - s.job.start, from: state.cars.find((x) => x.id === s.job.carId)?.name, revenue: s.job.revenue, frequency: s.job.frequency, area: s.job.area })),
           };
         }),
     };

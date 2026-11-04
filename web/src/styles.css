@@ -702,3 +702,55 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
   .rs-progress { grid-template-columns: 1fr; }
   .rs-answers.compact .rs-answer span { display: none; }
 }
+
+/* Call-outs: calls and the day chart */
+.info-text { color: var(--info); }
+.plan-detail2 { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(480px, 1.35fr); gap: 16px; align-items: start; }
+.call2 { display: grid; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--border); }
+.call2:first-child { border-top: 0; }
+.call2.logged { background: color-mix(in srgb, var(--ok-soft) 35%, transparent); }
+.call2-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.call2-top .pill { margin: 0; }
+.call2-phone { margin-left: auto; }
+.call2-compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+.call2-compare.one { grid-template-columns: 1fr 1fr; }
+.call2-compare > div { display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); font-size: 13px; }
+.call2-compare > .icon { color: var(--muted); }
+.call2-compare .cmp-new { background: var(--panel); border-color: var(--accent); }
+.call2-compare .cmp-off { border-color: var(--bad); background: var(--bad-soft); }
+.cmp-tag { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.call2 .chg { color: var(--accent-ink); font-weight: 650; background: var(--accent-soft); border-radius: 4px; padding: 0 3px; width: fit-content; }
+.call2-why { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.dc-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 16px; font-size: 12px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+.dc-legend i { display: inline-block; width: 18px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.dc-legend .lg-solid { background: var(--accent); }
+.dc-legend .lg-ghost { border: 1.5px dashed var(--muted); }
+.dc-legend .lg-moved { background: var(--panel-2); box-shadow: 0 0 0 2px var(--info); }
+.dc-legend .lg-drive { height: 2px; background: var(--muted); vertical-align: 3px; }
+.dc-legend .lg-back { width: 2px; height: 12px; background: var(--bad); }
+.dc { padding: 8px 16px 12px; }
+.dc-axis { position: relative; height: 18px; margin-bottom: 2px; }
+.dc-axis span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--muted); }
+.dc-car { padding: 10px 0; border-top: 1px solid var(--border); }
+.dc-car:first-of-type { border-top: 0; }
+.dc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 6px; }
+.dc-head .pill { margin: 0; }
+.dc-people { flex: 1; min-width: 120px; }
+.dc-times { white-space: nowrap; }
+.dc-track { position: relative; height: 38px; background: var(--panel-2); border-radius: 8px; }
+.dc-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.dc-backby { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--bad); opacity: 0.7; z-index: 3; }
+.dc-drive { position: absolute; top: 50%; height: 2px; background: var(--muted); opacity: 0.6; }
+.dc-ghost { position: absolute; top: 3px; bottom: 3px; border: 1.5px dashed var(--muted); border-radius: 6px; background: transparent; z-index: 1; }
+.dc-job { position: absolute; top: 5px; bottom: 5px; border-radius: 6px; display: flex; align-items: center; gap: 4px; padding: 0 6px; overflow: hidden; white-space: nowrap; font-size: 11px; z-index: 2; container-type: inline-size; box-shadow: 0 0 0 1px var(--panel); }
+.dc-job b { font-weight: 700; }
+.dc-job span { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.dc-job em { font-style: normal; opacity: 0.85; margin-left: auto; }
+.dc-job.moved { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--info); }
+@container (max-width: 90px) { .dc-job em { display: none; } }
+@container (max-width: 60px) { .dc-job span { display: none; } }
+@container (max-width: 34px) { .dc-job b { display: none; } }
+.dc-sum { margin-top: 5px; }
+@media (max-width: 1100px) { .plan-detail2 { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .call2-compare { grid-template-columns: 1fr; } .call2-compare > .icon { display: none; } }
+.call2-compare > div { justify-items: start; }
