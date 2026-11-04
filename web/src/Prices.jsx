@@ -49,6 +49,7 @@ export default function Prices({ onError }) {
   const [kind, setKind] = useState('all');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(null);
+  const [view, setView] = useState('day');
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -137,16 +138,25 @@ export default function Prices({ onError }) {
               return <span key={`${r.kind}${r.rate}`} className={`pill ${right ? 'ok' : 'bad'}`}>{r.kind === 'recurring' ? 'Recurring' : 'One-time'} {r.rate == null ? 'no hours' : rate$(r.rate)}: {r.bookings}</span>;
             })}
           </div>
+          <div className="pc-views">
+            <div className="segmented">
+              <button className={view === 'day' ? 'on' : ''} onClick={() => setView('day')}><Icon name="calendar" size={14} /> By day</button>
+              <button className={view === 'customer' ? 'on' : ''} onClick={() => setView('customer')}><Icon name="users" size={14} /> By customer</button>
+            </div>
+            <select value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="all">Recurring and one-time</option>
+              <option value="recurring">Recurring only</option>
+              <option value="one-time">One-time only</option>
+            </select>
+          </div>
+          {view === 'day' && <ByDay data={data} kind={kind} />}
+          {view === 'customer' && (
+          <>
           <div className="pc-toolbar">
             <div className="chip-row">
               {[['fix', 'To fix', toFix.length - doneCount], ['done', 'Ticked off', doneCount], ['ok', 'Correct', s.customersOk], ['all', 'All', s.customers]].map(([k, l, n]) => (
                 <button key={k} className={`chip ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>{l} <span className="muted">{n}</span></button>
               ))}
-              <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                <option value="all">Recurring and one-time</option>
-                <option value="recurring">Recurring only</option>
-                <option value="one-time">One-time only</option>
-              </select>
             </div>
             <input className="pc-search" placeholder="Find a customer…" value={q} onChange={(e) => setQ(e.target.value)} />
             {copyText && <CopyList text={copyText} />}
@@ -213,6 +223,8 @@ export default function Prices({ onError }) {
               </div>
             )}
           </Card>
+          </>
+          )}
           <p className="muted small">
             Rate = price ÷ (allowed hours ÷ 2): MaidCentral's allowed hours are cleaner-hours, and the hourly rate is for a two-person team (e.g. $305 for 5.00 allowed hours = $122/hr). Bookings
             within $1 of the rate count as right; cancelled bookings are left out. Your ticks stay on this device; Re-check reads the prices from MaidCentral again.
@@ -231,3 +243,72 @@ function CopyList({ text }) {
     </button>
   );
 }
+
+// Each day in the range: how many bookings are at the right rate, and which aren't.
+function ByDay({ data, kind }) {
+  const [open, setOpen] = useState(() => new Set());
+  const all = data.customers.flatMap((c) => c.bookings.map((b) => ({ ...b, customer: c.customer })));
+  const bookings = all.filter((b) => kind === 'all' || b.kind === kind);
+  const days = [...new Set(bookings.map((b) => b.date))].sort().map((d) => {
+    const list = bookings.filter((b) => b.date === d).sort((a, b) => toMin(a.time) - toMin(b.time));
+    const ok = list.filter((b) => b.state === 'ok').length;
+    const wrong = list.filter((b) => b.state !== 'ok');
+    const share = ok / list.length;
+    const status = !wrong.length ? 'done' : share >= 0.8 ? 'nearly' : share >= 0.2 ? 'partly' : 'none';
+    return { date: d, list, ok, wrong, status, short: wrong.filter((b) => b.state === 'low').reduce((s2, b) => s2 + (b.should - b.price), 0) };
+  });
+  const label = { done: 'All updated', nearly: 'Nearly done', partly: 'Partly updated', none: 'Mostly not updated' };
+  const tone = { done: 'ok', nearly: 'info', partly: 'warn', none: 'bad' };
+  const counts = Object.fromEntries(['done', 'nearly', 'partly', 'none'].map((k) => [k, days.filter((x) => x.status === k).length]));
+  const toggle = (d) => setOpen((o) => {
+    const n = new Set(o);
+    n.has(d) ? n.delete(d) : n.add(d);
+    return n;
+  });
+  return (
+    <>
+      <div className="pc-daykey">
+        <span className="pill ok">{counts.done} all updated</span>
+        <span className="pill info">{counts.nearly} nearly done (80%+)</span>
+        <span className="pill warn">{counts.partly} partly updated</span>
+        <span className="pill bad">{counts.none} mostly not updated (under 20%)</span>
+        <span className="muted small">Tap a day to see the bookings still at the wrong price.</span>
+      </div>
+      <Card className="flush">
+        {days.map((x) => {
+          const isOpen = open.has(x.date);
+          return (
+            <div key={x.date} className={`pc-day ${x.status}`}>
+              <button className="pc-day-row" onClick={() => toggle(x.date)} disabled={!x.wrong.length}>
+                <b className="pc-day-date">{day(x.date)}</b>
+                <span className="pc-day-bar"><i style={{ width: `${(x.ok / x.list.length) * 100}%` }} /></span>
+                <span className="pc-day-count"><b>{x.ok}</b> of {x.list.length} correct</span>
+                <span className={`pill ${tone[x.status]}`}>{label[x.status]}</span>
+                <span className="muted small pc-day-fix">{x.wrong.length ? `${x.wrong.length} to fix${x.short > 0 ? ` · ${$(x.short)} under` : ''}` : ''}</span>
+                {x.wrong.length > 0 && <Icon name={isOpen ? 'close' : 'chevronRight'} size={15} />}
+              </button>
+              {isOpen && (
+                <div className="pc-day-list">
+                  {x.wrong.map((b) => (
+                    <div key={b.jobId} className="pc-day-item">
+                      <span className="mono">{b.time}</span>
+                      <b>{b.customer}</b>
+                      <span className="muted small">{b.team} · {plainFreq(b.frequency)} · {b.allowedHours} hrs</span>
+                      <span><span className={`${STATE[b.state].tone}-text`}>{$(b.price)} ({rate$(b.rate)})</span>{b.should != null && b.state !== 'hourly' ? <> → <b className="ok-text">{$(b.should)}</b></> : ''}</span>
+                      <span className={`pill ${STATE[b.state].tone}`}>{STATE[b.state].label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {!days.length && <Empty icon="calendar" title="No bookings in this range" />}
+      </Card>
+    </>
+  );
+}
+const toMin = (t) => {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(t || ''));
+  return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : 0;
+};

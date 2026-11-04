@@ -850,3 +850,29 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .pc-booking.bad { border-color: var(--bad); }
 .pc-booking.ok { border-color: var(--ok); }
 @media (max-width: 800px) { .pc-progress { grid-template-columns: 1fr; } .pc-search { margin-left: 0; width: 100%; } }
+.pc-views { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.pc-views select { height: 34px; }
+.pc-daykey { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-bottom: 10px; }
+.pc-day { border-top: 1px solid var(--border); border-left: 4px solid transparent; }
+.pc-day:first-child { border-top: 0; }
+.pc-day.done { border-left-color: var(--ok); }
+.pc-day.nearly { border-left-color: var(--info); }
+.pc-day.partly { border-left-color: var(--warn); }
+.pc-day.none { border-left-color: var(--bad); }
+.pc-day-row { display: grid; grid-template-columns: 120px minmax(120px, 1fr) 140px 130px 160px 16px; gap: 12px; align-items: center; width: 100%; padding: 11px 16px; border: 0; background: none; text-align: left; cursor: pointer; color: var(--text); font: inherit; }
+.pc-day-row:disabled { cursor: default; }
+.pc-day-row:not(:disabled):hover { background: var(--panel-2); }
+.pc-day-bar { height: 8px; background: var(--bad-soft); border-radius: 999px; overflow: hidden; }
+.pc-day-bar i { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
+.pc-day.done .pc-day-bar { background: var(--ok-soft); }
+.pc-day-row .pill { justify-self: start; margin: 0; }
+.pc-day-list { display: grid; padding: 0 16px 12px 136px; gap: 4px; }
+.pc-day-item { display: grid; grid-template-columns: 70px minmax(140px, 1fr) minmax(160px, 1fr) 200px auto; gap: 10px; align-items: center; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); }
+.pc-day-item .pill { margin: 0; justify-self: start; }
+@media (max-width: 900px) {
+  .pc-day-row { grid-template-columns: 1fr auto; }
+  .pc-day-row .pc-day-bar { grid-column: 1 / -1; }
+  .pc-day-list { padding-left: 16px; }
+  .pc-day-item { grid-template-columns: 1fr; }
+}
+.pc-views .segmented button { display: inline-flex; align-items: center; gap: 6px; }
