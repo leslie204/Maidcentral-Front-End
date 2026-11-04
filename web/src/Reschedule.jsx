@@ -1,202 +1,355 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, today, shiftDay, dayLabel } from './api.js';
+import { api, today, shiftDay } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
-import { PageHeader, Stats, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
+import { PageHeader, Skeleton, ErrorNote, Empty, plainFreq } from './ui.jsx';
 
-// Rescheduling: pick a date, then either one booking (the everyday case: a customer needs
-// another day) or the whole day (a holiday). The best slots come from the routes around
-// that date. What the office enters stays on this device. Changes are made in MaidCentral.
+// Rescheduling, in two flows:
+//   Move a customer: find them (by name, or by date), pick one of the best new times (or
+//   any free time from the day strip), then send the ready-made message and log the answer.
+//   Move a whole day: every booking on a date (a holiday) gets a new slot, worked through
+//   as a checklist of calls.
+// Suggestions come from the routes around the date. What the office enters stays on this
+// device. Read-only: the booking is moved in MaidCentral.
 
-const shortDay = (iso) => {
+const parse = (iso) => {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  return new Date(y, m - 1, d);
 };
+const shortDay = (iso) => parse(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+const longDay = (iso) => parse(iso).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 const clock = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(Math.round(m) % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
-const away = (n) => (n === 0 ? 'same day' : `${Math.abs(n)} day${Math.abs(n) === 1 ? '' : 's'} ${n < 0 ? 'before' : 'after'}`);
-const STATUS = [
-  { value: '', label: 'Not called yet' },
-  { value: 'agreed', label: 'Agreed: book it' },
-  { value: 'other', label: 'Wants another option' },
-  { value: 'noanswer', label: 'No answer' },
-  { value: 'voicemail', label: 'Left voicemail' },
-  { value: 'cancel', label: 'Skip / cancel this visit' },
+const away = (n) => (n === 0 ? 'same day' : `${Math.abs(n)} day${Math.abs(n) === 1 ? '' : 's'} ${n < 0 ? 'earlier' : 'later'}`);
+const firstName = (b) => (b.customer ? b.customer.split(/\s+/)[0] : b.home.replace(/ Home$/i, ''));
+const colorOf = (teams, teamId) => teamColor(teams.find((t) => t.id === teamId) || {}).bg;
+
+// "Their own team · usual time · team already nearby"
+function plainReason(s, { team = true } = {}) {
+  const parts = [];
+  if (team) parts.push(s.sameTeam ? `Their own team (${s.team})` : `With ${s.team}`);
+  else if (s.sameTeam) parts.push('Their own team');
+  const sh = Math.abs(s.shiftMin);
+  parts.push(sh < 15 ? 'usual time' : `${sh >= 60 ? `${Math.round(sh / 30) / 2} h` : `${Math.round(sh / 5) * 5} min`} ${s.shiftMin < 0 ? 'earlier' : 'later'} than usual`);
+  parts.push(s.extraDriveMin <= 5 ? 'team already nearby' : `+${s.extraDriveMin} min driving`);
+  return parts.join(' · ');
+}
+const warning = (s) => (s.reasons || []).find((x) => x.tone === 'warn' && /days from their/.test(x.text))?.text || null;
+
+function message(b, fromDate, pick, reason) {
+  return `Hi ${firstName(b)}, ${reason ? `because of ${reason}, ` : ''}we need to move your cleaning on ${longDay(fromDate)} at ${clock(b.start)}. Would ${longDay(pick.date)} at ${clock(pick.start)} work for you instead? Thank you! – Clean Bee`;
+}
+
+const ANSWERS = [
+  { value: 'agreed', label: 'Agreed', icon: 'check', tone: 'ok' },
+  { value: 'other', label: 'Wants another time', icon: 'repeat', tone: 'warn' },
+  { value: 'noanswer', label: 'No answer', icon: 'phone', tone: 'warn' },
+  { value: 'voicemail', label: 'Left voicemail', icon: 'mail', tone: 'info' },
+  { value: 'cancel', label: 'Cancel this visit', icon: 'close', tone: 'bad' },
 ];
-const STATUS_TONE = { agreed: 'ok', other: 'warn', noanswer: 'warn', voicemail: 'info', cancel: 'bad' };
+const answerOf = (v) => ANSWERS.find((a) => a.value === v);
 
-const blank = { picks: {}, status: {}, notes: {} };
-function loadState(date) {
-  try {
-    return { ...blank, ...JSON.parse(localStorage.getItem(`reschedule:${date}`) || '{}') };
-  } catch {
-    return blank;
-  }
-}
-function saveState(date, s) {
-  try {
-    localStorage.setItem(`reschedule:${date}`, JSON.stringify(s));
-  } catch {
-    /* private window */
-  }
-}
-
-export default function Reschedule({ onError }) {
-  const [date, setDate] = useState(() => shiftDay(today(), 1));
-  const [st, setSt] = useState(() => loadState(shiftDay(today(), 1)));
-  const [dir, setDir] = useState('either');
-  const [days, setDays] = useState('7');
-  const [sameDay, setSameDay] = useState(false);
-  const [mode, setMode] = useState('one');
-  const [job, setJob] = useState(null);
-  const [filter, setFilter] = useState('');
-  useEffect(() => saveState(date, st), [date, st]);
-  const changeDate = (d) => {
-    if (!d) return;
-    setDate(d);
-    setSt(loadState(d));
-    setJob(null);
-  };
-  const day = useLoad(() => api.rescheduleDay(date), `rday:${date}`, onError);
-  const data = day.data?.date === date ? day.data : null;
-  const teams = data?.teams || [];
-  const colorOf = (teamId) => teamColor(teams.find((t) => t.id === teamId) || {}).bg;
-  const setPick = (id, slot) => setSt((s) => {
-    const picks = { ...s.picks };
-    if (slot) picks[id] = { date: slot.date, teamId: slot.teamId, start: slot.start, team: slot.team, label: slot.label, weekday: slot.weekday };
-    else delete picks[id];
-    return { ...s, picks };
+function useStored(key, initial) {
+  const [v, setV] = useState(() => {
+    try {
+      return { ...initial, ...JSON.parse(localStorage.getItem(key) || '{}') };
+    } catch {
+      return initial;
+    }
   });
-  const setStatus = (id, v) => setSt((s) => ({ ...s, status: { ...s.status, [id]: v } }));
-  const setNote = (id, v) => setSt((s) => ({ ...s, notes: { ...s.notes, [id]: v } }));
-  const common = { date, dir, days, sameDay: String(sameDay) };
-  const bookings = (data?.bookings || []).filter((b) => !filter || `${b.title} ${b.team} ${b.area || ''}`.toLowerCase().includes(filter.toLowerCase()));
-  const done = Object.values(st.status).filter((v) => v === 'agreed' || v === 'cancel').length;
+  const keyRef = useRef(key);
+  useEffect(() => {
+    if (keyRef.current !== key) {
+      keyRef.current = key;
+      try {
+        setV({ ...initial, ...JSON.parse(localStorage.getItem(key) || '{}') });
+      } catch {
+        setV(initial);
+      }
+      return;
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify(v));
+    } catch {
+      /* private window */
+    }
+  }, [key, v]);
+  return [v, setV];
+}
 
+// Weekdays coming up, for quick date picks.
+function nextWeekdays(n) {
+  const out = [];
+  let d = today();
+  while (out.length < n) {
+    d = shiftDay(d, 1);
+    const wd = parse(d).getDay();
+    if (wd !== 0 && wd !== 6) out.push(d);
+  }
+  return out;
+}
+
+function CopyButton({ text, label = 'Copy', small }) {
+  const [done, setDone] = useState(false);
   return (
-    <>
-      <PageHeader
-        title="Reschedule"
-        subtitle="Move one booking, or a whole day (like a holiday), to the best free slots on the days around it: near where a team already is, with their own team and usual time where possible."
-        actions={
-          <div className="resched-date">
-            <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} aria-label="Date" />
-            <div className="segmented">
-              <button className={mode === 'one' ? 'on' : ''} onClick={() => setMode('one')}>One booking</button>
-              <button className={mode === 'day' ? 'on' : ''} onClick={() => setMode('day')}>Whole day</button>
-            </div>
-          </div>
-        }
-      />
-      <div className="resched-settings">
-        <label className="inline-field">Move to
-          <select value={dir} onChange={(e) => setDir(e.target.value)}>
-            <option value="either">before or after</option>
-            <option value="before">before only</option>
-            <option value="after">after only</option>
-          </select>
-        </label>
-        <label className="inline-field">within
-          <select value={days} onChange={(e) => setDays(e.target.value)}>
-            {['3', '5', '7', '10', '14'].map((d) => <option key={d} value={d}>{d} days</option>)}
-          </select>
-        </label>
-        <label className="check"><input type="checkbox" checked={sameDay} onChange={(e) => setSameDay(e.target.checked)} /> Also other times on {shortDay(date)}</label>
-        <span className="muted small">{dayLabel(date)} · {data ? `${data.bookings.length} bookings` : '…'}{done ? ` · ${done} sorted` : ''}</span>
-      </div>
-      <ErrorNote error={day.error} />
-      {!data && !day.error && <Skeleton rows={6} height={44} />}
-      {data && !data.bookings.length && <Empty icon="calendar" title={`No bookings on ${dayLabel(date)}`}>Choose another date.</Empty>}
-      {data && data.bookings.length > 0 && mode === 'one' && (
-        <div className="resched-grid">
-          <Card title={<>Bookings on {shortDay(date)} <Help>Click the booking to move. A tick means you've already found its new slot.</Help></>} className="flush">
-            <div className="resched-filter"><input placeholder="Find a customer…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
-            <div className="resched-list">
-              {bookings.map((b) => (
-                <button key={b.id} className={`resched-row ${job === b.id ? 'on' : ''}`} onClick={() => setJob(b.id)}>
-                  <span className="team-swatch" style={{ '--team': colorOf(b.teamId) }} />
-                  <span className="resched-main">
-                    <b>{b.home}</b>
-                    <span className="muted small">{clock(b.start)} · {b.team}{b.area ? ` · ${b.area}` : ''}{b.frequency ? ` · ${plainFreq(b.frequency)}` : ''}</span>
-                  </span>
-                  {st.picks[b.id] ? <span className="pill ok"><Icon name="check" size={12} /> {shortDay(st.picks[b.id].date)}</span> : st.status[b.id] ? <span className={`pill ${STATUS_TONE[st.status[b.id]]}`}>{STATUS.find((x) => x.value === st.status[b.id])?.label}</span> : null}
-                </button>
-              ))}
-              {!bookings.length && <Empty icon="search" title="No booking matches" />}
-            </div>
-          </Card>
-          {job ? (
-            <Options key={`${job}:${dir}:${days}:${sameDay}`} q={{ ...common, job, picks: JSON.stringify(Object.fromEntries(Object.entries(st.picks).filter(([id]) => String(id) !== String(job)))) }} picked={st.picks[job]} onPick={(s) => setPick(job, s)} status={st.status[job] || ''} setStatus={(v) => setStatus(job, v)} note={st.notes[job] || ''} setNote={(v) => setNote(job, v)} colorOf={colorOf} onError={onError} />
-          ) : (
-            <Card><Empty icon="calendar" title="Choose a booking">Its best new slots appear here, ranked.</Empty></Card>
-          )}
-        </div>
-      )}
-      {data && data.bookings.length > 0 && mode === 'day' && <DayPlan common={common} st={st} setPick={setPick} setStatus={setStatus} setNote={setNote} colorOf={colorOf} onError={onError} date={date} />}
-      <p className="muted small">Slots fit into a team's route on that day: driving from the job before (or the office at 8:15 AM), the clean, and on to the next job or back by the return time. Drive times are estimates. Nothing changes until you move the booking in MaidCentral.</p>
-    </>
+    <button
+      type="button"
+      className={`btn ghost ${small ? 'sm' : ''}`}
+      onClick={() => navigator.clipboard?.writeText(text).then(() => (setDone(true), setTimeout(() => setDone(false), 1800)))}
+    >
+      <Icon name={done ? 'check' : 'note'} size={14} /> {done ? 'Copied' : label}
+    </button>
   );
 }
 
-function SlotCard({ s, colorOf, onPick, chosen, rank }) {
+function Range({ dir, setDir, days, setDays, sameDay, setSameDay }) {
   return (
-    <div className={`slot place ${chosen ? 'best' : ''}`}>
-      <div className="slot-when">
-        <b>{s.weekday.slice(0, 3)} {shortDay(s.date).split(', ').slice(1).join(', ') || shortDay(s.date)}</b>
-        <span>{s.label}</span>
-        <span className="muted small">{away(s.daysAway)}</span>
+    <div className="rs-range">
+      <div className="segmented">
+        {[['before', 'Earlier'], ['either', 'Earlier or later'], ['after', 'Later']].map(([v, l]) => (
+          <button key={v} className={dir === v ? 'on' : ''} onClick={() => setDir(v)}>{l}</button>
+        ))}
       </div>
-      <div className="slot-team">
-        <b><span className="team-swatch" style={{ '--team': colorOf(s.teamId) }} />{s.team}</b>
-        <span className="muted small">after {s.between?.[0]} · before {s.between?.[1]}</span>
-      </div>
-      <div className="slot-reasons">
-        {rank === 0 && <span className="pill info">Best</span>}
-        {(s.reasons || []).map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
-      </div>
-      <button className={`btn ${chosen ? 'primary' : 'ghost'} sm`} onClick={onPick}>{chosen ? 'Chosen' : 'Use this'}</button>
+      <select value={days} onChange={(e) => setDays(e.target.value)} aria-label="How far">
+        <option value="3">within 3 days</option>
+        <option value="7">within a week</option>
+        <option value="14">within 2 weeks</option>
+      </select>
+      {setSameDay && <label className="check"><input type="checkbox" checked={sameDay} onChange={(e) => setSameDay(e.target.checked)} /> or another time the same day</label>}
     </div>
   );
 }
 
-function Options({ q, picked, onPick, status, setStatus, note, setNote, colorOf, onError }) {
-  const r = useLoad(() => api.rescheduleOptions(q), `ropt:${JSON.stringify(q)}`, onError);
-  const o = r.data;
+export default function Reschedule({ onError }) {
+  const [mode, setMode] = useState('one');
   return (
-    <Card
-      title={o ? <>Best new slots for <b>{o.booking.home}</b></> : 'Best new slots'}
-      actions={o && <span className="muted small">was {o.booking.label} · {o.booking.team} · {o.booking.cleanerHours} cleaner-h</span>}
-      className="flush"
-    >
-      {r.loading && <Skeleton rows={6} height={54} />}
-      <ErrorNote error={r.error} />
-      {o && (
-        <>
-          <div className="resched-call">
-            <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="What the customer said">
-              {STATUS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-            </select>
-            <input className="call-note" placeholder="Note (e.g. prefers mornings)" value={note} onChange={(e) => setNote(e.target.value)} />
-            {picked && <span className="muted small">Chosen: {shortDay(picked.date)} {picked.label} with {picked.team} <button className="linkish" onClick={() => onPick(null)}>clear</button></span>}
+    <>
+      <PageHeader
+        title="Reschedule"
+        subtitle="Find a new time that suits the customer and the routes: their own team, their usual time, a team already nearby."
+        actions={
+          <div className="segmented big">
+            <button className={mode === 'one' ? 'on' : ''} onClick={() => setMode('one')}><Icon name="user" size={15} /> Move a customer</button>
+            <button className={mode === 'day' ? 'on' : ''} onClick={() => setMode('day')}><Icon name="calendar" size={15} /> Move a whole day</button>
           </div>
-          {!o.slots.length && <Empty icon="alert" title="No slot fits">Try more days, the other direction, or allow other times on the same day.</Empty>}
-          <div className="slot-list">
-            {o.slots.map((s, i) => (
-              <SlotCard key={`${s.date}${s.teamId}`} s={s} rank={i} colorOf={colorOf} chosen={picked && picked.date === s.date && picked.teamId === s.teamId} onPick={() => onPick(s)} />
-            ))}
-          </div>
-          {o.considered > o.slots.length && <p className="muted small resched-more">{o.considered - o.slots.length} more slots, further away or with more driving.</p>}
-        </>
-      )}
-    </Card>
+        }
+      />
+      {mode === 'one' ? <OneCustomer onError={onError} /> : <WholeDay onError={onError} />}
+      <p className="muted small rs-foot">New times fit into a team's route: driving from the job before (or the office at 8:15 AM) and on to the next job or back by the return time. Drive times are estimates. Nothing changes until you move the booking in MaidCentral.</p>
+    </>
   );
 }
 
-function DayPlan({ common, st, setPick, setStatus, setNote, colorOf, onError, date }) {
-  // Office choices (and agreed ones) are fixed; everything else is planned around them.
-  const fixed = JSON.stringify(st.picks);
-  const skip = Object.entries(st.status).filter(([, v]) => v === 'cancel').map(([id]) => id);
-  const q = { ...common, picks: fixed, skip: skip.join(',') };
+// ---------- Move a customer ----------
+
+function OneCustomer({ onError }) {
+  const [booking, setBooking] = useState(null); // { ...booking, date }
+  const [log, setLog] = useStored('reschedule:one', { items: {} });
+  const save = (b, patch) => setLog((l) => ({ items: { ...l.items, [b.id]: { ...(l.items[b.id] || { booking: b }), ...patch, at: Date.now() } } }));
+  const recent = Object.values(log.items).filter((x) => x.pick || x.answer).sort((a, b) => b.at - a.at).slice(0, 8);
+  if (!booking) {
+    return (
+      <>
+        <FindBooking onPick={setBooking} onError={onError} />
+        {recent.length > 0 && (
+          <section className="card">
+            <div className="card-head"><h2>Recently rescheduled</h2><button className="btn ghost sm" onClick={() => setLog({ items: {} })}>Clear</button></div>
+            <div className="card-body rs-recent">
+              {recent.map((x) => (
+                <button key={x.booking.id} className="rs-recent-row" onClick={() => setBooking(x.booking)}>
+                  <b>{x.booking.home}</b>
+                  <span className="muted small">{shortDay(x.booking.date)} {clock(x.booking.start)} → {x.pick ? `${shortDay(x.pick.date)} ${clock(x.pick.start)} · ${x.pick.team}` : 'no time chosen'}</span>
+                  {x.answer && <span className={`pill ${answerOf(x.answer)?.tone}`}>{answerOf(x.answer)?.label}</span>}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    );
+  }
+  const entry = log.items[booking.id] || {};
+  return <NewTime b={booking} entry={entry} save={(p) => save(booking, p)} onBack={() => setBooking(null)} onError={onError} />;
+}
+
+function FindBooking({ onPick, onError }) {
+  const [q, setQ] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [date, setDate] = useState('');
+  // Start reading the next 4 weeks as soon as the page opens.
+  useEffect(() => {
+    api.rescheduleWarm().catch(() => {});
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 350);
+    return () => clearTimeout(t);
+  }, [q]);
+  const found = useLoad(() => (debounced.length >= 2 ? api.rescheduleFind(debounced) : Promise.resolve(null)), `find:${debounced}`, onError);
+  const day = useLoad(() => (date ? api.rescheduleDay(date) : Promise.resolve(null)), `rday:${date}`, onError);
+  const teams = found.data?.teams || day.data?.teams || [];
+  const list = debounced.length >= 2 ? found.data?.results || [] : day.data?.date === date ? day.data.bookings.map((b) => ({ ...b, date })) : [];
+  return (
+    <section className="card rs-find">
+      <div className="card-body">
+        <h2 className="rs-step"><span>1</span> Which booking?</h2>
+        <div className="rs-search">
+          <Icon name="search" size={18} />
+          <input autoFocus placeholder="Type the customer's name…" value={q} onChange={(e) => (setQ(e.target.value), setDate(''))} />
+        </div>
+        <div className="rs-or">
+          <span className="muted small">or pick a date</span>
+          {nextWeekdays(10).map((d) => (
+            <button key={d} className={`chip ${date === d && !debounced ? 'on' : ''}`} onClick={() => (setDate(d), setQ(''), setDebounced(''))}>{shortDay(d)}</button>
+          ))}
+          <input type="date" value={date} onChange={(e) => (setDate(e.target.value), setQ(''), setDebounced(''))} aria-label="Another date" />
+        </div>
+        {(found.loading && debounced.length >= 2) || (day.loading && date) ? <Skeleton rows={4} height={46} /> : null}
+        <ErrorNote error={found.error || day.error} />
+        {debounced.length >= 2 && found.data && !list.length && <Empty icon="search" title={`No bookings for "${debounced}" in the next 4 weeks`}>Check the spelling, or pick the date instead.</Empty>}
+        {date && !debounced && day.data && !list.length && <Empty icon="calendar" title={`No bookings on ${shortDay(date)}`} />}
+        {list.length > 0 && (
+          <div className="rs-results">
+            {list.map((b) => (
+              <button key={`${b.id}${b.date}`} className="rs-booking" onClick={() => onPick(b)}>
+                <span className="rs-when"><b>{shortDay(b.date)}</b><span>{clock(b.start)}</span></span>
+                <span className="rs-who"><b>{b.home}</b><span className="muted small">{b.customer || ''}{b.area ? ` · ${b.area}` : ''}</span></span>
+                <span className="rs-team"><span className="team-swatch" style={{ '--team': colorOf(teams, b.teamId) }} />{b.team}</span>
+                <span className="muted small">{b.frequency ? plainFreq(b.frequency) : 'One-time'}</span>
+                <Icon name="chevronRight" size={16} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function NewTime({ b, entry, save, onBack, onError }) {
+  const [dir, setDir] = useState('either');
+  const [days, setDays] = useState('7');
+  const [sameDay, setSameDay] = useState(false);
+  const q = { date: b.date, job: b.id, dir, days, sameDay: String(sameDay), limit: 80 };
+  const r = useLoad(() => api.rescheduleOptions(q), `ropt:${JSON.stringify(q)}`, onError);
+  const o = r.data;
+  const teams = o?.teams || [];
+  const pick = entry.pick || null;
+  const choose = (s) => save({ pick: { date: s.date, teamId: s.teamId, team: s.team, start: s.start, end: s.end, label: s.label }, answer: '' });
+  const isPick = (s) => pick && pick.date === s.date && pick.teamId === s.teamId && pick.start === s.start;
+  // Day strip: every date in the window, with its free times.
+  const dates = [];
+  if (o) {
+    const span = Number(days);
+    for (let i = -span; i <= span; i++) {
+      const d = shiftDay(b.date, i);
+      if (d <= today()) continue;
+      if (dir === 'before' && i > 0) continue;
+      if (dir === 'after' && i < 0) continue;
+      const wd = parse(d).getDay();
+      const slots = o.slots.filter((s) => s.date === d).sort((x, y) => x.start - y.start);
+      if ((wd === 0 || wd === 6) && !slots.length) continue;
+      dates.push({ d, slots, original: i === 0 });
+    }
+  }
+  const msg = pick ? message(b, b.date, pick, '') : '';
+  return (
+    <>
+      <section className="card rs-booking-head">
+        <div className="card-body">
+          <button className="linkish" onClick={onBack}>← Choose another booking</button>
+          <div className="rs-head">
+            <div>
+              <span className="muted small">Moving</span>
+              <h2>{b.home} <span className="muted">{b.customer ? `· ${b.customer}` : ''}</span></h2>
+              <span>{longDay(b.date)} at {clock(b.start)} with <span className="team-swatch" style={{ '--team': colorOf(teams, b.teamId) }} />{b.team} · {b.frequency ? plainFreq(b.frequency).toLowerCase() : 'one-time'}{b.area ? ` · ${b.area}` : ''}</span>
+            </div>
+            <Range dir={dir} setDir={setDir} days={days} setDays={setDays} sameDay={sameDay} setSameDay={setSameDay} />
+          </div>
+        </div>
+      </section>
+      {r.loading && <Skeleton rows={4} height={70} />}
+      <ErrorNote error={r.error} />
+      {o && (
+        <>
+          <h2 className="rs-step"><span>2</span> Pick a new time</h2>
+          {!o.slots.length && <Empty icon="alert" title="No free time fits">Try "within 2 weeks", the other direction, or another time the same day.</Empty>}
+          <div className="rs-best">
+            {o.slots.slice(0, 3).map((s, i) => (
+              <button key={`${s.date}${s.teamId}${s.start}`} className={`rs-choice ${isPick(s) ? 'on' : ''}`} onClick={() => choose(s)}>
+                {i === 0 && <span className="pill info rs-badge">Best match</span>}
+                <span className="rs-choice-day">{shortDay(s.date)}</span>
+                <span className="rs-choice-time">{clock(s.start)}</span>
+                <span className="rs-choice-team"><span className="team-swatch" style={{ '--team': colorOf(teams, s.teamId) }} />{s.team} · {away(s.daysAway)}</span>
+                <span className="muted small">{plainReason(s, { team: false })}</span>
+                {warning(s) && <span className="warn-text small">{warning(s)}</span>}
+                <span className={`btn ${isPick(s) ? 'primary' : 'ghost'} sm`}>{isPick(s) ? <><Icon name="check" size={14} /> Chosen</> : 'Choose'}</span>
+              </button>
+            ))}
+          </div>
+          {dates.length > 0 && (
+            <section className="card flush">
+              <div className="card-head"><h2>All free times</h2><span className="muted small">click a time to choose it · best ones are bold</span></div>
+              <div className="rs-strip">
+                {dates.map(({ d, slots, original }) => (
+                  <div key={d} className={`rs-day ${original ? 'original' : ''}`}>
+                    <div className="rs-day-head"><b>{parse(d).toLocaleDateString([], { weekday: 'short' })}</b><span>{parse(d).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>{original && <em>their day</em>}</div>
+                    {slots.length ? slots.map((s) => (
+                      <button key={`${s.teamId}${s.start}`} className={`rs-slot ${isPick(s) ? 'on' : ''} ${o.slots.indexOf(s) < 5 ? 'top' : ''}`} onClick={() => choose(s)} title={plainReason(s)}>
+                        <i style={{ background: colorOf(teams, s.teamId) }} />{clock(s.start).replace(':00', '')}<span>{s.team}</span>
+                      </button>
+                    )) : <span className="muted small rs-full">{original && !sameDay ? '—' : 'no room'}</span>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+          {pick && (
+            <section className="card rs-confirm">
+              <div className="card-body">
+                <h2 className="rs-step"><span>3</span> Let {firstName(b)} know</h2>
+                <p className="rs-change">
+                  <span><s>{shortDay(b.date)} {clock(b.start)} · {b.team}</s></span>
+                  <Icon name="chevronRight" size={16} />
+                  <b>{shortDay(pick.date)} {clock(pick.start)} · {pick.team}</b>
+                </p>
+                <label className="field">
+                  <span>Message (edit as you like)</span>
+                  <textarea rows={3} value={entry.msg ?? msg} onChange={(e) => save({ msg: e.target.value })} />
+                </label>
+                <div className="rs-actions"><CopyButton text={entry.msg ?? msg} label="Copy message" /></div>
+                <span className="muted small">What did they say?</span>
+                <div className="rs-answers">
+                  {ANSWERS.map((a) => (
+                    <button key={a.value} className={`rs-answer ${a.tone} ${entry.answer === a.value ? 'on' : ''}`} onClick={() => save({ answer: entry.answer === a.value ? '' : a.value })}>
+                      <Icon name={a.icon} size={15} /> {a.label}
+                    </button>
+                  ))}
+                </div>
+                <input className="call-note" placeholder="Note (e.g. call back after 5)" value={entry.note || ''} onChange={(e) => save({ note: e.target.value })} />
+                {entry.answer === 'agreed' && (
+                  <div className="rs-done"><Icon name="check" size={16} /> Now move it in MaidCentral: {shortDay(b.date)} {clock(b.start)} ({b.team}) → <b>{shortDay(pick.date)} {clock(pick.start)} ({pick.team})</b></div>
+                )}
+                {entry.answer === 'other' && <div className="muted small">Pick another time above; the message updates.</div>}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+// ---------- Move a whole day ----------
+
+function WholeDay({ onError }) {
+  const [date, setDate] = useState(() => nextWeekdays(1)[0]);
+  const [st, setSt] = useStored(`reschedule:${date}`, { picks: {}, status: {}, notes: {}, reason: '' });
+  const [dir, setDir] = useState('either');
+  const [days, setDays] = useState('7');
+  const [filter, setFilter] = useState('call');
+  const [open, setOpen] = useState(null);
+  const skip = Object.entries(st.status || {}).filter(([, v]) => v === 'cancel').map(([id]) => id);
+  const q = { date, dir, days, picks: JSON.stringify(st.picks || {}), skip: skip.join(',') };
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -210,91 +363,127 @@ function DayPlan({ common, st, setPick, setStatus, setNote, colorOf, onError, da
       .catch((e) => n === seq.current && (onError(e), setError(e)))
       .finally(() => n === seq.current && setBusy(false));
   }, [key]);
-  const [copied, setCopied] = useState(false);
-  if (!plan) return <>{busy && <Skeleton rows={8} height={50} />}<ErrorNote error={error} /></>;
-  const rows = plan.rows.filter((r) => !skip.includes(String(r.booking.id)));
-  const agreed = rows.filter((r) => st.status[r.booking.id] === 'agreed').length;
-  const toCall = rows.filter((r) => !st.status[r.booking.id]).length;
-  const copy = () => {
-    const text = plan.rows
-      .map((r) => `${r.booking.home}: ${shortDay(date)} ${clock(r.booking.start)} (${r.booking.team}) → ${r.pick ? `${shortDay(r.pick.date)} ${clock(r.pick.start)} (${r.pick.team})` : 'no slot found'}${st.status[r.booking.id] ? ` [${STATUS.find((x) => x.value === st.status[r.booking.id])?.label}]` : ''}${st.notes[r.booking.id] ? ` - ${st.notes[r.booking.id]}` : ''}`)
-      .join('\n');
-    navigator.clipboard?.writeText(text).then(() => (setCopied(true), setTimeout(() => setCopied(false), 2000)));
+  const teams = plan?.teams || [];
+  const setPick = (id, s) => setSt((x) => {
+    const picks = { ...(x.picks || {}) };
+    if (s) picks[id] = { date: s.date, teamId: s.teamId, start: s.start, team: s.team };
+    else delete picks[id];
+    return { ...x, picks };
+  });
+  const answer = (row, v) => setSt((x) => {
+    const id = row.booking.id;
+    const status = { ...(x.status || {}), [id]: (x.status || {})[id] === v ? '' : v };
+    const picks = { ...(x.picks || {}) };
+    // Agreed locks the slot they agreed to.
+    if (status[id] === 'agreed' && row.pick) picks[id] = { date: row.pick.date, teamId: row.pick.teamId, start: row.pick.start, team: row.pick.team };
+    return { ...x, status, picks };
+  });
+  const rows = (plan?.date === date ? plan.rows : []) || [];
+  const state = (r) => (st.status || {})[r.booking.id] || '';
+  const groups = {
+    call: rows.filter((r) => !state(r)),
+    waiting: rows.filter((r) => ['noanswer', 'voicemail', 'other'].includes(state(r))),
+    agreed: rows.filter((r) => state(r) === 'agreed'),
+    cancel: rows.filter((r) => state(r) === 'cancel'),
+    all: rows,
   };
+  const sorted = groups.agreed.length + groups.cancel.length;
+  const shown = groups[filter] || rows;
+  const list = rows
+    .map((r) => `${r.booking.home}: ${shortDay(date)} ${clock(r.booking.start)} (${r.booking.team}) → ${r.pick ? `${shortDay(r.pick.date)} ${clock(r.pick.start)} (${r.pick.team})` : r.skipped ? 'cancelled' : 'no time found'}${state(r) ? ` [${answerOf(state(r))?.label}]` : ''}${(st.notes || {})[r.booking.id] ? ` – ${st.notes[r.booking.id]}` : ''}`)
+    .join('\n');
+
   return (
-    <div className={busy ? 'replanning' : ''}>
-      <Stats
-        items={[
-          { label: 'Bookings to move', value: rows.length, hint: skip.length ? `${skip.length} skipped` : dayLabel(date) },
-          { label: 'Slots found', value: `${rows.filter((r) => r.pick).length} of ${rows.length}`, tone: rows.some((r) => !r.pick) ? 'warn' : 'ok', hint: 'no two in the same place' },
-          { label: 'Agreed', value: agreed, tone: agreed === rows.length ? 'ok' : '' },
-          { label: 'Still to call', value: toCall, tone: toCall ? 'warn' : 'ok' },
-        ]}
-      />
-      <Card
-        title={<>Plan for {shortDay(date)} <Help wide>Each booking gets the best slot that's still free after the others: the hardest to place go first. Choose an alternative to fix it there; everything else is re-planned around it. Marking a customer "Agreed" locks their slot. "Skip / cancel" takes them out of the plan.</Help></>}
-        actions={<button className="btn ghost sm" onClick={copy}><Icon name="note" size={14} /> {copied ? 'Copied' : 'Copy the list'}</button>}
-        className="flush"
-      >
-        <div className="tablewrap">
-          <table className="data resched-plan">
-            <thead><tr><th>Booking</th><th>Move to</th><th>Why</th><th>Customer said</th></tr></thead>
-            <tbody>
-              {plan.rows.map((r) => {
-                const id = r.booking.id;
-                const status = st.status[id] || '';
-                const skipped = status === 'cancel';
-                return (
-                  <tr key={id} className={skipped ? 'muted-row' : ''}>
-                    <td>
-                      <span className="team-swatch" style={{ '--team': colorOf(r.booking.teamId) }} /><b>{r.booking.home}</b>
-                      <span className="muted small block">{clock(r.booking.start)} · {r.booking.team}{r.booking.frequency ? ` · ${plainFreq(r.booking.frequency)}` : ''}</span>
-                    </td>
-                    <td>
-                      {r.pick ? (
-                        <>
-                          <b>{r.pick.weekday.slice(0, 3)} {shortDay(r.pick.date).replace(/^\w+, /, '')}</b> {clock(r.pick.start)}
-                          <span className="muted small block"><span className="team-swatch" style={{ '--team': colorOf(r.pick.teamId) }} />{r.pick.team} · {away(r.pick.daysAway)}{r.pick.fixed ? ' · chosen' : ''}</span>
-                        </>
-                      ) : skipped ? <span className="muted">Skipped</span> : <span className="bad-text">No slot found</span>}
-                      {!skipped && (r.alternatives.length > 0 || r.pick?.fixed) && (
-                        <select
-                          className="alt-select"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value === 'auto') return setPick(id, null);
-                            const s = r.alternatives[Number(e.target.value)];
-                            if (s) setPick(id, s);
-                          }}
-                        >
-                          <option value="">Other options…</option>
-                          {r.pick?.fixed && <option value="auto">Let the plan choose</option>}
-                          {r.alternatives.map((s, i) => <option key={i} value={i}>{s.weekday.slice(0, 3)} {shortDay(s.date).replace(/^\w+, /, '')} {clock(s.start)} · {s.team} (+{s.extraDriveMin} min drive)</option>)}
-                        </select>
-                      )}
-                    </td>
-                    <td className="small">{(r.pick?.reasons || []).slice(0, 3).map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}</td>
-                    <td>
-                      <select
-                        className={status ? `tone-${STATUS_TONE[status]}` : ''}
-                        value={status}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setStatus(id, v);
-                          if (v === 'agreed' && r.pick && !r.pick.fixed) setPick(id, r.pick);
-                        }}
-                      >
-                        {STATUS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-                      </select>
-                      <input className="call-note" placeholder="Note" value={st.notes[id] || ''} onChange={(e) => setNote(id, e.target.value)} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    <>
+      <section className="card">
+        <div className="card-body rs-day-setup">
+          <div>
+            <h2 className="rs-step"><span>1</span> Which day?</h2>
+            <div className="rs-or">
+              {nextWeekdays(10).map((d) => <button key={d} className={`chip ${date === d ? 'on' : ''}`} onClick={() => setDate(d)}>{shortDay(d)}</button>)}
+              <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Another date" />
+            </div>
+          </div>
+          <div className="rs-day-opts">
+            <label className="field"><span>Why (goes in the messages)</span><input placeholder="e.g. the Thanksgiving holiday" value={st.reason || ''} onChange={(e) => setSt((x) => ({ ...x, reason: e.target.value }))} /></label>
+            <Range dir={dir} setDir={setDir} days={days} setDays={setDays} />
+          </div>
         </div>
-      </Card>
-    </div>
+      </section>
+      <ErrorNote error={error} />
+      {!plan && busy && <Skeleton rows={6} height={64} />}
+      {plan?.date === date && !rows.length && <Empty icon="calendar" title={`No bookings on ${longDay(date)}`} />}
+      {rows.length > 0 && (
+        <div className={busy ? 'replanning' : ''}>
+          <div className="rs-progress">
+            <div>
+              <b>{sorted} of {rows.length} sorted</b>
+              <span className="muted small">{longDay(date)} · {rows.filter((r) => r.pick).length} new times found{plan.unplaced ? ` · ${plan.unplaced} need a manual look` : ''}</span>
+            </div>
+            <div className="progress"><i style={{ width: `${(sorted / rows.length) * 100}%` }} /></div>
+            <CopyButton text={list} label="Copy the full list" small />
+          </div>
+          <div className="chip-row">
+            {[['call', 'To call'], ['waiting', 'Waiting to hear back'], ['agreed', 'Agreed'], ['cancel', 'Cancelled'], ['all', 'All']].map(([k, l]) => (
+              <button key={k} className={`chip ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>{l} <span className="muted">{groups[k].length}</span></button>
+            ))}
+          </div>
+          {!shown.length && <Empty icon="check" title={filter === 'call' ? 'Everyone has been called' : 'Nobody here'} />}
+          <div className="rs-cards">
+            {shown.map((r) => {
+              const id = r.booking.id;
+              const s = state(r);
+              const msg = r.pick ? message(r.booking, date, r.pick, st.reason) : '';
+              return (
+                <div key={id} className={`rs-card ${s ? `is-${s}` : ''}`}>
+                  <div className="rs-card-who">
+                    <b>{r.booking.home}</b>
+                    <span className="muted small">{r.booking.customer || ''}</span>
+                    <span className="small"><span className="team-swatch" style={{ '--team': colorOf(teams, r.booking.teamId) }} />{clock(r.booking.start)} · {r.booking.team} · {r.booking.frequency ? plainFreq(r.booking.frequency).toLowerCase() : 'one-time'}</span>
+                  </div>
+                  <div className="rs-card-new">
+                    {r.pick ? (
+                      <>
+                        <span className="muted small">Move to</span>
+                        <b className="rs-new-time">{shortDay(r.pick.date)} · {clock(r.pick.start)}</b>
+                        <span className="small"><span className="team-swatch" style={{ '--team': colorOf(teams, r.pick.teamId) }} />{r.pick.reasons?.length ? plainReason(r.pick) : r.pick.team}{r.pick.fixed ? ' · chosen by you' : ''}</span>
+                        {warning(r.pick) && <span className="warn-text small">{warning(r.pick)}</span>}
+                      </>
+                    ) : r.skipped ? <b className="muted">Visit cancelled</b> : <b className="bad-text">No free time found: widen the range</b>}
+                    {!r.skipped && (
+                      <button className="linkish small" onClick={() => setOpen(open === id ? null : id)}>{open === id ? 'Hide other times' : 'Other times'}</button>
+                    )}
+                    {open === id && (
+                      <div className="rs-alts">
+                        {r.alternatives.map((a) => (
+                          <button key={`${a.date}${a.teamId}${a.start}`} className="rs-slot" onClick={() => (setPick(id, a), setOpen(null))} title={plainReason(a)}>
+                            <i style={{ background: colorOf(teams, a.teamId) }} />{shortDay(a.date)} {clock(a.start)}<span>{a.team}</span>
+                          </button>
+                        ))}
+                        {r.pick?.fixed && <button className="rs-slot" onClick={() => setPick(id, null)}>Let it choose</button>}
+                        {!r.alternatives.length && <span className="muted small">No other free times in range</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="rs-card-act">
+                    <div className="rs-answers compact">
+                      {ANSWERS.map((a) => (
+                        <button key={a.value} className={`rs-answer ${a.tone} ${s === a.value ? 'on' : ''}`} onClick={() => answer(r, a.value)} title={a.label}>
+                          <Icon name={a.icon} size={14} /> <span>{a.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rs-card-tools">
+                      {msg && <CopyButton text={msg} label="Copy message" small />}
+                      <input className="call-note" placeholder="Note" value={(st.notes || {})[id] || ''} onChange={(e) => setSt((x) => ({ ...x, notes: { ...(x.notes || {}), [id]: e.target.value } }))} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

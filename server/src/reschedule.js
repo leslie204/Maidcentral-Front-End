@@ -14,7 +14,8 @@ import { book, homeIndex, km, driveMin, zones } from './territory.js';
 import { areaNames, areaKey } from './areas.js';
 import { office } from './office.js';
 import { localToday } from './geo.js';
-import { McError } from './mc.js';
+import { McError, mcDate } from './mc.js';
+import { frequencyOf } from './schedulekey.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -187,12 +188,63 @@ const parsePicks = (v) => {
   }
 };
 
-const view = (b) => ({ id: b.id, title: b.title, home: b.home, area: b.area, team: b.team, teamId: b.teamId, start: b.s, end: b.e, label: `${hhmm(b.s)} – ${hhmm(b.e)}`, frequency: b.frequency, cleanerHours: Math.round((b.cleanerMin / 60) * 10) / 10, located: Boolean(b.loc) });
+const view = (b) => ({ id: b.id, title: b.title, home: b.home, customer: String(b.title).split(' - ').slice(1).join(' - ').trim() || null, area: b.area, team: b.team, teamId: b.teamId, start: b.s, end: b.e, label: `${hhmm(b.s)} – ${hhmm(b.e)}`, frequency: b.frequency, cleanerHours: Math.round((b.cleanerMin / 60) * 10) / 10, located: Boolean(b.loc) });
 
 export async function rescheduleDay(mc, q = {}) {
   if (!q.date) throw new McError('input', 'Choose a date.');
   const ctx = await context(mc, q.date, 0);
   return { date: q.date, weekday: WEEKDAY[new Date(`${q.date}T00:00:00Z`).getUTCDay()], bookings: bookingsOf(ctx).map(view), teams: [...ctx.teams.values()] };
+}
+
+// A customer's upcoming bookings (next 4 weeks), for when they call: the office knows the
+// name, not always the date.
+export async function findBookings(mc, q = {}) {
+  const words = String(q.q || '').toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+  // warm=1: just load the next 4 weeks (when the page opens), so the first search is quick.
+  if (!words.length && !q.warm) throw new McError('input', 'Type at least 2 letters of the name.');
+  const from = q.today || localToday();
+  const start = parseDay(from);
+  const dates = Array.from({ length: 28 }, (_, i) => iso(start + i * DAY));
+  // Only the job lists (one request a day); team names and colours from the next few days.
+  const [homes, zs, full] = await Promise.all([
+    book(mc),
+    zones(mc).catch(() => []),
+    Promise.all(dates.slice(0, 3).map((d) => dayData(mc, parseDay(d)).then(analyseDay))),
+  ]);
+  const lookup = homeIndex(homes);
+  const names = areaNames(zs);
+  const teams = new Map();
+  for (const a of full) for (const t of a.teams) if (!teams.has(t.id) || /^Team \d+$/.test(teams.get(t.id).name)) teams.set(t.id, { id: t.id, name: t.name, color: t.color, textColor: t.textColor });
+  const lists = new Array(dates.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: 6 }, async () => {
+      while (next < dates.length) {
+        const i = next++;
+        lists[i] = await dayData(mc, parseDay(dates[i]), { jobsOnly: true });
+      }
+    }),
+  );
+  const out = [];
+  lists.forEach((day, i) => {
+    for (const j of q.warm ? [] : day.jobs) {
+      const title = String(j.Title || '').trim();
+      if (!words.every((w) => title.toLowerCase().includes(w))) continue;
+      const s0 = mcDate(j.Start);
+      const e0 = mcDate(j.End);
+      if (!s0 || !e0) continue;
+      const h = lookup(title);
+      const team = teams.get(j.TeamID) || { id: j.TeamID || 0, name: j.TeamID ? `Team ${j.TeamID}` : 'No team' };
+      const s = Math.round((s0 % DAY) / MIN);
+      const e = Math.round((e0 % DAY) / MIN);
+      out.push({
+        ...view({ id: j.JobInformationId, title, home: title.split(' - ')[0], s, e, cleanerMin: (e - s) * 2, frequency: frequencyOf(day.key, j.FrequencyColor)?.short || null, loc: h ? { lat: h.lat, lng: h.lng } : null, area: h?.zone ? names.get(areaKey(h.zone))?.label || h.zone : null, teamId: team.id, team: team.name }),
+        date: dates[i],
+        weekday: WEEKDAY[new Date(`${dates[i]}T00:00:00Z`).getUTCDay()],
+      });
+    }
+  });
+  return { q: q.q, from, results: out.sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).slice(0, 30), teams: [...teams.values()] };
 }
 
 // Best slots for one booking (the common case: one customer needs another day).
@@ -208,7 +260,7 @@ export function optionsFor(ctx, q) {
   const picks = parsePicks(q.picks);
   delete picks[String(b.id)];
   const slots = slotsFor(ctx, b, optsFrom(q), reservedFrom(ctx, picks, bookings));
-  return { booking: view(b), slots: slots.slice(0, Number(q.limit) || 12), considered: slots.length };
+  return { booking: view(b), slots: slots.slice(0, Number(q.limit) || 12), considered: slots.length, teams: [...ctx.teams.values()] };
 }
 
 // The whole day (or the chosen bookings) spread over the days around it.
@@ -267,5 +319,6 @@ export function planFor(ctx, q) {
     rows,
     placed: rows.filter((r) => r.pick).length,
     unplaced: rows.filter((r) => !r.pick && !r.skipped).length,
+    teams: [...ctx.teams.values()],
   };
 }

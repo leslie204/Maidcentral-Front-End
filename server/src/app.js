@@ -20,7 +20,7 @@ import { scheduleKey, frequencyOf } from './schedulekey.js';
 import { openings, placeCustomer, openingsStatus, prewarm } from './territory.js';
 import { callOutScenarios, roster } from './callouts.js';
 import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
-import { rescheduleDay, rescheduleOptions, reschedulePlan } from './reschedule.js';
+import { rescheduleDay, rescheduleOptions, reschedulePlan, findBookings } from './reschedule.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -239,6 +239,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   api.get('/optimize/apply', handle((req) => applyChosen(req.mc, req.query)));
   api.get('/optimize/compare', handle((req) => compare(req.mc, req.query)));
   api.get('/reschedule/day', handle((req) => rescheduleDay(req.mc, req.query)));
+  api.get('/reschedule/find', handle((req) => findBookings(req.mc, req.query)));
   api.get('/reschedule/options', handle((req) => rescheduleOptions(req.mc, req.query)));
   api.get('/reschedule/plan', handle((req) => reschedulePlan(req.mc, req.query)));
   api.get('/planner/overview', handle((req) => planOverview(req.mc, req.query.from, req.query.days)));

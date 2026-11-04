@@ -97,3 +97,30 @@ test('skipped visits stay listed but take no slot', () => {
   assert.equal(row.pick, null);
   assert.equal(p.unplaced, 0);
 });
+
+test('find a customer: name search over the next 4 weeks, team names filled in', async () => {
+  const { findBookings } = await import('../src/reschedule.js');
+  const day = (iso) => `/Date(${Date.parse(`${iso}T09:00:00Z`)})/`;
+  const end = (iso) => `/Date(${Date.parse(`${iso}T11:00:00Z`)})/`;
+  const mc = {
+    host: 'find.maidcentral.com',
+    async getHtml(path) {
+      return path === '/Report/CustomerEfficiencyMap'
+        ? '<table><thead><tr><th>First Name</th><th>Last Name</th><th>Home Name</th><th>Zip</th><th>Zone</th><th>Latitude</th><th>Longitude</th><th>Default Team</th><th>Frequency</th><th>Day Of Week</th><th>Default Start Time</th><th>P/E</th></tr></thead><tbody><tr><td>Lisa</td><td>Whalen</td><td>Whalen Home</td><td>99201</td><td>west</td><td>47.65</td><td>-117.43</td><td>Blue</td><td>Every Four Weeks</td><td>Thursday</td><td>9:00 AM</td><td></td></tr></tbody></table>'
+        : '';
+    },
+    async getJson(path, params) {
+      const [m, d, y] = String(params?.date || '').split('/').map(Number);
+      const iso = y ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+      if (path === '/Job/ReadJobs') return iso === '2026-11-26' ? [{ JobInformationId: 7, TeamID: 3, Title: 'Whalen Home - Lisa Whalen', Start: day(iso), End: end(iso) }] : [];
+      if (path === '/Job/TeamMonitorTeams') return [{ TeamID: 3, TeamName: 'Blue' }];
+      return [];
+    },
+  };
+  await assert.rejects(findBookings(mc, { q: 'w', today: '2026-11-20' }), /at least 2 letters/);
+  const r = await findBookings(mc, { q: 'lisa whalen', today: '2026-11-20' });
+  assert.equal(r.results.length, 1);
+  assert.deepEqual([r.results[0].date, r.results[0].team, r.results[0].customer, r.results[0].label], ['2026-11-26', 'Blue', 'Lisa Whalen', '9:00 AM – 11:00 AM']);
+  assert.equal((await findBookings(mc, { q: 'nobody', today: '2026-11-20' })).results.length, 0);
+  assert.equal((await findBookings(mc, { warm: '1', today: '2026-11-20' })).results.length, 0);
+});
