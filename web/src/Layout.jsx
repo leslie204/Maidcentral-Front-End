@@ -12,6 +12,7 @@ export const NAV = [
       { path: '/reschedule', label: 'Reschedule', icon: 'repeat' },
       { path: '/openings', label: 'Openings & sales', icon: 'sparkle' },
       { path: '/optimize', label: 'Optimization', icon: 'route' },
+      { path: '/prices', label: 'Price check', icon: 'money' },
     ],
   },
   {

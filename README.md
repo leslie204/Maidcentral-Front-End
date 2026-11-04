@@ -95,6 +95,15 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
+  - Price check (`server/src/prices.js`, page `/prices`): after a rate change, every
+    booking in a date range (default the next 4 weeks) from MaidCentral's Dispatch Board
+    (its filter form, a reviewed read added to `capture/read-posts.txt`), with hourly
+    rate = price ÷ (allowed hours ÷ 2), i.e. per hour of a two-person team, checked
+    against the recurring and one-time rates (editable; default $122 / $130, within $1).
+    Grouped by customer: price now and rate, the price it should be, how many bookings
+    are wrong and from when; rates found (e.g. how many still at the old rate), customers
+    to fix and the under-billing in the range. Tick customers off as they're changed;
+    "Re-check MaidCentral" reads prices again. Copy the to-fix list.
   - Reschedule (`server/src/reschedule.js`, page `/reschedule`), two flows:
     - Move a customer: find them by name (their bookings in the next 4 weeks; the page
       starts loading those as it opens) or by date; see the 3 best new times as big

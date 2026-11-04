@@ -34,3 +34,6 @@
 /ServiceCompanyGroup/ShowAccessHistory
 /Time/ViewTimeRequestModal
 /Report/RateReport
+# Reviewed 2026-11-04: the Dispatch Board's filter form (date range, job statuses, service
+# set type, billing terms, tags). It only re-renders the report; used by the price audit.
+/Report/DispatchBoard
