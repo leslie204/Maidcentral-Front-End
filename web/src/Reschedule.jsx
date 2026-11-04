@@ -304,6 +304,18 @@ function NewTime({ b, entry, save, onBack, onError }) {
             </section>
           )}
           {pick && (
+            <section className="card flush">
+              <div className="card-head"><h2>{shortDay(pick.date)} with {b.home} added</h2><span className="muted small">every team's bookings that day · hover a block for details</span></div>
+              <DayGantt
+                date={pick.date}
+                teams={teams}
+                onError={onError}
+                hide={pick.date === b.date ? [b.id] : []}
+                added={[{ id: b.id, home: b.home, customer: b.customer, teamId: pick.teamId, team: pick.team, start: pick.start, end: pick.end, primary: true }]}
+              />
+            </section>
+          )}
+          {pick && (
             <section className="card rs-confirm">
               <div className="card-body">
                 <h2 className="rs-step"><span>3</span> Let {firstName(b)} know</h2>
@@ -348,6 +360,7 @@ function WholeDay({ onError }) {
   const [days, setDays] = useState('7');
   const [filter, setFilter] = useState('call');
   const [open, setOpen] = useState(null);
+  const [dayOpen, setDayOpen] = useState(null);
   const skip = Object.entries(st.status || {}).filter(([, v]) => v === 'cancel').map(([id]) => id);
   const q = { date, dir, days, picks: JSON.stringify(st.picks || {}), skip: skip.join(',') };
   const [plan, setPlan] = useState(null);
@@ -451,7 +464,10 @@ function WholeDay({ onError }) {
                       </>
                     ) : r.skipped ? <b className="muted">Visit cancelled</b> : <b className="bad-text">No free time found: widen the range</b>}
                     {!r.skipped && (
-                      <button className="linkish small" onClick={() => setOpen(open === id ? null : id)}>{open === id ? 'Hide other times' : 'Other times'}</button>
+                      <span className="rs-links">
+                        <button className="linkish small" onClick={() => setOpen(open === id ? null : id)}>{open === id ? 'Hide other times' : 'Other times'}</button>
+                        {r.pick && <button className="linkish small" onClick={() => setDayOpen(dayOpen === id ? null : id)}>{dayOpen === id ? 'Hide the day' : `See ${shortDay(r.pick.date)}`}</button>}
+                      </span>
                     )}
                     {open === id && (
                       <div className="rs-alts">
@@ -478,6 +494,18 @@ function WholeDay({ onError }) {
                       <input className="call-note" placeholder="Note" value={(st.notes || {})[id] || ''} onChange={(e) => setSt((x) => ({ ...x, notes: { ...(x.notes || {}), [id]: e.target.value } }))} />
                     </div>
                   </div>
+                  {dayOpen === id && r.pick && (
+                    <div className="rs-card-gantt">
+                      <DayGantt
+                        date={r.pick.date}
+                        teams={teams}
+                        onError={onError}
+                        added={rows
+                          .filter((o) => o.pick && o.pick.date === r.pick.date)
+                          .map((o) => ({ id: o.booking.id, home: o.booking.home, customer: o.booking.customer, teamId: o.pick.teamId, team: o.pick.team, start: o.pick.start, end: o.pick.end, primary: o.booking.id === id }))}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -485,5 +513,97 @@ function WholeDay({ onError }) {
         </div>
       )}
     </>
+  );
+}
+
+// ---------- The new date as a timeline ----------
+
+const span = (s, e) => `${clock(s).replace(' AM', '').replace(' PM', '')}–${clock(e)}`;
+const homeName = (h) => String(h || '').replace(/ Home$/i, '');
+// Dark or white text, whichever reads better on a team colour.
+const ink = (bg) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(bg || '').trim());
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.62 ? '#1f2937' : '#fff';
+};
+
+// Every team's bookings on a date, with the moved booking(s) placed in (highlighted).
+//   added: [{ id, home, customer, teamId, team, start, end, primary }]
+//   hide: booking ids no longer on this date (moved within the same day)
+function DayGantt({ date, added = [], hide = [], teams: knownTeams = [], onError, title }) {
+  const day = useLoad(() => api.rescheduleDay(date), `rday:${date}`, onError);
+  const d = day.data?.date === date ? day.data : null;
+  if (!d) return <div className="gantt-wrap">{day.loading ? <Skeleton rows={4} height={36} /> : <ErrorNote error={day.error} />}</div>;
+  const teams = [...(d.teams || []), ...knownTeams.filter((t) => !(d.teams || []).some((x) => x.id === t.id))];
+  const hidden = new Set(hide.map(String));
+  const items = [
+    ...d.bookings.filter((b) => !hidden.has(String(b.id)) && !added.some((a) => String(a.id) === String(b.id))).map((b) => ({ ...b, isNew: false })),
+    ...added.map((a) => ({ ...a, isNew: true })),
+  ];
+  const teamIds = [...new Set(items.map((b) => b.teamId))].sort((a, b) => {
+    const na = items.find((x) => x.teamId === a)?.team || '';
+    const nb = items.find((x) => x.teamId === b)?.team || '';
+    // The team getting the new booking first, then by name.
+    return (items.some((x) => x.teamId === b && x.primary) ? 1 : 0) - (items.some((x) => x.teamId === a && x.primary) ? 1 : 0) || na.localeCompare(nb);
+  });
+  const s0 = Math.floor(Math.min(8 * 60, ...items.map((b) => b.start)) / 60) * 60;
+  const e0 = Math.ceil(Math.max(17 * 60, ...items.map((b) => b.end)) / 60) * 60;
+  const x = (m) => ((m - s0) / (e0 - s0)) * 100;
+  const hours = [];
+  for (let h = s0; h <= e0; h += 60) hours.push(h);
+  const primary = added.find((a) => a.primary) || added[0];
+  const sameTeam = primary ? items.filter((b) => b.teamId === primary.teamId).sort((a, b) => a.start - b.start) : [];
+  return (
+    <div className="gantt-wrap">
+      <div className="gantt-title">
+        <b>{title || longDay(date)}</b>
+        <span className="muted small">{items.length} bookings · {teamIds.length} teams{added.length ? ` · ${added.length} moved here` : ''}</span>
+        <span className="gantt-key"><i className="k-new" />moved here</span>
+      </div>
+      <div className="gantt-scroll">
+        <div className="gantt">
+          <div className="gantt-axis">
+            <span />
+            <div>{hours.map((h) => <span key={h} style={{ left: `${x(h)}%` }}>{((h / 60 + 11) % 12) + 1}{h < 720 ? 'am' : 'pm'}</span>)}</div>
+          </div>
+          {teamIds.map((t) => {
+            const row = items.filter((b) => b.teamId === t).sort((a, b) => a.start - b.start);
+            const name = row[0]?.team || `Team ${t}`;
+            const bg = colorOf(teams, t);
+            const hasNew = row.some((b) => b.isNew);
+            return (
+              <div key={t} className={`gantt-row ${hasNew ? 'has-new' : ''}`}>
+                <div className="gantt-team"><span className="team-swatch" style={{ '--team': bg }} /><b>{name}</b><span className="muted small">{row.length}</span></div>
+                <div className="gantt-track">
+                  {hours.map((h) => <i key={h} className="gantt-grid" style={{ left: `${x(h)}%` }} />)}
+                  {row.map((b) => (
+                    <div
+                      key={`${b.id}${b.isNew ? 'n' : ''}`}
+                      className={`gantt-job ${b.isNew ? 'is-new' : ''} ${b.isNew && !b.primary ? 'secondary' : ''}`}
+                      style={{ left: `${x(b.start)}%`, width: `${Math.max(x(b.end) - x(b.start), 1)}%`, background: b.isNew ? undefined : bg, color: b.isNew ? undefined : ink(bg) }}
+                      title={`${b.home}${b.customer ? ` · ${b.customer}` : ''}\n${clock(b.start)} – ${clock(b.end)}${b.isNew ? '\nMoved here' : ''}`}
+                    >
+                      <b>{b.isNew && <em>NEW</em>}{homeName(b.home)}</b>
+                      <span>{span(b.start, b.end)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {primary && (
+        <div className="gantt-list">
+          <span className="muted small">{primary.team}'s day with the change:</span>
+          {sameTeam.map((b) => (
+            <span key={`${b.id}${b.isNew ? 'n' : ''}`} className={`gantt-stop ${b.isNew ? 'is-new' : ''}`}>
+              <b>{span(b.start, b.end)}</b> {b.home}{b.customer ? ` · ${b.customer}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
