@@ -11,11 +11,12 @@
 import { mcDate, McError } from './mc.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
 import { returnBy, leaveAt } from './office.js';
+import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
-const cache = new WeakMap(); // McSession -> Map(key -> { at, ttl, value })
+const cache = perSession(); // McSession -> Map(key -> { at, ttl, value })
 
 export const wall = (ms) => (ms == null ? null : new Date(ms).toISOString().slice(0, 19));
 export const hours = (ms) => Math.round((ms / HOUR) * 100) / 100;
@@ -61,7 +62,7 @@ export async function dayData(mc, dayMs, { jobsOnly = false } = {}) {
   const iso = isoDay(dayMs);
   const date = mcDay(iso);
   const past = dayMs < Date.now() - DAY;
-  const ttl = past ? 6 * HOUR : 3 * MIN;
+  const ttl = past ? FRESH.past : FRESH.schedule;
   const jobs = await cached(mc, `jobs:${iso}`, ttl, () => mc.getJson('/Job/ReadJobs', { date, view: 'HalfHourView' }));
   if (jobsOnly) return { iso, jobs, key: await scheduleKey(mc) };
   const [teams, shifts, employees] = await Promise.all([

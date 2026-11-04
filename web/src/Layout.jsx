@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { api } from './api.js';
+import { onRefresh, triggerRefresh, lastRefreshAt } from './hooks.js';
 
 export const NAV = [
   {
@@ -97,6 +98,7 @@ export default function Layout({ me, pathname, go, onSignOut, children }) {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <Freshness />
           <div className="readonly-note" title="Data comes live from MaidCentral. Nothing here can change it.">
             <Icon name="lock" size={14} />
             <span className="label">Read-only preview</span>
@@ -191,6 +193,40 @@ function Palette({ go, onClose }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// When the data was last read, and a button to read everything again from MaidCentral.
+function Freshness() {
+  const [at, setAt] = useState(lastRefreshAt());
+  const [busy, setBusy] = useState(false);
+  const [, setNow] = useState(0);
+  useEffect(() => onRefresh((t) => setAt(t)), []);
+  useEffect(() => {
+    const t = setInterval(() => setNow((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const mins = Math.floor((Date.now() - at) / 60_000);
+  const refresh = async () => {
+    setBusy(true);
+    try {
+      await api.refresh();
+    } catch {
+      /* the pages report their own errors */
+    }
+    triggerRefresh();
+    setBusy(false);
+  };
+  return (
+    <div className="freshness" title="Every screen reads MaidCentral again every 5 minutes while it's open. Refresh reads everything now.">
+      <span className="label">
+        <b>{busy ? 'Refreshing…' : mins < 1 ? 'Up to date' : `Updated ${mins} min ago`}</b>
+        <span>{new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · from MaidCentral</span>
+      </span>
+      <button className="icon-button" onClick={refresh} disabled={busy} aria-label="Refresh from MaidCentral" title="Refresh everything from MaidCentral">
+        <Icon name="repeat" size={16} />
+      </button>
     </div>
   );
 }

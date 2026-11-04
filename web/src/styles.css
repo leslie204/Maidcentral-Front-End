@@ -876,3 +876,10 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
   .pc-day-item { grid-template-columns: 1fr; }
 }
 .pc-views .segmented button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Data freshness (sidebar) */
+.freshness { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; padding: 6px 4px 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.freshness .label { display: grid; gap: 1px; }
+.freshness .label b { font-weight: 600; color: var(--text); }
+.freshness .label span { color: var(--muted); font-size: 11px; }
+.shell.nav-collapsed .freshness { justify-content: center; padding: 4px; border: 0; }

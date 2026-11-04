@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, today, shiftDay } from './api.js';
+import { useRefreshTick } from './hooks.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Stats, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
 
@@ -62,10 +63,11 @@ export default function Prices({ onError }) {
       .catch((e) => (onError(e), setError(e)))
       .finally(() => setBusy(false));
   };
+  const tick = useRefreshTick();
   useEffect(() => {
     const t = setTimeout(() => load(false), 300);
     return () => clearTimeout(t);
-  }, [range.from, range.to, rates.recurring, rates.oneTime]);
+  }, [range.from, range.to, rates.recurring, rates.oneTime, tick]);
 
   const list = useMemo(() => {
     if (!data) return [];

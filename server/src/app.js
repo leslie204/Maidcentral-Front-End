@@ -22,6 +22,7 @@ import { callOutScenarios, roster } from './callouts.js';
 import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
 import { rescheduleDay, rescheduleOptions, reschedulePlan, findBookings } from './reschedule.js';
 import { priceCheck } from './prices.js';
+import { forget, FRESH } from './cache.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -43,14 +44,15 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   app.get('/healthz', (req, res) => res.json({ ok: true }));
 
-  // Keep openings fresh for people active in the last 2 hours, so the page opens at once.
+  // Keep openings fresh for people active in the last 2 hours, so the page opens at once
+  // (rebuilt a little more often than they go stale; see FRESH in cache.js).
   if (warm) {
     setInterval(() => {
       for (const s of cache.values()) {
         const lastUsed = s.expiresAt - IDLE_MS;
         if (s.mc.signedIn && Date.now() - lastUsed < 2 * 60 * 60 * 1000) prewarm(s.mc);
       }
-    }, 15 * 60 * 1000).unref();
+    }, 4 * 60 * 1000).unref();
   }
 
   const sidOf = (req) => /(?:^|;\s*)mcfe_sid=([a-f0-9]{64})/.exec(req.headers.cookie || '')?.[1];
@@ -241,6 +243,13 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   api.get('/optimize/compare', handle((req) => compare(req.mc, req.query)));
   api.get('/reschedule/day', handle((req) => rescheduleDay(req.mc, req.query)));
   api.get('/prices/check', handle((req) => priceCheck(req.mc, req.query)));
+  // Refresh: forget every copy kept for this person, so all screens read MaidCentral again.
+  api.post('/refresh', sameOrigin, handle(async (req) => {
+    forget(req.mc);
+    if (warm) prewarm(req.mc);
+    return { ok: true, at: new Date().toISOString(), fresh: FRESH };
+  }));
+  api.get('/freshness', handle(async () => ({ fresh: FRESH })));
   api.get('/reschedule/find', handle((req) => findBookings(req.mc, req.query)));
   api.get('/reschedule/options', handle((req) => rescheduleOptions(req.mc, req.query)));
   api.get('/reschedule/plan', handle((req) => reschedulePlan(req.mc, req.query)));

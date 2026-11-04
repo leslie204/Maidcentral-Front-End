@@ -20,6 +20,7 @@ import { office, returnBy, leaveAt } from './office.js';
 import { tables } from './extract.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
+import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -72,10 +73,10 @@ async function dispatchBoard(mc) {
 
 // Revenue per cleaner-hour from today's Dispatch Board (the only screen with prices), for
 // estimating other days. Cached for 30 minutes per person.
-const rates = new WeakMap();
+const rates = perSession();
 export async function revenueRate(mc) {
   const hit = rates.get(mc);
-  if (hit && Date.now() - hit.at < 30 * MIN) return hit;
+  if (hit && Date.now() - hit.at < FRESH.reference) return hit;
   const priced = [...(await dispatchBoard(mc)).values()].filter((b) => b.revenue && b.cleanerHours);
   const hours = priced.reduce((s, b) => s + b.cleanerHours, 0);
   const v = { at: Date.now(), rate: hours ? priced.reduce((s, b) => s + b.revenue, 0) / hours : null, jobs: priced.length };

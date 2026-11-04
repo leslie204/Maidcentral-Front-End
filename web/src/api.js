@@ -25,6 +25,7 @@ export const api = {
   login: (email, password) => call('POST', '/auth/login', { email, password }),
   code: (code) => call('POST', '/auth/code', { code }),
   logout: () => call('POST', '/auth/logout', {}),
+  refresh: () => call('POST', '/api/refresh', {}),
   schedule: (date) => call('GET', `/api/schedule?date=${date}`),
   monitor: (date) => call('GET', `/api/monitor?date=${date}`),
   search: (q) => call('GET', `/api/search?q=${encodeURIComponent(q)}`),

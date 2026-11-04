@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, today, shiftDay } from './api.js';
-import { useLoad } from './hooks.js';
+import { useLoad, useRefreshTick } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Skeleton, ErrorNote, Empty, plainFreq } from './ui.jsx';
@@ -368,6 +368,7 @@ function WholeDay({ onError }) {
   const [error, setError] = useState(null);
   const seq = useRef(0);
   const key = JSON.stringify(q);
+  const tick = useRefreshTick();
   useEffect(() => {
     const n = ++seq.current;
     setBusy(true);
@@ -375,7 +376,7 @@ function WholeDay({ onError }) {
       .then((p) => n === seq.current && (setPlan(p), setError(null)))
       .catch((e) => n === seq.current && (onError(e), setError(e)))
       .finally(() => n === seq.current && setBusy(false));
-  }, [key]);
+  }, [key, tick]);
   const teams = plan?.teams || [];
   const setPick = (id, s) => setSt((x) => {
     const picks = { ...(x.picks || {}) };

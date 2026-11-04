@@ -16,12 +16,12 @@ import { McError } from './mc.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
 import { localToday, mondayOf } from './geo.js';
+import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
-const HOUR = 60 * MIN;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const cache = new WeakMap();
+const cache = perSession();
 
 async function cached(mc, key, ttl, fn) {
   if (!cache.has(mc)) cache.set(mc, new Map());
@@ -50,7 +50,7 @@ const minutes = (t) => {
 
 // Every active service set with its location (the Customer Efficiency Map report).
 export async function book(mc) {
-  return cached(mc, 'book', 6 * HOUR, async () => {
+  return cached(mc, 'book', FRESH.reference, async () => {
     const t = tables(await mc.getHtml('/Report/CustomerEfficiencyMap'))[0];
     if (!t?.headers.includes('Latitude')) throw new McError('upstream', 'The Customer Efficiency Map report did not return the expected table');
     const col = (h) => t.headers.indexOf(h);
@@ -80,7 +80,7 @@ export async function book(mc) {
 
 // Zones from MaidCentral's settings: name, colour, ZIP codes.
 export async function zones(mc) {
-  return cached(mc, 'zones', 6 * HOUR, async () => {
+  return cached(mc, 'zones', FRESH.reference, async () => {
     const r = root(await mc.getHtml('/Zone'));
     const t = tables(r)[0];
     if (!t) return [];
@@ -103,7 +103,7 @@ export async function zones(mc) {
 
 // ZIP outlines (GeoJSON) for the zones' ZIP codes, for the map.
 export async function zoneShapes(mc) {
-  return cached(mc, 'shapes', 12 * HOUR, async () => {
+  return cached(mc, 'shapes', FRESH.reference, async () => {
     const [geo, zs] = await Promise.all([mc.getJson('/Zone/GetMapJson'), zones(mc)]);
     const byZip = new Map(zs.flatMap((z) => z.zips.map((zip) => [zip, z])));
     return {
@@ -172,7 +172,7 @@ const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pa
 // them). Fresh for 10 minutes; up to an hour old they're returned at once and refreshed in
 // the background. Computed once at the shortest length and filtered per request, so every
 // view (plan, sell, place, any minimum length) reuses the same work.
-const results = new WeakMap(); // McSession -> Map(key -> { at, value, pending })
+const results = perSession(); // McSession -> Map(key -> { at, value, pending })
 const progress = new WeakMap(); // McSession -> { done, total, startedAt }
 
 export function openingsStatus(mc) {
@@ -200,8 +200,8 @@ export async function openings(mc, { from, minHours = 1.5, dayStart, dayEnd } = 
     return pending;
   };
   let value;
-  if (hit?.value && age < 10 * MIN) value = hit.value;
-  else if (hit?.value && age < 60 * MIN) {
+  if (hit?.value && age < FRESH.fourWeeks) value = hit.value;
+  else if (hit?.value && age < FRESH.fourWeeksMax) {
     refresh().catch(() => {});
     value = hit.value;
   } else value = await refresh();

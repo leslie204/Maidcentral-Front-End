@@ -26,6 +26,7 @@ import { areaNames, areaKey } from './areas.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { revenueRate } from './callouts.js';
 import { McError } from './mc.js';
+import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -69,7 +70,7 @@ export function constraintsFrom(q = {}) {
 
 // ---------- The 4-week cycle as data ----------
 
-const datasets = new WeakMap(); // McSession -> Map(from -> { at, value, pending })
+const datasets = perSession(); // McSession -> Map(from -> { at, value, pending })
 const progress = new WeakMap();
 export function optimizeStatus(mc) {
   return progress.get(mc) || null;
@@ -79,7 +80,7 @@ async function dataset(mc, from) {
   if (!datasets.has(mc)) datasets.set(mc, new Map());
   const m = datasets.get(mc);
   const hit = m.get(from);
-  if (hit?.value && Date.now() - hit.at < 15 * MIN) return hit.value;
+  if (hit?.value && Date.now() - hit.at < FRESH.fourWeeks) return hit.value;
   if (hit?.pending) return hit.pending;
   const pending = load(mc, from).then(
     (value) => (m.set(from, { at: Date.now(), value }), value),
@@ -602,7 +603,7 @@ function replay(ds, C, ev, recs, chosen) {
 
 // ---------- The report ----------
 
-const runs = new WeakMap(); // McSession -> Map(key -> { at, value })
+const runs = perSession(); // McSession -> Map(key -> { at, value })
 
 export async function optimize(mc, q = {}) {
   const from = q.from;

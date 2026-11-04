@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, today, shiftDay, dayLabel } from './api.js';
-import { useLoad } from './hooks.js';
+import { useLoad, useRefreshTick } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Skeleton, ErrorNote, Empty, Card, Help } from './ui.jsx';
@@ -95,6 +95,7 @@ export default function Callouts({ onError }) {
   const queryKey = JSON.stringify(query);
 
   // Re-plan shortly after anything changes (who's out, roles, settings, a call result).
+  const tick = useRefreshTick();
   useEffect(() => {
     if (!query) {
       setResult(null);
@@ -116,7 +117,7 @@ export default function Callouts({ onError }) {
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [queryKey]);
+  }, [queryKey, tick]);
 
   const pick = Math.max(0, result?.scenarios?.findIndex((x) => x.moves.join('|') === s.pickKey) ?? 0);
   const plan = result?.scenarios?.[pick];

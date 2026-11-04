@@ -183,6 +183,16 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   hours in the capacity grid).
 - **Design:** same system as the Launch27 app (Geist, sidebar, ⌘K quick search, light
   and dark mode following the device, works on phones).
+- **Freshness (one rule for every screen, `server/src/cache.js`):** today's and future
+  days' schedule is re-read after 2 minutes (past days after 6 hours); Dispatch Board
+  prices after 2 minutes; views built from 4 weeks of schedule (Openings, Optimization)
+  after 5 minutes, never shown more than 10 minutes old (kept warm every 4 minutes for
+  people using the app); customer locations, areas and the frequency legend after 1
+  hour. Every open screen updates itself every 5 minutes while visible (Team Monitor
+  every minute for today). The sidebar shows when data was last read and a Refresh
+  button that clears every copy kept for that person (`POST /api/refresh`) so all
+  screens read MaidCentral again together. What the office entered for past days
+  (call-out results, rescheduling picks) is cleared when the app opens.
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
   them as local ISO strings without a zone, so they show the same as in MaidCentral.
 - **Config:** `MC_PORTAL_URL` (required), `OFFICE_LEAVE_AT` (default `8:15 AM`),

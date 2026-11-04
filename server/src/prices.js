@@ -10,6 +10,7 @@
 import { tables } from './extract.js';
 import { McError } from './mc.js';
 import { localToday } from './geo.js';
+import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -132,7 +133,7 @@ export function audit(bookings, { recurring = 122, oneTime = 130, tolerance = 1,
   };
 }
 
-const cache = new WeakMap(); // McSession -> Map(range -> { at, value })
+const cache = perSession(); // McSession -> Map(range -> { at, value })
 
 export async function priceCheck(mc, q = {}) {
   const from = q.from || localToday();
@@ -143,7 +144,7 @@ export async function priceCheck(mc, q = {}) {
   const m = cache.get(mc);
   const key = `${from}|${to}`;
   let hit = m.get(key);
-  if (!hit || q.fresh || Date.now() - hit.at > 5 * MIN) {
+  if (!hit || q.fresh || Date.now() - hit.at > FRESH.report) {
     const html = await mc.postFormHtml('/Report/DispatchBoard', { StartDate: mcDate(from), EndDate: mcDate(to) });
     hit = { at: Date.now(), value: parseBoard(html) };
     m.set(key, hit);

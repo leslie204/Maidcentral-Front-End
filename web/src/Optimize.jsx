@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
-import { useLoad } from './hooks.js';
+import { useLoad, useRefreshTick } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
 import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
@@ -364,6 +364,7 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
   const ids = chosen ? [...chosen].sort().join(',') : '';
   const [combined, setCombined] = useState(null);
   const seq = useRef(0);
+  const tick = useRefreshTick();
   useEffect(() => {
     if (!r || !chosen) return undefined;
     const n = ++seq.current;
@@ -371,7 +372,7 @@ function Roadmap({ from, A, rate, planWith, setPlanWith, onError }) {
       api.optApply({ ...q, ids }).then((x) => n === seq.current && setCombined(x)).catch(onError);
     }, 300);
     return () => clearTimeout(t);
-  }, [ids, r]);
+  }, [ids, r, tick]);
 
   if (run.loading) return <Skeleton rows={8} height={40} />;
   if (!r) return <ErrorNote error={run.error} />;
