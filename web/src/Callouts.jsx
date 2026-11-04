@@ -3,7 +3,7 @@ import { api, today, shiftDay, dayLabel } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
 import Icon from './Icon.jsx';
-import { PageHeader, Stats, Skeleton, ErrorNote, Empty, Card, Help, plainFreq } from './ui.jsx';
+import { PageHeader, Skeleton, ErrorNote, Empty, Card, Help } from './ui.jsx';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 // Revenue impact in words: a job against the day's other jobs; a plan by how much of the
@@ -127,7 +127,6 @@ export default function Callouts({ onError }) {
       return { calls };
     });
   const logged = Object.values(s.calls).filter((c) => c.outcome);
-  const noAnswer = logged.filter((c) => c.outcome === 'noanswer' || c.outcome === 'voicemail').length;
   const reset = () => {
     if (!confirm(`Clear everything entered for ${dayLabel(date)} (call-outs, roles, call results and notes)?`)) return;
     setS(blank);
@@ -204,25 +203,28 @@ export default function Callouts({ onError }) {
               </div>
             </details>
           )}
-          <div className="callout-settings">
-            <label className="inline-field">Customers can move up to
-              <select value={s.early} onChange={(e) => update({ early: e.target.value })}>
-                {['0', '15', '30', '60'].map((m) => <option key={m} value={m}>{m === '0' ? 'no' : `${m} min`}</option>)}
-              </select>
-              earlier and
-              <select value={s.late} onChange={(e) => update({ late: e.target.value })}>
-                {['30', '60', '120', '180', '240'].map((m) => <option key={m} value={m}>{m >= 60 ? `${m / 60} h` : `${m} min`}</option>)}
-              </select>
-              later
-            </label>
-            <label className="inline-field">Most people in one car
-              <select value={s.maxCar} onChange={(e) => update({ maxCar: e.target.value })}>
-                {['2', '3', '4'].map((n) => <option key={n}>{n}</option>)}
-              </select>
-            </label>
-            <span className="muted small replan">
-              {!s.out.length ? 'Tap who called out to see options' : busy ? 'Updating the plan…' : result ? `${s.out.length} call-out${s.out.length > 1 ? 's' : ''} · ${logged.length} call result${logged.length === 1 ? '' : 's'} used` : ''}
-            </span>
+          <div className="co-options-row">
+            <details className="co-options">
+              <summary>Options: customers may move {s.early === '0' ? 'no earlier' : `${s.early} min earlier`} / {Number(s.late) >= 60 ? `${Number(s.late) / 60} h` : `${s.late} min`} later · cars of up to {s.maxCar}</summary>
+              <div className="callout-settings">
+                <label className="inline-field">Customers can move up to
+                  <select value={s.early} onChange={(e) => update({ early: e.target.value })}>
+                    {['0', '15', '30', '60'].map((m) => <option key={m} value={m}>{m === '0' ? 'no' : `${m} min`}</option>)}
+                  </select>
+                  earlier and
+                  <select value={s.late} onChange={(e) => update({ late: e.target.value })}>
+                    {['30', '60', '120', '180', '240'].map((m) => <option key={m} value={m}>{m >= 60 ? `${m / 60} h` : `${m} min`}</option>)}
+                  </select>
+                  later
+                </label>
+                <label className="inline-field">Most people in one car
+                  <select value={s.maxCar} onChange={(e) => update({ maxCar: e.target.value })}>
+                    {['2', '3', '4'].map((n) => <option key={n}>{n}</option>)}
+                  </select>
+                </label>
+              </div>
+            </details>
+            <span className="muted small">{!s.out.length ? 'Tap who called out' : busy ? 'Working out the plan…' : ''}</span>
           </div>
         </Card>
       )}
@@ -230,29 +232,40 @@ export default function Callouts({ onError }) {
       {busy && !result && <Skeleton rows={4} height={70} />}
       {result && (
         <div className={busy ? 'replanning' : ''}>
-          <Stats
-            items={[
-              { label: 'Jobs on the day', value: result.totalJobs, hint: dayLabel(date) },
-              { label: 'This plan keeps', value: `${plan?.jobsKept ?? 0} of ${result.totalJobs}`, hint: plan?.jobsLost ? `${plural(plan.jobsLost, 'job')} to rebook · ${IMPACT[plan.impact].toLowerCase()}` : 'every job still happens', tone: plan?.jobsLost ? 'warn' : 'ok', help: 'Plans are ranked by how many jobs they keep today. Impact is how much of the day’s revenue the jobs to rebook add up to: low (under 5%), medium (under 15%) or high.' },
-              result.baseline && { label: 'If nobody moves', value: result.baseline.jobs ? `−${plural(result.baseline.jobs, 'job')}` : 'All kept', hint: result.baseline.jobs ? `short cars can't go out · ${IMPACT[result.baseline.impact].toLowerCase()}` : 'every car can still go out', tone: result.baseline.jobs ? 'bad' : '', help: 'Nobody works alone and every car needs a lead, so a car left with one person, or without a lead, cannot go out unless someone moves.' },
-              { label: 'Calls', value: plan ? `${plan.changes.filter((c) => s.calls[c.jobId]?.outcome).length + plan.reschedule.filter((c) => s.calls[c.jobId]?.outcome).length} / ${plan.changes.length + plan.reschedule.length}` : 0, hint: noAnswer ? `${noAnswer} not reached yet` : 'logged / to make' },
-            ]}
-          />
-          <div className="plan-list">
-            {result.scenarios.map((x, i) => (
-              <button key={x.moves.join('|')} className={`plan-card ${pick === i ? 'on' : ''}`} onClick={() => update({ pickKey: x.moves.join('|') })}>
-                <div className="plan-rank">{i === 0 ? 'Best' : `Option ${i + 1}`}</div>
-                <div className="plan-moves">{x.moves.map((m, n) => <span key={n}>{m}</span>)}</div>
-                <div className="plan-nums">
-                  <b className={x.jobsLost ? '' : 'ok-text'}>{x.jobsKept} of {result.totalJobs} jobs</b>
-                  {x.jobsLost > 0 ? <span className="small">{plural(x.jobsLost, 'job')} to rebook <Impact level={x.impact} /></span> : <span className="ok-text small">nothing to rebook</span>}
-                  <span className="muted small">{x.changes.length + x.reschedule.length} calls</span>
+          {!result.scenarios.length && <Empty icon="alert" title="No workable plan found">Open Options to let customers move further or allow bigger cars, or choose someone to fill in.</Empty>}
+          {plan && (
+            <section className="card co-plan">
+              <div className="card-body">
+                <h2 className="rs-step"><span>2</span> {pick === 0 ? 'The best plan' : `Option ${pick + 1}`}</h2>
+                <div className="co-plan-grid">
+                  <ul className="co-moves">
+                    {plan.moves.map((m, i) => <li key={i}>{m}</li>)}
+                  </ul>
+                  <div className="co-nums">
+                    <div><b className={plan.jobsLost ? '' : 'ok-text'}>{plan.jobsKept}<small> of {result.totalJobs}</small></b><span>jobs still happen</span></div>
+                    <div><b>{plan.changes.length + plan.reschedule.length}</b><span>customers to call</span></div>
+                    {plan.jobsLost > 0 && <div><b className="bad-text">{plan.jobsLost}</b><span>to rebook</span></div>}
+                  </div>
                 </div>
-              </button>
-            ))}
-            {!result.scenarios.length && <Empty icon="alert" title="No workable plan found">Try allowing customers to move further, a bigger car, or choose someone to fill in.</Empty>}
-          </div>
-          {plan && <PlanDetail plan={plan} result={result} calls={s.calls} setCall={setCall} />}
+                {result.baseline?.jobs > 0 && <p className="muted small co-note">Without any changes, {plural(result.baseline.jobs, 'job')} couldn't go ahead (nobody works alone, and every car needs a lead).</p>}
+                {result.scenarios.length > 1 && (
+                  <details className="co-other">
+                    <summary>{pick === 0 ? `See ${result.scenarios.length - 1} other ways to do it` : 'Other ways to do it'}</summary>
+                    <div className="co-other-list">
+                      {result.scenarios.map((x, i) => (
+                        <button key={x.moves.join('|')} className={`co-other-row ${pick === i ? 'on' : ''}`} onClick={() => update({ pickKey: x.moves.join('|') })}>
+                          <b>{i === 0 ? 'Best' : `Option ${i + 1}`}</b>
+                          <span>{x.moves.join(' · ')}</span>
+                          <span className="muted small">{x.jobsKept} of {result.totalJobs} jobs · {plural(x.changes.length + x.reschedule.length, 'call')}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </section>
+          )}
+          {plan && <CallsAndDay plan={plan} result={result} calls={s.calls} setCall={setCall} />}
         </div>
       )}
       {!result && !busy && r && (
@@ -312,87 +325,120 @@ function explain(c) {
   return bits.join(' ');
 }
 
-function PlanDetail({ plan, result, calls, setCall }) {
+// One plain line: what changes for this customer.
+function changeLine(c) {
+  if (c.kind === 'reschedule' || c.kind === 'skip') return `Can't fit today: rebook another day (was ${c.was} with ${c.from})`;
+  const parts = [];
+  if (c.moved) parts.push(`${c.to} at ${c.now}`);
+  else if (c.shifted) parts.push(`${c.now} instead of ${c.was}`);
+  else parts.push(`Same time (${c.now})`);
+  if (c.resized) parts.push(`done in ${len(c.nowDur)} instead of ${len(c.wasDur)}`);
+  if (c.moved) parts.push(`was ${c.was} with ${c.from}`);
+  return parts.join(' · ');
+}
+
+// The quick answers; the rest are under "More".
+const QUICK = [
+  { value: 'agreed', label: 'Agreed', icon: 'check', tone: 'ok' },
+  { value: 'noanswer', label: 'No answer', icon: 'phone', tone: 'warn' },
+  { value: 'keep', label: "Can't move", icon: 'lock', tone: 'info' },
+  { value: 'reschedule', label: 'Rebook', icon: 'calendar', tone: 'bad' },
+];
+const QUICK_OFF = [
+  { value: 'reschedule', label: 'Rebooked', icon: 'check', tone: 'ok' },
+  { value: 'noanswer', label: 'No answer', icon: 'phone', tone: 'warn' },
+  { value: 'skip', label: 'Skip visit', icon: 'close', tone: 'bad' },
+];
+
+function CallsAndDay({ plan, result, calls, setCall }) {
+  const [view, setView] = useState('calls');
+  const [open, setOpen] = useState(null);
   const list = [
+    ...plan.changes.map((x) => ({ ...x, kind: x.moved ? 'moved' : x.shifted ? 'time' : 'length' })),
     ...plan.reschedule.map((x) => ({ ...x, kind: x.customerChoice ? x.customerChoice : 'reschedule' })),
-    ...plan.changes.map((x) => ({ ...x, kind: x.moved ? 'moved' : x.shifted ? 'time' : x.resized ? (x.nowDur < x.wasDur ? 'shorter' : 'longer') : 'same' })),
   ];
-  const label = { reschedule: 'Rebook', skip: 'Skipping', moved: 'New team', time: 'New time', shorter: 'Shorter visit', longer: 'Longer visit', same: 'Confirm' };
-  const tone = { reschedule: 'bad', skip: 'bad', moved: 'info', time: 'warn', shorter: 'ok', longer: 'warn', same: 'ok' };
+  const done = list.filter((c) => calls[c.jobId]?.outcome).length;
+  const answer = (c, v) => {
+    const k = calls[c.jobId] || {};
+    if (k.outcome === v) return setCall(c.jobId, { outcome: '', car: null, start: null, time: null });
+    setCall(c.jobId, v === 'agreed' ? { outcome: v, car: c.to, start: c.nowMin, time: null } : { outcome: v, car: null, start: null, time: OUTCOMES.find((o) => o.value === v)?.time ? k.time ?? c.nowMin ?? null : null });
+  };
   return (
-    <div className="plan-detail2">
-      <Card
-        title={
-          <>
-            Calls to make <span className="muted small">{list.length}</span>{' '}
-            <Help>
-              Customers whose visit changes with this plan: a new team, a new time, or a different length (a car of three cleans faster than a car of two). After each
-              call, pick what they said: the plans re-work around it (agreed times are locked in, "no answer" keeps their booked time, rebooked visits come off today).
-              Notes stay on this device. Phone numbers come from MaidCentral's Dispatch Board (today only).
-            </Help>
-          </>
-        }
-        className="flush"
-      >
-        {!list.length && <Empty icon="check" title="No customer calls needed" />}
-        {list.map((c) => {
-          const k = calls[c.jobId] || {};
-          const def = OUTCOMES.find((o) => o.value === k.outcome);
-          const offToday = c.kind === 'reschedule' || c.kind === 'skip';
-          return (
-            <div key={c.jobId} className={`call2 ${k.outcome ? 'logged' : ''}`}>
-              <div className="call2-top">
-                <span className={`pill ${tone[c.kind]}`}>{label[c.kind]}</span>
-                <b>{c.title}</b>
-                {c.impact && offToday && <Impact level={c.impact} />}
-                {c.phone && <a className="btn ghost sm call2-phone" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}><Icon name="phone" size={14} /> {c.phone}</a>}
-              </div>
-              {offToday ? (
-                <div className="call2-compare one">
-                  <div><span className="cmp-tag">Booked</span><b>{c.was}</b><span>{c.from}</span>{c.frequency && <span className="muted">{plainFreq(c.frequency)}</span>}</div>
-                  <div className="cmp-off"><span className="cmp-tag">Today</span><b>Can't fit</b><span className="muted">{c.kind === 'skip' ? 'Skipping this visit' : 'Rebook another day'}</span></div>
+    <section className="card flush co-calls">
+      <div className="co-calls-head">
+        <h2 className="rs-step"><span>3</span> Call the customers</h2>
+        <div className="segmented">
+          <button className={view === 'calls' ? 'on' : ''} onClick={() => setView('calls')}>Calls ({list.length})</button>
+          <button className={view === 'day' ? 'on' : ''} onClick={() => setView('day')}>Each car's day</button>
+        </div>
+      </div>
+      {view === 'calls' && (
+        <>
+          {list.length > 0 && (
+            <div className="co-progress">
+              <b>{done} of {list.length} called</b>
+              <div className="progress"><i style={{ width: `${(done / list.length) * 100}%` }} /></div>
+              <Help>Tap what each customer said; the plan re-works around it (agreed times are locked in, "no answer" and "can't move" keep their booked time, rebooked visits come off today). "More" has the details and other answers. Phone numbers come from MaidCentral's Dispatch Board (today only).</Help>
+            </div>
+          )}
+          {!list.length && <Empty icon="check" title="No customer calls needed" />}
+          {list.map((c) => {
+            const k = calls[c.jobId] || {};
+            const offToday = c.kind === 'reschedule' || c.kind === 'skip';
+            const quick = offToday ? QUICK_OFF : QUICK;
+            const def = OUTCOMES.find((o) => o.value === k.outcome);
+            const isOpen = open === c.jobId;
+            return (
+              <div key={c.jobId} className={`co-call ${k.outcome ? 'done' : ''}`}>
+                <span className={`co-check ${k.outcome ? 'on' : ''}`}>{k.outcome && <Icon name="check" size={13} />}</span>
+                <div className="co-call-main">
+                  <b>{c.title} {offToday && c.impact && <Impact level={c.impact} />}</b>
+                  <span className={offToday ? 'bad-text small' : 'small'}>{changeLine(c)}</span>
+                  {k.outcome && <span className="muted small">{def?.label}{k.note ? ` · ${k.note}` : ''}</span>}
                 </div>
-              ) : (
-                <>
-                  <div className="call2-compare">
-                    <div>
-                      <span className="cmp-tag">Booked</span>
-                      <b>{c.was} – {c.wasEnd}</b>
-                      <span>{c.from} · {crewText(c.wasCrew)}</span>
-                      <span className="muted">{len(c.wasDur)} clean</span>
-                    </div>
-                    <Icon name="chevronRight" size={18} />
-                    <div className="cmp-new">
-                      <span className="cmp-tag">New</span>
-                      <b><span className={c.shifted ? 'chg' : ''}>{c.now}</span> – <span className={c.shifted || c.resized ? 'chg' : ''}>{c.nowEnd}</span></b>
-                      <span><span className={c.moved ? 'chg' : ''}>{c.to}</span> · <span className={c.nowCrew !== c.wasCrew ? 'chg' : ''}>{crewText(c.nowCrew)}</span></span>
-                      <span className={c.resized ? 'chg' : 'muted'}>{len(c.nowDur)} clean{c.resized ? ` (${c.nowDur < c.wasDur ? '−' : '+'}${len(Math.abs(c.nowDur - c.wasDur))})` : ''}</span>
+                {c.phone ? <a className="btn ghost sm" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}><Icon name="phone" size={14} /> {c.phone}</a> : <span />}
+                <div className="co-quick">
+                  {quick.map((a) => (
+                    <button key={a.value} className={`rs-answer ${a.tone} ${k.outcome === a.value ? 'on' : ''}`} onClick={() => answer(c, a.value)}>
+                      <Icon name={a.icon} size={14} /> {a.label}
+                    </button>
+                  ))}
+                  <button className="linkish small" onClick={() => setOpen(isOpen ? null : c.jobId)}>{isOpen ? 'Less' : 'More'}</button>
+                </div>
+                {isOpen && (
+                  <div className="co-more">
+                    {!offToday && (
+                      <div className="call2-compare">
+                        <div>
+                          <span className="cmp-tag">Booked</span>
+                          <b>{c.was} – {c.wasEnd}</b>
+                          <span>{c.from} · {crewText(c.wasCrew)} · {len(c.wasDur)}</span>
+                        </div>
+                        <Icon name="chevronRight" size={18} />
+                        <div className="cmp-new">
+                          <span className="cmp-tag">New</span>
+                          <b>{c.now} – {c.nowEnd}</b>
+                          <span>{c.to} · {crewText(c.nowCrew)} · {len(c.nowDur)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {!offToday && explain(c) && <p className="call2-why">{explain(c)}</p>}
+                    <div className="call-log">
+                      <select aria-label={`What ${c.title} said`} value={k.outcome || ''} onChange={(e) => answer(c, e.target.value || k.outcome)}>
+                        {OUTCOMES.filter((o) => !(o.moveOnly && offToday)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      {def?.time && <input type="time" aria-label="Time" value={toTime(k.time)} step={900} onChange={(e) => setCall(c.jobId, { time: fromTime(e.target.value) })} />}
+                      <input className="call-note" placeholder="Note (e.g. call back at 10)" value={k.note || ''} onChange={(e) => setCall(c.jobId, { note: e.target.value })} />
                     </div>
                   </div>
-                  {explain(c) && <p className="call2-why">{explain(c)}</p>}
-                </>
-              )}
-              <div className="call-log">
-                <select
-                  aria-label={`What ${c.title} said`}
-                  className={k.outcome ? `tone-${OUTCOME_TONE[k.outcome]}` : ''}
-                  value={k.outcome || ''}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setCall(c.jobId, v === 'agreed' ? { outcome: v, car: c.to, start: c.nowMin, time: null } : { outcome: v, car: null, start: null, time: OUTCOMES.find((o) => o.value === v)?.time ? k.time ?? c.nowMin ?? null : null });
-                  }}
-                >
-                  {OUTCOMES.filter((o) => !(o.moveOnly && offToday)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-                {def?.time && <input type="time" aria-label="Time" value={toTime(k.time)} step={900} onChange={(e) => setCall(c.jobId, { time: fromTime(e.target.value) })} />}
-                <input className="call-note" placeholder="Note (e.g. call back at 10)" value={k.note || ''} onChange={(e) => setCall(c.jobId, { note: e.target.value })} />
+                )}
               </div>
-            </div>
-          );
-        })}
-      </Card>
-      <DayChart plan={plan} result={result} />
-    </div>
+            );
+          })}
+        </>
+      )}
+      {view === 'day' && <DayChart plan={plan} result={result} />}
+    </section>
   );
 }
 
@@ -410,8 +456,8 @@ function DayChart({ plan, result }) {
   for (let h = s0; h <= e0; h += 60) hours.push(h);
   return (
     <Card
-      title={<>The day with this plan <Help wide>One row per car. Solid blocks are visits at their new time (start, customer, length); a dashed outline is the time it was booked; thin lines are driving. Blue outline: a visit that joined this car. Red line: everyone back at the office by {result.options.returnBy}.</Help></>}
-      className="flush"
+      className="flush co-daychart"
+      title={<>Each car's day with this plan <Help wide>One row per car. Solid blocks are visits at their new time (start, customer, length); a dashed outline is the time it was booked; thin lines are driving. Blue outline: a visit that joined this car. Red line: everyone back at the office by {result.options.returnBy}.</Help></>}
     >
       <div className="dc-legend">
         <span><i className="lg-solid" />new time</span>
