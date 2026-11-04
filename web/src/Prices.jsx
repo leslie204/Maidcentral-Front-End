@@ -133,6 +133,11 @@ export default function Prices({ onError }) {
               { label: 'One-time at the right rate', value: `${s.byKind['one-time'].ok} of ${s.byKind['one-time'].bookings}`, hint: `bookings at ${rate$(data.rates.oneTime)}` },
             ]}
           />
+          {Object.keys(s.leftOut || {}).length > 0 && (
+            <p className="muted small pc-leftout">
+              Not counted: {Object.entries(s.leftOut).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(', ')} bookings. They won't happen as listed (skipped visits, the old date of a moved booking, cancellations), so their prices don't matter.
+            </p>
+          )}
           <div className="pc-found">
             <span className="muted small">Rates found:</span>
             {s.ratesFound.slice(0, 8).map((r) => {

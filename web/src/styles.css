@@ -883,3 +883,4 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .freshness .label b { font-weight: 600; color: var(--text); }
 .freshness .label span { color: var(--muted); font-size: 11px; }
 .shell.nav-collapsed .freshness { justify-content: center; padding: 4px; border: 0; }
+.pc-leftout { margin: -4px 0 10px; }

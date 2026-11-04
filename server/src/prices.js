@@ -26,6 +26,12 @@ const when = (s) => {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)/i.exec(String(s || '').trim());
   return m ? { date: `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`, time: m[4].toUpperCase() } : { date: null, time: null };
 };
+// Visits that won't happen as listed: the Dispatch Board shows every booking whatever its
+// status, including skipped visits (often customers who've stopped), the old copy of a
+// moved booking (the new date is listed separately), and cancelled or deleted ones.
+// Only real visits are checked; the rest are counted and shown as left out.
+const NOT_A_VISIT = /skip|moved|cancel|delet|void|no.?show|resched|hold/i;
+export const isVisit = (status) => !NOT_A_VISIT.test(String(status || ''));
 export const kindOf = (freq) => (/single|one[- ]?time|once|on demand/i.test(freq || '') ? 'one-time' : /every|week|month/i.test(freq || '') ? 'recurring' : 'one-time');
 
 // The Dispatch Board's rows as bookings.
@@ -56,8 +62,10 @@ export function parseBoard(html) {
 // Checks bookings against the rates. Exported for tests.
 export function audit(bookings, { recurring = 122, oneTime = 130, tolerance = 1, perTeamOf = 2 } = {}) {
   const target = { recurring: Number(recurring), 'one-time': Number(oneTime) };
+  const leftOut = {};
+  for (const b of bookings) if (b.date && !isVisit(b.status)) leftOut[b.status] = (leftOut[b.status] || 0) + 1;
   const checked = bookings
-    .filter((b) => b.date && !/cancel/i.test(b.status))
+    .filter((b) => b.date && isVisit(b.status))
     .map((b) => {
       const kind = kindOf(b.frequency);
       const want = target[kind];
@@ -128,6 +136,8 @@ export function audit(bookings, { recurring = 122, oneTime = 130, tolerance = 1,
         .map(([k, n]) => ({ kind: k.split('|')[0], rate: k.split('|')[1] === 'none' ? null : Number(k.split('|')[1]), bookings: n }))
         .sort((a, b) => b.bookings - a.bookings),
       missingRevenue: money(checked.filter((b) => b.state === 'low').reduce((s, b) => s - b.difference, 0)),
+      // Bookings not counted, by status (e.g. { Skipped: 25, Moved: 28, Cancelled: 2 }).
+      leftOut,
     },
     customers,
   };

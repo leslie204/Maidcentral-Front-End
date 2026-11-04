@@ -18,11 +18,14 @@ ${row(6, 'Kaylie Dilly', 'Single', '11/6/2026 9:00 AM - 10:00 AM', '2.00', '$130
 ${row(7, 'Rex One', 'Single', '11/6/2026 11:00 AM - 1:00 PM', '4.00', '$230.00')}
 ${row(8, 'Free Clean', 'Every Week', '11/7/2026 9:00 AM - 10:00 AM', '2.00', '$0.00')}
 ${row(9, 'Gone', 'Every Week', '11/7/2026 9:00 AM - 10:00 AM', '2.00', '$100.00', { Status: 'Cancelled' })}
+${row(10, 'Linda Bonuccelli', 'Every Two Weeks', '11/5/2026 9:00 AM - 10:30 AM', '3.00', '$172.50', { Status: 'Skipped' })}
+${row(11, 'Doug Jones', 'Every Two Weeks', '11/11/2026 8:45 AM - 11:15 AM', '5.00', '$287.50', { Status: 'Moved' })}
+${row(12, 'Done Today', 'Every Week', '11/4/2026 8:00 AM - 9:00 AM', '2.00', '$122.00', { Status: 'Completed' })}
 </tbody></table>`;
 
 test('Dispatch Board rows become bookings', () => {
   const b = parseBoard(html);
-  assert.equal(b.length, 9);
+  assert.equal(b.length, 12);
   assert.deepEqual([b[0].date, b[0].time, b[0].allowedHours, b[0].price], ['2026-11-04', '8:45 AM', 5, 305]);
   assert.equal(kindOf('Every Two Weeks'), 'recurring');
   assert.equal(kindOf('Single'), 'one-time');
@@ -45,7 +48,11 @@ test('rate = price ÷ (allowed hours ÷ 2), checked per customer', () => {
   assert.deepEqual([by('Rex One').state, by('Rex One').rate, by('Rex One').should], ['low', 115, 260]);
   assert.equal(by('Free Clean').state, 'no-price');
   assert.ok(!by('Gone'), 'cancelled bookings are left out');
-  assert.equal(r.summary.bookings, 8);
+  assert.ok(!by('Linda Bonuccelli'), 'skipped visits are left out');
+  assert.equal(by('Doug Jones').bookings.length, 2, 'the old copy of a moved booking is left out');
+  assert.equal(by('Done Today').state, 'ok', 'completed visits count');
+  assert.deepEqual(r.summary.leftOut, { Cancelled: 1, Skipped: 1, Moved: 1 });
+  assert.equal(r.summary.bookings, 9);
   assert.equal(r.summary.customersToFix, 4);
   assert.equal(r.summary.missingRevenue, 10.5 + 10.5 + 30);
   assert.equal(r.customers[0].state, 'low', 'the ones to fix come first');
