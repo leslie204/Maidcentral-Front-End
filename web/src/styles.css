@@ -818,3 +818,10 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .co-more { grid-column: 2 / -1; display: grid; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); }
 .co-daychart { margin: 0; border: 0; box-shadow: none; border-top: 1px solid var(--border); border-radius: 0; }
 @media (max-width: 800px) { .co-plan-grid { grid-template-columns: 1fr; } .co-other-row { grid-template-columns: 1fr; } }
+.co-call-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14.5px; }
+.co-ask { margin: 3px 0 4px; font-size: 13.5px; color: var(--text); line-height: 1.45; max-width: 760px; }
+.co-was-now { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-2); }
+.co-was-now em { font-style: normal; font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+.co-was-now .now b { color: var(--accent-ink); font-weight: 600; }
+.co-result { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: var(--ok); }
+.co-said { width: 100%; }

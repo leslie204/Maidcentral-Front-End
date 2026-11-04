@@ -75,7 +75,7 @@ test('nobody works alone: the person left joins a car with a lead, or their car 
     assert.equal(s.impact === 'none', s.jobsLost === 0);
     for (const x of s.reschedule) assert.ok(['low', 'medium', 'high'].includes(x.impact));
   }
-  assert.ok(anyMove(p, /Person 11 \(lead\) joins (Green|Red) \(car of 3\)/));
+  assert.ok(anyMove(p, /Person 11 \(lead\) from Blue joins (Green|Red) for the day, making (Green|Red) a car of 3/));
   assert.ok(p.scenarios[0].saved > p.totalRevenue - p.baseline.lost, 'best plan beats doing nothing');
   for (const s of p.scenarios) {
     assert.equal(placedIds(s).length + s.reschedule.length, JOBS.length);
@@ -99,7 +99,7 @@ test('fill-ins only when chosen, and only if the car ends up with a lead; car si
   assert.ok(!anyMove(await callOutScenarios(mc, { date: DAY, out: '11' }), /fills in/));
   assert.ok(!anyMove(await callOutScenarios(mc, { date: DAY, out: '11', available: '42' }), /fills in/), 'a cleaner cannot replace a lead');
   const lead = await callOutScenarios(mc, { date: DAY, out: '11', available: '41' });
-  assert.ok(anyMove(lead, /Person 41 \(lead, no team today\) fills in with Person 12 \(cleaner\) in Blue/));
+  assert.ok(anyMove(lead, /Person 41 \(lead, not on a team today\) fills in with Person 12 \(cleaner\), so Blue still goes out/));
   const two = await callOutScenarios(mc, { date: DAY, out: '12', maxCar: 2 });
   assert.ok(!anyMove(two, /joins/));
   assert.ok(two.scenarios.every((s) => s.cars.every((c) => c.people.length <= 2)));
@@ -108,7 +108,7 @@ test('fill-ins only when chosen, and only if the car ends up with a lead; car si
 
 test('a whole car out: its jobs are shared out; nobody starts before leaving the office at 8:15', async () => {
   const p = await callOutScenarios(mc, { date: DAY, out: '11,12' });
-  assert.ok(p.scenarios[0].moves.some((m) => /Blue has nobody left/.test(m)));
+  assert.ok(p.scenarios[0].moves.some((m) => /Everyone in Blue is out, so Blue doesn't go out today. Its 2 jobs are given to the other cars/.test(m)));
   assert.equal(p.options.leaveAt, '8:15 AM');
   for (const s of p.scenarios) for (const c of s.cars) for (const x of c.stops) assert.ok(x.start > 8 * 60 + 15, `${c.name} starts before leaving`);
 });

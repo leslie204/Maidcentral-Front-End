@@ -389,21 +389,22 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
       c.members = [];
       c.size = 0;
     };
+    const jobsText = (car) => (car.jobs.length === 1 ? '1 job is' : `${car.jobs.length} jobs are`);
     for (const ch of combo) {
       const c = byId.get(ch.car.id);
       if (ch.kind === 'empty') {
-        moves.push(`${c.name} has nobody left: its jobs are shared out`);
+        moves.push(`Everyone in ${c.name} is out, so ${c.name} doesn't go out today. Its ${jobsText(c)} given to the other cars.`);
         off(c);
       } else if (ch.kind === 'keep') {
         c.changed = true;
-        moves.push(`${c.name} carries on with ${names(c.members)}`);
+        moves.push(`${c.name} still goes out with ${names(c.members)} and keeps its jobs.`);
       } else if (ch.kind === 'join') {
         const u = byId.get(ch.into.id);
         const joining = [...c.members];
         u.members.push(...joining);
         u.size = u.members.length;
         u.changed = true;
-        moves.push(`${names(joining)} joins ${u.name} (car of ${u.size}); ${c.name}'s jobs are shared out`);
+        moves.push(`${names(joining)} from ${c.name} joins ${u.name} for the day, making ${u.name} a car of ${u.size}. ${c.name} doesn't go out; its ${jobsText(c)} given to the other cars.`);
         off(c);
       } else if (ch.kind === 'pair') {
         const keep = byId.get(ch.keep.id);
@@ -411,16 +412,16 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
         keep.members.push(...other.members);
         keep.size = keep.members.length;
         keep.changed = true;
-        moves.push(`${names(keep.members)} pair up in ${keep.name}, keeping ${keep.name}'s jobs; ${other.name}'s jobs are shared out`);
+        moves.push(`${names(keep.members)} pair up and go out as ${keep.name}, doing ${keep.name}'s jobs. ${other.name} doesn't go out; its ${jobsText(other)} given to the other cars.`);
         off(other);
       } else if (ch.kind === 'fill') {
         const partners = [...c.members];
         c.members.push(ch.with);
         c.size = c.members.length;
         c.changed = true;
-        moves.push(`${ch.with.name} (${ROLE_LABEL[ch.with.role]}, no team today) fills in with ${names(partners)} in ${c.name}`);
+        moves.push(`${ch.with.name} (${ROLE_LABEL[ch.with.role]}, not on a team today) fills in with ${names(partners)}, so ${c.name} still goes out and keeps its jobs.`);
       } else if (ch.kind === 'stand-down') {
-        moves.push(`${names(c.members)} can't go out alone: ${c.name}'s jobs are shared out`);
+        moves.push(`${names(c.members)} can't go out alone, so ${c.name} doesn't go out today. Its ${jobsText(c)} given to the other cars.`);
         off(c);
       }
     }

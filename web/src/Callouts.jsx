@@ -325,30 +325,61 @@ function explain(c) {
   return bits.join(' ');
 }
 
-// One plain line: what changes for this customer.
-function changeLine(c) {
-  if (c.kind === 'reschedule' || c.kind === 'skip') return `Can't fit today: rebook another day (was ${c.was} with ${c.from})`;
-  const parts = [];
-  if (c.moved) parts.push(`${c.to} at ${c.now}`);
-  else if (c.shifted) parts.push(`${c.now} instead of ${c.was}`);
-  else parts.push(`Same time (${c.now})`);
-  if (c.resized) parts.push(`done in ${len(c.nowDur)} instead of ${len(c.wasDur)}`);
-  if (c.moved) parts.push(`was ${c.was} with ${c.from}`);
-  return parts.join(' · ');
+const firstOf = (c) => {
+  const who = String(c.title).split(' - ').slice(1).join(' - ').trim();
+  return who ? who.split(/\s+/)[0] : 'the customer';
+};
+const homeOf = (c) => String(c.title).split(' - ')[0];
+const whoOf = (c) => String(c.title).split(' - ').slice(1).join(' - ').trim();
+
+// What to ask the customer, as a full sentence.
+function askLine(c) {
+  const name = firstOf(c);
+  if (c.kind === 'reschedule' || c.kind === 'skip') {
+    return `There's no room for ${name}'s clean today (booked ${c.was} with ${c.from}). Ask if they'd like to rebook it for another day, or skip this visit.`;
+  }
+  const finish = c.resized
+    ? ` With ${crewText(c.nowCrew)} the clean takes ${len(c.nowDur)} instead of ${len(c.wasDur)}, so they'd finish around ${c.nowEnd}.`
+    : ` They'd finish around ${c.nowEnd}.`;
+  if (c.moved) return `Ask ${name} if ${c.to} can come at ${c.now} instead of ${c.from} at ${c.was}.${finish}`;
+  if (c.shifted) return `Ask ${name} if ${c.to} (their usual team) can come at ${c.now} instead of ${c.was}.${finish}`;
+  return `Let ${name} know ${c.to} is coming at the usual time (${c.now}) with ${crewText(c.nowCrew)}, so the clean takes ${len(c.nowDur)} instead of ${len(c.wasDur)} and finishes around ${c.nowEnd}.`;
 }
 
-// The quick answers; the rest are under "More".
+// The quick answers, saying what each one does; the rest are under "More details".
 const QUICK = [
-  { value: 'agreed', label: 'Agreed', icon: 'check', tone: 'ok' },
-  { value: 'noanswer', label: 'No answer', icon: 'phone', tone: 'warn' },
-  { value: 'keep', label: "Can't move", icon: 'lock', tone: 'info' },
-  { value: 'reschedule', label: 'Rebook', icon: 'calendar', tone: 'bad' },
+  { value: 'agreed', label: 'Agreed to the new time', icon: 'check', tone: 'ok' },
+  { value: 'noanswer', label: 'No answer: keep their booked time', icon: 'phone', tone: 'warn' },
+  { value: 'keep', label: "Can't change: keep their booked time", icon: 'lock', tone: 'info' },
+  { value: 'reschedule', label: 'Wants to rebook another day', icon: 'calendar', tone: 'bad' },
 ];
 const QUICK_OFF = [
-  { value: 'reschedule', label: 'Rebooked', icon: 'check', tone: 'ok' },
-  { value: 'noanswer', label: 'No answer', icon: 'phone', tone: 'warn' },
-  { value: 'skip', label: 'Skip visit', icon: 'close', tone: 'bad' },
+  { value: 'reschedule', label: 'Rebooked for another day', icon: 'check', tone: 'ok' },
+  { value: 'noanswer', label: 'No answer yet', icon: 'phone', tone: 'warn' },
+  { value: 'skip', label: 'Skip this visit', icon: 'close', tone: 'bad' },
 ];
+// What the plan does with each answer.
+function outcomeNote(c, k) {
+  switch (k.outcome) {
+    case 'agreed':
+      return `Locked in: ${c.to} at ${c.now}. Update it in MaidCentral.`;
+    case 'noanswer':
+      return c.kind === 'reschedule' ? 'Not reached yet: try again later.' : `Not reached: the plan keeps their booked time (${c.was}). Try again later.`;
+    case 'keep':
+      return `They keep ${c.was}: the plan works around it.`;
+    case 'reschedule':
+      return 'Taken off today: rebook it in MaidCentral.';
+    case 'skip':
+      return 'Skipping this visit: cancel it in MaidCentral.';
+    case 'voicemail':
+      return 'Left a voicemail: the plan still moves them; confirm when they call back.';
+    case 'after':
+    case 'before':
+      return `Only ${k.outcome} ${k.time != null ? t12(k.time) : 'a time'}: the plan works around it.`;
+    default:
+      return null;
+  }
+}
 
 function CallsAndDay({ plan, result, calls, setCall }) {
   const [view, setView] = useState('calls');
@@ -392,18 +423,25 @@ function CallsAndDay({ plan, result, calls, setCall }) {
               <div key={c.jobId} className={`co-call ${k.outcome ? 'done' : ''}`}>
                 <span className={`co-check ${k.outcome ? 'on' : ''}`}>{k.outcome && <Icon name="check" size={13} />}</span>
                 <div className="co-call-main">
-                  <b>{c.title} {offToday && c.impact && <Impact level={c.impact} />}</b>
-                  <span className={offToday ? 'bad-text small' : 'small'}>{changeLine(c)}</span>
-                  {k.outcome && <span className="muted small">{def?.label}{k.note ? ` · ${k.note}` : ''}</span>}
+                  <div className="co-call-title"><b>{homeOf(c)}</b>{whoOf(c) && <span className="muted">{whoOf(c)}</span>}{offToday && c.impact && <Impact level={c.impact} />}</div>
+                  <p className="co-ask">{askLine(c)}</p>
+                  {!offToday && (
+                    <div className="co-was-now">
+                      <span><em>Booked</em>{c.was} – {c.wasEnd} · {c.from} · {crewText(c.wasCrew)}</span>
+                      <span className="now"><em>Proposed</em><b>{c.now} – {c.nowEnd} · {c.to} · {crewText(c.nowCrew)}</b></span>
+                    </div>
+                  )}
+                  {k.outcome && <span className="co-result"><Icon name="check" size={13} /> {outcomeNote(c, k)}{k.note ? ` Note: ${k.note}` : ''}</span>}
                 </div>
                 {c.phone ? <a className="btn ghost sm" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}><Icon name="phone" size={14} /> {c.phone}</a> : <span />}
                 <div className="co-quick">
+                  <span className="muted small co-said">What did they say?</span>
                   {quick.map((a) => (
                     <button key={a.value} className={`rs-answer ${a.tone} ${k.outcome === a.value ? 'on' : ''}`} onClick={() => answer(c, a.value)}>
                       <Icon name={a.icon} size={14} /> {a.label}
                     </button>
                   ))}
-                  <button className="linkish small" onClick={() => setOpen(isOpen ? null : c.jobId)}>{isOpen ? 'Less' : 'More'}</button>
+                  <button className="linkish small" onClick={() => setOpen(isOpen ? null : c.jobId)}>{isOpen ? 'Fewer details' : 'More details & answers'}</button>
                 </div>
                 {isOpen && (
                   <div className="co-more">
