@@ -135,7 +135,7 @@ export default function Prices({ onError }) {
           />
           {Object.keys(s.leftOut || {}).length > 0 && (
             <p className="muted small pc-leftout">
-              Not counted: {Object.entries(s.leftOut).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(', ')} bookings. They won't happen as listed (skipped visits, the old date of a moved booking, cancellations), so their prices don't matter.
+              Not counted: {Object.entries(s.leftOut).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(', ')} bookings. They won't happen: when a customer cancels, MaidCentral marks the visit already on the schedule as skipped; a moved booking leaves its old date behind. So their prices don't matter.
             </p>
           )}
           <div className="pc-found">

@@ -27,7 +27,8 @@ const when = (s) => {
   return m ? { date: `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`, time: m[4].toUpperCase() } : { date: null, time: null };
 };
 // Visits that won't happen as listed: the Dispatch Board shows every booking whatever its
-// status, including skipped visits (often customers who've stopped), the old copy of a
+// status, including skipped visits (when a customer cancels, MaidCentral marks the visit
+// already on the schedule as Skipped), the old copy of a
 // moved booking (the new date is listed separately), and cancelled or deleted ones.
 // Only real visits are checked; the rest are counted and shown as left out.
 const NOT_A_VISIT = /skip|moved|cancel|delet|void|no.?show|resched|hold/i;
