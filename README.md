@@ -64,6 +64,16 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     read out of the page (allow-listed fields only).
   - Openings (`server/src/territory.js`), for scheduling and sales, over the 4-week
     cycle from this Monday:
+    - Source: MaidCentral's Master Schedule (`server/src/master.js`): the recurring
+      pattern per team and weekday, with each recurring customer's weeks (1–4) and
+      frequency (E1/E2/E4). Recurring openings are the gaps in that pattern, so a
+      skipped visit doesn't open a recurring spot, a booking moved into a gap doesn't
+      hide one, a customer rescheduled elsewhere keeps their slot, and frequencies come
+      from the pattern's weeks (weeks 1 & 3 / 2 & 4 = every 2 weeks). The dated
+      schedule adds what's true on each date: an opening taken that date by a moved or
+      one-time booking (the first visit starts the next free date), and time free on one
+      date only (someone skipped), offered as a one-time opening with who's missing. The
+      4-week plan marks skipped visits (outlined) and moved/one-time bookings (striped).
     - Capacity tab (`server/src/planner.js`): how full each team's day is (booked hours
       vs the team's shift window, 8:15 AM leave to the return time), split repeat /
       one-time, with the day's timeline when a day is clicked. (The separate Scheduling

@@ -947,3 +947,10 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .sc-cv { display: grid; grid-template-columns: minmax(220px, 320px) auto 1fr; gap: 10px; align-items: start; padding: 6px 0; }
 .sc-cv .pill { margin: 0; }
 @media (max-width: 800px) { .sc-cv { grid-template-columns: 1fr; } }
+
+/* 4-week plan: the recurring pattern vs the dated schedule */
+.cbar-job.skipped { border: 1.5px dashed var(--freq); opacity: 0.9; }
+.cbar-job.extra { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px 6px) !important; box-shadow: 0 0 0 1px var(--panel), 0 0 0 2px var(--text-2); }
+.cbar-open.taken { opacity: 0.45; background-image: linear-gradient(to top right, transparent calc(50% - 1px), var(--fit) calc(50% - 1px), var(--fit) calc(50% + 1px), transparent calc(50% + 1px)); }
+.cycle-legend i.k-skipped { border: 1.5px dashed var(--muted); background: transparent; }
+.cycle-legend i.k-extra { background: repeating-linear-gradient(45deg, var(--muted) 0 3px, transparent 3px 6px); }
