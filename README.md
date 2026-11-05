@@ -95,6 +95,15 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       result has an exact arrival time that works on every visit date: driving from the
       previous job (or the office), the clean, then to the next job on time or back to
       the office by the return time.
+  - Scorecards (`server/src/scorecards.js`, page `/scorecards`): MaidCentral's
+    Scorecard Results (0–4: Thrilled, Happy, A few concerns, Major concerns,
+    Considering another company) for a period (30 days to 12 months), compared with
+    the period before: average, share thrilled, concerns (0–2), customers considering
+    leaving, response rate; plain-language insights; weekly average and responses
+    (concerns vs not); score breakdown; themes in concern comments (floors, bathrooms,
+    kitchen, missed, timing…); who to follow up with (worst and repeat first, with
+    comments); by team (from the Dispatch Board for that visit) and by cleaner; all
+    comments with search and filter.
   - Price check (`server/src/prices.js`, page `/prices`): after a rate change, every
     booking in a date range (default the next 4 weeks) from MaidCentral's Dispatch Board
     (its filter form, a reviewed read added to `capture/read-posts.txt`), with hourly

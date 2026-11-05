@@ -22,6 +22,7 @@ import { callOutScenarios, roster } from './callouts.js';
 import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
 import { rescheduleDay, rescheduleOptions, reschedulePlan, findBookings } from './reschedule.js';
 import { priceCheck } from './prices.js';
+import { scorecards } from './scorecards.js';
 import { forget, FRESH } from './cache.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
@@ -243,6 +244,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   api.get('/optimize/compare', handle((req) => compare(req.mc, req.query)));
   api.get('/reschedule/day', handle((req) => rescheduleDay(req.mc, req.query)));
   api.get('/prices/check', handle((req) => priceCheck(req.mc, req.query)));
+  api.get('/scorecards', handle((req) => scorecards(req.mc, req.query)));
   // Refresh: forget every copy kept for this person, so all screens read MaidCentral again.
   api.post('/refresh', sameOrigin, handle(async (req) => {
     forget(req.mc);

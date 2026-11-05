@@ -21,6 +21,7 @@ export const NAV = [
     items: [
       { path: '/search', label: 'Customers', icon: 'home' },
       { path: '/cleaners', label: 'Cleaners', icon: 'users' },
+      { path: '/scorecards', label: 'Scorecards', icon: 'star' },
     ],
   },
 ];

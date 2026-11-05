@@ -13,6 +13,7 @@ import Callouts from './Callouts.jsx';
 import Optimize from './Optimize.jsx';
 import Reschedule from './Reschedule.jsx';
 import Prices from './Prices.jsx';
+import Scorecards from './Scorecards.jsx';
 
 // Tiny router: the path decides the page.
 function usePath() {
@@ -57,6 +58,7 @@ export default function App() {
   else if (pathname === '/planner') page = <Openings key="capacity" onError={onError} initialTab="capacity" />;
   else if (pathname === '/openings') page = <Openings key={query} onError={onError} initialTab={new URLSearchParams(query).get('tab') || 'plan'} />;
   else if (pathname === '/callouts') page = <Callouts onError={onError} />;
+  else if (pathname === '/scorecards') page = <Scorecards onError={onError} />;
   else if (pathname === '/prices') page = <Prices onError={onError} />;
   else if (pathname === '/reschedule') page = <Reschedule onError={onError} />;
   else if (pathname === '/optimize') page = <Optimize onError={onError} go={go} />;

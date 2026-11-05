@@ -37,6 +37,7 @@ export const api = {
   optApply: (q) => call('GET', `/api/optimize/apply?${new URLSearchParams(q)}`),
   optCompare: (q) => call('GET', `/api/optimize/compare?${new URLSearchParams(q)}`),
   optStatus: () => call('GET', '/api/optimize/status'),
+  scorecards: (q) => call('GET', `/api/scorecards?${new URLSearchParams(q)}`),
   priceCheck: (q) => call('GET', `/api/prices/check?${new URLSearchParams(q)}`),
   rescheduleFind: (q) => call('GET', `/api/reschedule/find?q=${encodeURIComponent(q)}`),
   rescheduleWarm: () => call('GET', '/api/reschedule/find?warm=1'),
