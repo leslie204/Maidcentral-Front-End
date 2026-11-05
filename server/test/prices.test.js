@@ -59,3 +59,10 @@ test('rate = price ÷ (allowed hours ÷ 2), checked per customer', () => {
   // Tolerance: $115 is within $10 of $122.
   assert.equal(audit(parseBoard(html), { recurring: 122, oneTime: 130, tolerance: 10 }).customers.find((c) => c.customer === 'Amanda Moore').state, 'ok');
 });
+
+test('only real visits and active homes count elsewhere too', async () => {
+  const { isVisit } = await import('../src/prices.js');
+  const { active } = await import('../src/territory.js');
+  assert.deepEqual(['Pending', 'In Progress', 'Completed', 'Skipped', 'Moved', 'Cancelled', 'Canceled'].map(isVisit), [true, true, true, false, false, false, false]);
+  assert.deepEqual(active([{ home: 'A', paused: false }, { home: 'B', paused: true }]).map((h) => h.home), ['A']);
+});

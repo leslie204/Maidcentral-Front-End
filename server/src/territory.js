@@ -48,6 +48,10 @@ const minutes = (t) => {
   return ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]);
 };
 
+// Homes marked Exclude (or paused) in MaidCentral: kept for locating any jobs they still
+// have, but not counted as customers or used to judge where a team usually works.
+export const active = (homes) => homes.filter((h) => !h.paused);
+
 // Every active service set with its location (the Customer Efficiency Map report).
 export async function book(mc) {
   return cached(mc, 'book', FRESH.reference, async () => {
@@ -347,7 +351,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
             if (!before && !after) for (const j of jobs) { const p = place(j.title); if (p) neighbours.push({ ...p, title: j.title, when: 'same day' }); }
           }
           // No jobs that day: the team's usual area on this weekday (recurring book).
-          const usual = neighbours.length ? [] : homes.filter((h) => norm(h.team) === norm(team.name) && h.weekday === wd);
+          const usual = neighbours.length ? [] : active(homes).filter((h) => norm(h.team) === norm(team.name) && h.weekday === wd);
           const pts = neighbours.length ? neighbours : usual;
           const zoneCount = {};
           for (const p of pts) if (p.zone) zoneCount[p.zone] = (zoneCount[p.zone] || 0) + 1;
@@ -431,7 +435,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   // By zone, for sales: where the open time is, and who already works there.
   const zoneList = zs.map((z) => {
     const os = out.filter((o) => norm(o.area.zone) === norm(z.name));
-    const zHomes = homes.filter((h) => norm(h.zone) === norm(z.name));
+    const zHomes = active(homes).filter((h) => norm(h.zone) === norm(z.name));
     const presence = {};
     for (const h of zHomes) if (h.weekday >= 0) (presence[WEEKDAYS[h.weekday]] ||= new Set()).add(h.team);
     return {
@@ -461,7 +465,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     zones: zoneList.sort((a, b) => b.openWeeklyHours - a.openWeeklyHours),
     teams: [...teams.values()],
     book: {
-      homes: homes.length,
+      homes: active(homes).length,
       byFrequency: homes.reduce((m, h) => ((m[h.frequency?.short || 'Unknown'] = (m[h.frequency?.short || 'Unknown'] || 0) + 1), m), {}),
       matchedJobs: analysed.reduce((n, d) => n + d.teams.reduce((k, t) => k + t.jobs.filter((j) => lookup(j.title)).length, 0), 0),
       totalJobs: analysed.reduce((n, d) => n + d.teams.reduce((k, t) => k + t.jobs.length, 0), 0),
@@ -478,18 +482,18 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
   let target = null;
   let label = null;
   if (home) {
-    const h = homes.find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
+    const h = active(homes).find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
     if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${areaNames(zs).get(areaKey(h.zone))?.label || h.zip})`);
   }
   if (!target && zip) {
-    const inZip = homes.filter((h) => h.zip === String(zip).trim());
+    const inZip = active(homes).filter((h) => h.zip === String(zip).trim());
     const z = zs.find((x) => x.zips.includes(String(zip).trim()));
-    const pts = inZip.length ? inZip : homes.filter((h) => z && norm(h.zone) === norm(z.name));
+    const pts = inZip.length ? inZip : active(homes).filter((h) => z && norm(h.zone) === norm(z.name));
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone: z?.name || pts[0].zone };
     label = `ZIP ${zip}${z ? ` (${areaNames(zs).get(areaKey(z.name))?.label || z.name})` : ''}`;
   }
   if (!target && zone) {
-    const pts = homes.filter((h) => norm(h.zone) === norm(zone));
+    const pts = active(homes).filter((h) => norm(h.zone) === norm(zone));
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone };
     label = zone;
   }

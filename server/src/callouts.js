@@ -20,6 +20,7 @@ import { office, returnBy, leaveAt } from './office.js';
 import { tables } from './extract.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
+import { isVisit } from './prices.js';
 import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
@@ -62,6 +63,7 @@ async function dispatchBoard(mc) {
           revenue: num(r.cells[col('Bill Rate')]) || 0,
           cleanerHours: num(r.cells[col('Alwd. Hours')]) || null,
           phone: r.cells[col('Phone')] || null,
+          status: r.cells[col('Status')] || '',
         },
       ]),
     );
@@ -77,7 +79,8 @@ const rates = perSession();
 export async function revenueRate(mc) {
   const hit = rates.get(mc);
   if (hit && Date.now() - hit.at < FRESH.reference) return hit;
-  const priced = [...(await dispatchBoard(mc)).values()].filter((b) => b.revenue && b.cleanerHours);
+  // Only real visits: skipped, moved and cancelled bookings are left out.
+  const priced = [...(await dispatchBoard(mc)).values()].filter((b) => b.revenue && b.cleanerHours && isVisit(b.status));
   const hours = priced.reduce((s, b) => s + b.cleanerHours, 0);
   const v = { at: Date.now(), rate: hours ? priced.reduce((s, b) => s + b.revenue, 0) / hours : null, jobs: priced.length };
   rates.set(mc, v);
@@ -99,7 +102,7 @@ export async function dayState(mc, date, roleOverrides = new Map()) {
   const isToday = date === localToday();
   const board = isToday ? await dispatchBoard(mc) : new Map();
   // Price per cleaner-hour, from today's board, to estimate other days.
-  const priced = [...board.values()].filter((b) => b.revenue && b.cleanerHours);
+  const priced = [...board.values()].filter((b) => b.revenue && b.cleanerHours && isVisit(b.status));
   const perCleanerHour = priced.length ? priced.reduce((s, b) => s + b.revenue, 0) / priced.reduce((s, b) => s + b.cleanerHours, 0) : 30;
   const person = (m) => {
     const fromMc = roleOf(posName.get(String(m.positionId)));
