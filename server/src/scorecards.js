@@ -168,7 +168,10 @@ function insights({ now, before, teams, cleaners, followUp, themes, trend }) {
     const c = now.concernShare - before.concernShare;
     if (Math.abs(c) >= 2) out.push({ tone: c < 0 ? 'good' : 'bad', text: `${pct(now.concernShare)} of responses raised concerns (0–2), ${c < 0 ? 'down' : 'up'} from ${pct(before.concernShare)}.` });
   } else out.push({ tone: 'info', text: `Average score is ${now.average} out of 4 from ${now.responses} responses.` });
-  if (now.atRisk) out.push({ tone: 'bad', text: `${now.atRisk} customer${now.atRisk > 1 ? 's' : ''} said they're considering another company: call them first (see Follow up).` });
+  if (now.atRisk) {
+    const who = followUp.filter((f) => f.worst === 0).map((f) => f.customer);
+    out.push({ tone: 'bad', text: `${now.atRisk} customer${now.atRisk > 1 ? 's' : ''} said they're considering another company: ${who.join(', ')}. Worth a call.` });
+  }
   if (now.responseRate != null && now.responseRate < 35) out.push({ tone: 'warn', text: `Only ${pct(now.responseRate)} of scorecards get an answer (${now.responses} of ${now.sent}), so a few low scores move the averages a lot.` });
   const repeat = followUp.filter((f) => f.lowCount >= 2);
   if (repeat.length) out.push({ tone: 'bad', text: `${repeat.length} customer${repeat.length > 1 ? 's' : ''} raised concerns more than once: ${repeat.slice(0, 3).map((f) => f.customer).join(', ')}${repeat.length > 3 ? '…' : ''}.` });

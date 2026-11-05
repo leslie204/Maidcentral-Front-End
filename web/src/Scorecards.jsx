@@ -26,7 +26,7 @@ export default function Scorecards({ onError }) {
   const q = { from: range.from, to: range.to };
   const r = useLoad(() => api.scorecards(q), `sc:${range.from}:${range.to}`, onError);
   const d = r.data?.from === range.from && r.data?.to === range.to ? r.data : null;
-  const [tab, setTab] = useState('follow');
+  const [tab, setTab] = useState('teams');
   return (
     <>
       <PageHeader
@@ -110,13 +110,11 @@ function Report({ d, tab, setTab }) {
         value={tab}
         onChange={setTab}
         tabs={[
-          ['follow', 'Follow up', d.followUp.length],
           ['teams', 'Teams'],
           ['cleaners', 'Cleaners'],
           ['comments', 'Comments', d.comments.length],
         ]}
       />
-      {tab === 'follow' && <FollowUp list={d.followUp} />}
       {tab === 'teams' && <People rows={d.teams} kind="team" overall={n} />}
       {tab === 'cleaners' && <People rows={d.cleaners} kind="cleaner" overall={n} />}
       {tab === 'comments' && <Comments list={d.comments} />}
@@ -126,32 +124,6 @@ function Report({ d, tab, setTab }) {
 }
 
 const ScorePill = ({ s }) => <span className={`pill ${SCORE_TONE[s.score]}`}>{s.score} · {s.label}</span>;
-
-function FollowUp({ list }) {
-  if (!list.length) return <Card><Empty icon="check" title="No concerns in this period" /></Card>;
-  return (
-    <Card className="flush">
-      {list.map((f) => (
-        <div key={`${f.customer}${f.home}`} className={`sc-follow ${f.worst === 0 ? 'risk' : ''}`}>
-          <div className="sc-follow-head">
-            <b>{f.customer}</b>
-            <span className="muted small">{f.home}</span>
-            {f.worst === 0 && <span className="pill bad">Considering another company</span>}
-            {f.lowCount > 1 && <span className="pill warn">{f.lowCount} low scores</span>}
-          </div>
-          {f.low.map((x) => (
-            <div key={x.jobDate} className="sc-follow-row">
-              <span className="small"><b>{day(x.jobDate)}</b> · {x.team || 'team ?'} · {x.techs.join(', ')}</span>
-              <ScorePill s={x} />
-              <span className="sc-comment">{x.comment || <span className="muted">No comment</span>}</span>
-            </div>
-          ))}
-          {f.latest.score > 2 && <span className="muted small">Latest score since: {f.latest.score} ({day(f.latest.jobDate)})</span>}
-        </div>
-      ))}
-    </Card>
-  );
-}
 
 function People({ rows, kind, overall }) {
   const [min, setMin] = useState(kind === 'cleaner' ? 5 : 1);
