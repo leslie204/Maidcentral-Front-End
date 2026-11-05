@@ -1,7 +1,7 @@
 // Scorecards: parsing MaidCentral's report, stats, follow-ups, themes and insights.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseResults, teamIndex, analyse, themesOf } from '../src/scorecards.js';
+import { parseResults, fullNames, analyse, themesOf } from '../src/scorecards.js';
 
 const H = ['Customer', 'Home Name', 'Job Date', 'Sent To', 'Techs', 'Response Date', 'Last Sent', 'Response', 'Response', 'Trend', 'Comments', 'Actions'];
 const S = { 4: "4 - We're Thrilled - Great Work", 3: "3 - We're Happy - Good Work", 2: "2 - We've Got a Few Concerns", 1: "1 - We've Got Major Concerns", 0: '0 - We are Considering Another Company' };
@@ -14,27 +14,25 @@ ${row('Cy Three', '11/4/2026', 'C. Lead, D. Clean', 0)}
 ${row('Di Four', '11/5/2026', 'C. Lead, D. Clean', null)}
 ${row('Ed Five', '11/12/2026', 'C. Lead, D. Clean', 3, '', 'up')}
 </tbody></table>`;
-const BH = ['Job ID', 'Customer', 'Scheduled', 'Team', 'Status'];
-const board = `<table><thead><tr>${BH.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>
-<tr><td>1</td><td>Ann One</td><td>11/2/2026 9:00 AM - 11:00 AM</td><td>Blue</td><td>Closed</td></tr>
-<tr><td>2</td><td>Bo Two</td><td>11/3/2026 9:00 AM - 11:00 AM</td><td>Blue</td><td>Closed</td></tr>
-<tr><td>3</td><td>Cy Three</td><td>11/4/2026 9:00 AM - 11:00 AM</td><td>Red</td><td>Closed</td></tr>
-</tbody></table>`;
+const directory = { headers: ['Last Name', 'First Name'], rows: [{ cells: ['Lead', 'Alice'] }, { cells: ['Clean', 'Bea'] }, { cells: ['Clean', 'Bob'] }, { cells: ['Lead', 'Carl'] }] };
 
-test('the report: scores, cleaners, comments; teams from the Dispatch Board', () => {
+test('the report: scores, cleaners (full names), comments', () => {
   const rows = parseResults(report);
   assert.equal(rows.length, 6);
   assert.deepEqual([rows[1].score, rows[1].label, rows[1].trend, rows[1].techs], [2, "We've Got a Few Concerns", 'down', ['A. Lead', 'B. Clean']]);
   assert.equal(rows[4].score, null, 'sent, not answered');
-  const t = teamIndex(board);
-  assert.equal(t.get('bo two|2026-11-03'), 'Blue');
+  const name = fullNames(directory);
+  assert.equal(name('A. Lead'), 'Alice Lead');
+  assert.equal(name('C. Lead'), 'Carl Lead');
+  assert.equal(name('B. Clean'), 'B. Clean', 'two people match: left as it is');
+  assert.equal(name('Z. Nobody'), 'Z. Nobody');
   assert.deepEqual(themesOf('Floors were dirty and the shower was missed'), ['Floors & mopping', 'Bathrooms', 'Missed or not done']);
   assert.deepEqual(themesOf('Thank you, great every time'), []);
 });
 
 test('stats, follow-ups, themes and insights for a period', () => {
-  const t = teamIndex(board);
-  const rows = parseResults(report).map((r) => ({ ...r, team: t.get(`${r.customer.toLowerCase()}|${r.jobDate}`) || null }));
+  const name = fullNames(directory);
+  const rows = parseResults(report).map((r) => ({ ...r, techs: r.techs.map(name) }));
   const r = analyse(rows, { from: '2026-11-01', to: '2026-11-30', previous: rows.slice(0, 1) });
   assert.deepEqual([r.now.sent, r.now.responses, r.now.average, r.now.concerns, r.now.atRisk], [6, 5, 2, 3, 1]);
   assert.equal(r.now.responseRate, 83.3);
@@ -45,5 +43,6 @@ test('stats, follow-ups, themes and insights for a period', () => {
   assert.ok(r.insights.some((i) => /considering another company/.test(i.text)));
   assert.ok(r.insights.some((i) => /more than once: Bo Two/.test(i.text)));
   assert.ok(r.insights.some((i) => /down 2 from 4/.test(i.text)));
-  assert.equal(r.cleaners[0].name, 'A. Lead');
+  assert.equal(r.cleaners[0].name, 'Alice Lead');
+  assert.equal(r.teams, undefined, 'no team breakdown');
 });

@@ -101,9 +101,9 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     the period before: average, share thrilled, concerns (0–2), customers considering
     leaving, response rate; plain-language insights; weekly average and responses
     (concerns vs not); score breakdown; themes in concern comments (floors, bathrooms,
-    kitchen, missed, timing…); who to follow up with (worst and repeat first, with
-    comments); by team (from the Dispatch Board for that visit) and by cleaner; all
-    comments with search and filter.
+    kitchen, missed, timing…); by cleaner (full names, matched from the employee list:
+    the report gives "M. Rice"); all comments with search and filter. Customers who
+    scored 0 are named in the insights.
   - Price check (`server/src/prices.js`, page `/prices`): after a rate change, every
     booking in a date range (default the next 4 weeks) from MaidCentral's Dispatch Board
     (its filter form, a reviewed read added to `capture/read-posts.txt`), with hourly

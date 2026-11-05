@@ -1,5 +1,6 @@
 // Scorecards: what customers said after their clean, from MaidCentral's Scorecard Results
-// report (a GET with a date range), with each visit's team from the Dispatch Board.
+// report (a GET with a date range). Cleaners are listed by full name (the report gives
+// "M. Rice"; matched to the employee list).
 //
 // Scores are MaidCentral's 0–4 scale: 4 Thrilled, 3 Happy, 2 A few concerns, 1 Major
 // concerns, 0 Considering another company. "Concerns" = 0–2. The report lists every
@@ -9,6 +10,7 @@ import { tables } from './extract.js';
 import { McError } from './mc.js';
 import { localToday } from './geo.js';
 import { perSession, FRESH } from './cache.js';
+import { cleanerDirectory } from './employee.js';
 
 const DAY = 86_400_000;
 const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -61,19 +63,22 @@ export function parseResults(html) {
   });
 }
 
-// Visit team by customer and date, from the Dispatch Board rows.
-export function teamIndex(boardHtml) {
-  const t = tables(boardHtml).find((x) => x.headers.includes('Team') && x.headers.includes('Scheduled'));
-  const out = new Map();
-  if (!t) return out;
-  const i = (h) => t.headers.indexOf(h);
-  for (const r of t.rows) {
-    const d = isoOf(r.cells[i('Scheduled')]);
-    const status = String(r.cells[i('Status')] || '');
-    if (!d || /skip|moved|cancel/i.test(status)) continue;
-    out.set(`${norm(r.cells[i('Customer')])}|${d}`, String(r.cells[i('Team')] || '').trim() || null);
+// "M. Rice" -> "Mallory Rice", from the employee list; left as it is when the initial
+// and surname match nobody, or more than one person.
+export function fullNames(directory) {
+  const i = (h) => directory.headers.indexOf(h);
+  const by = new Map();
+  for (const r of directory.rows) {
+    const first = String(r.cells[i('First Name')] || '').replace(/\s+/g, ' ').trim();
+    const last = String(r.cells[i('Last Name')] || '').replace(/\s+/g, ' ').trim();
+    if (!first || !last) continue;
+    const k = `${first[0]}.|${last}`.toLowerCase();
+    by.set(k, by.has(k) ? null : `${first} ${last}`);
   }
-  return out;
+  return (short) => {
+    const m = /^(\p{L})\.?\s+(.+)$/u.exec(String(short).replace(/\s+/g, ' ').trim());
+    return (m && by.get(`${m[1]}.|${m[2]}`.toLowerCase())) || String(short).trim();
+  };
 }
 
 const weekOf = (d) => {
@@ -116,7 +121,7 @@ export function analyse(rows, { from, to, previous = [] }) {
     weeks.get(w).push(r);
   }
   const trend = [...weeks.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([week, rs]) => ({ week, ...stats(rs) }));
-  // By team and by cleaner.
+  // By cleaner.
   const group = (keyOf) => {
     const g = new Map();
     for (const r of inRange) for (const k of keyOf(r)) {
@@ -130,7 +135,6 @@ export function analyse(rows, { from, to, previous = [] }) {
       return { name, ...s, lastConcern: lastConcern ? { date: lastConcern.jobDate, customer: lastConcern.customer, score: lastConcern.score } : null };
     });
   };
-  const teams = group((r) => String(r.team || '').split(',').map((x) => x.trim())).filter((t) => t.sent >= 5).sort((a, b) => (b.responses ? 1 : 0) - (a.responses ? 1 : 0) || (a.average ?? 9) - (b.average ?? 9));
   const cleaners = group((r) => r.techs).sort((a, b) => b.concerns - a.concerns || (a.average ?? 9) - (b.average ?? 9));
   // Customers to follow up: any 0–2 in the period, worst and most recent first.
   const byCustomer = new Map();
@@ -153,11 +157,11 @@ export function analyse(rows, { from, to, previous = [] }) {
   for (const r of concernRows) for (const t of themesOf(r.comment)) themeCount[t] = (themeCount[t] || 0) + 1;
   const themes = Object.entries(themeCount).map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count);
   const comments = inRange.filter((r) => r.comment && r.score != null).sort((a, b) => b.jobDate.localeCompare(a.jobDate));
-  return { from, to, now, before, trend, teams, cleaners, followUp, themes, comments, insights: insights({ now, before, trend, teams, cleaners, followUp, themes }) };
+  return { from, to, now, before, trend, cleaners, followUp, themes, comments, insights: insights({ now, before, trend, cleaners, followUp, themes }) };
 }
 
 // Plain-language observations, most important first.
-function insights({ now, before, teams, cleaners, followUp, themes, trend }) {
+function insights({ now, before, cleaners, followUp, themes, trend }) {
   const out = [];
   const pct = (n) => `${Math.round(n)}%`;
   if (!now.responses) return [{ tone: 'info', text: 'No scorecard responses in this period yet.' }];
@@ -176,13 +180,6 @@ function insights({ now, before, teams, cleaners, followUp, themes, trend }) {
   const repeat = followUp.filter((f) => f.lowCount >= 2);
   if (repeat.length) out.push({ tone: 'bad', text: `${repeat.length} customer${repeat.length > 1 ? 's' : ''} raised concerns more than once: ${repeat.slice(0, 3).map((f) => f.customer).join(', ')}${repeat.length > 3 ? '…' : ''}.` });
   if (themes.length) out.push({ tone: 'warn', text: `Most concerns mention ${themes.slice(0, 2).map((t) => `${t.theme.toLowerCase()} (${t.count})`).join(' and ')}.` });
-  const teamsWith = teams.filter((t) => t.responses >= 8);
-  if (teamsWith.length >= 2) {
-    const worst = teamsWith.reduce((a, b) => (b.concernShare > a.concernShare ? b : a));
-    const best = teamsWith.reduce((a, b) => (b.average > a.average ? b : a));
-    if (worst.concerns >= 2 && worst.concernShare >= now.concernShare * 1.5) out.push({ tone: 'warn', text: `${worst.name} has the most concerns for its size: ${worst.concerns} of ${worst.responses} responses (${pct(worst.concernShare)}, against ${pct(now.concernShare)} overall).` });
-    out.push({ tone: 'good', text: `${best.name} scores best: ${best.average} average over ${best.responses} responses.` });
-  }
   const flagged = cleaners.filter((c) => c.responses >= 5 && c.concerns >= 2);
   if (flagged.length) out.push({ tone: 'warn', text: `Cleaners on 2 or more visits with concerns: ${flagged.slice(0, 4).map((c) => `${c.name} (${c.concerns})`).join(', ')}. Worth a look at the comments.` });
   if (trend.length >= 4) {
@@ -198,6 +195,16 @@ function insights({ now, before, teams, cleaners, followUp, themes, trend }) {
 }
 
 const cache = perSession();
+const directories = perSession();
+
+// Full names for "M. Rice" (the employee list, kept for an hour).
+async function staff(mc) {
+  const hit = directories.get(mc);
+  if (hit && Date.now() - hit.at < FRESH.reference) return hit.names;
+  const names = await cleanerDirectory(mc).then(fullNames).catch(() => (x) => String(x).trim());
+  directories.set(mc, { at: Date.now(), names });
+  return names;
+}
 
 async function load(mc, from, to) {
   if (!cache.has(mc)) cache.set(mc, new Map());
@@ -205,12 +212,11 @@ async function load(mc, from, to) {
   const key = `${from}|${to}`;
   const hit = m.get(key);
   if (hit && Date.now() - hit.at < FRESH.fourWeeks) return hit;
-  const [html, board] = await Promise.all([
+  const [html, names] = await Promise.all([
     mc.getHtml('/Report/ScorecardResults', { Start: mcDay(from), End: mcDay(to), OnlyShowResponses: 'false' }),
-    mc.postFormHtml('/Report/DispatchBoard', { StartDate: mcDay(from), EndDate: mcDay(to) }).catch(() => ''),
+    staff(mc),
   ]);
-  const teams = teamIndex(board);
-  const rows = parseResults(html).map((r) => ({ ...r, team: teams.get(`${norm(r.customer)}|${r.jobDate}`) || null }));
+  const rows = parseResults(html).map((r) => ({ ...r, techs: r.techs.map(names) }));
   const value = { at: Date.now(), rows };
   m.set(key, value);
   if (m.size > 12) m.delete(m.keys().next().value);

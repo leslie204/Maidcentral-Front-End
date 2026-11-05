@@ -26,7 +26,7 @@ export default function Scorecards({ onError }) {
   const q = { from: range.from, to: range.to };
   const r = useLoad(() => api.scorecards(q), `sc:${range.from}:${range.to}`, onError);
   const d = r.data?.from === range.from && r.data?.to === range.to ? r.data : null;
-  const [tab, setTab] = useState('teams');
+  const [tab, setTab] = useState('cleaners');
   return (
     <>
       <PageHeader
@@ -110,15 +110,13 @@ function Report({ d, tab, setTab }) {
         value={tab}
         onChange={setTab}
         tabs={[
-          ['teams', 'Teams'],
           ['cleaners', 'Cleaners'],
           ['comments', 'Comments', d.comments.length],
         ]}
       />
-      {tab === 'teams' && <People rows={d.teams} kind="team" overall={n} />}
       {tab === 'cleaners' && <People rows={d.cleaners} kind="cleaner" overall={n} />}
       {tab === 'comments' && <Comments list={d.comments} />}
-      <p className="muted small">From MaidCentral's Scorecard Results, by the date of the clean. Teams come from the Dispatch Board for that visit. Read {new Date(d.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</p>
+      <p className="muted small">From MaidCentral's Scorecard Results, by the date of the clean. Read {new Date(d.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</p>
     </>
   );
 }
@@ -152,7 +150,7 @@ function People({ rows, kind, overall }) {
         </table>
       </div>
       {!list.length && <Empty icon="users" title="Nobody with that many responses" />}
-      <div className="card-foot muted small">A visit counts for every cleaner on it{kind === 'team' ? ' and every team on it' : ''}. Red average: more than 0.1 below the overall {overall.average}.</div>
+      <div className="card-foot muted small">A visit counts for every cleaner on it. Red average: more than 0.1 below the overall {overall.average}.</div>
     </Card>
   );
 }
@@ -160,7 +158,7 @@ function People({ rows, kind, overall }) {
 function Comments({ list }) {
   const [show, setShow] = useState('all');
   const [q, setQ] = useState('');
-  const shown = list.filter((c) => (show === 'all' || (show === 'concerns' ? c.score <= 2 : c.score >= 3)) && (!q || `${c.customer} ${c.comment} ${c.techs.join(' ')} ${c.team || ''}`.toLowerCase().includes(q.toLowerCase())));
+  const shown = list.filter((c) => (show === 'all' || (show === 'concerns' ? c.score <= 2 : c.score >= 3)) && (!q || `${c.customer} ${c.comment} ${c.techs.join(' ')}`.toLowerCase().includes(q.toLowerCase())));
   return (
     <Card className="flush" title="What customers wrote" actions={
       <div className="sc-comment-tools">
@@ -175,7 +173,7 @@ function Comments({ list }) {
           <ScorePill s={c} />
           <div>
             <p>{c.comment}</p>
-            <span className="muted small">{c.customer} · {day(c.jobDate)} · {c.team || 'team ?'} · {c.techs.join(', ')}</span>
+            <span className="muted small">{c.customer} · {day(c.jobDate)} · {c.techs.join(', ')}</span>
           </div>
         </div>
       ))}
