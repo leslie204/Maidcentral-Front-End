@@ -131,8 +131,15 @@ export function analyse(rows, { from, to, previous = [] }) {
     }
     return [...g.entries()].map(([name, rs]) => {
       const s = stats(rs);
-      const lastConcern = rs.filter((r) => r.score != null && r.score <= 2).sort((a, b) => b.jobDate.localeCompare(a.jobDate))[0];
-      return { name, ...s, lastConcern: lastConcern ? { date: lastConcern.jobDate, customer: lastConcern.customer, score: lastConcern.score } : null };
+      const concernVisits = rs.filter((r) => r.score != null && r.score <= 2).sort((a, b) => b.jobDate.localeCompare(a.jobDate));
+      const last = concernVisits[0];
+      return {
+        name,
+        ...s,
+        lastConcern: last ? { date: last.jobDate, customer: last.customer, score: last.score } : null,
+        // Each visit with concerns: when, who, what they scored and said, who else was there.
+        concernVisits: concernVisits.map((r) => ({ date: r.jobDate, customer: r.customer, score: r.score, label: r.label, comment: r.comment, with: r.techs.filter((t) => t !== name) })),
+      };
     });
   };
   const cleaners = group((r) => r.techs).sort((a, b) => b.concerns - a.concerns || (a.average ?? 9) - (b.average ?? 9));

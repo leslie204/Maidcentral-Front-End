@@ -933,3 +933,17 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .sc-c p { margin: 0 0 2px; font-size: 13.5px; line-height: 1.45; }
 .sc-c .pill { justify-self: start; margin: 0; }
 @media (max-width: 800px) { .sc-follow-row, .sc-c { grid-template-columns: 1fr; } .sc-dist-row { grid-template-columns: 1fr 70px; } .sc-dist-bar { grid-column: 1 / -1; grid-row: 2; } }
+
+.sc-people-head { display: grid; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.sc-people-head p { margin: 0; font-size: 13.5px; color: var(--text-2); line-height: 1.45; max-width: 820px; }
+.sc-people-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.sc-people-tools select { height: 32px; }
+.sc-people td { vertical-align: top; }
+.sc-people .pill { margin: 0 0 2px; }
+.sc-avg b { font-size: 15px; }
+.sc-avg-bar { display: block; width: 90px; height: 6px; border-radius: 999px; background: var(--panel-2); overflow: hidden; margin-top: 4px; }
+.sc-avg-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.sc-people-detail td { background: var(--panel-2); }
+.sc-cv { display: grid; grid-template-columns: minmax(220px, 320px) auto 1fr; gap: 10px; align-items: start; padding: 6px 0; }
+.sc-cv .pill { margin: 0; }
+@media (max-width: 800px) { .sc-cv { grid-template-columns: 1fr; } }

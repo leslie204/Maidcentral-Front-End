@@ -114,7 +114,7 @@ function Report({ d, tab, setTab }) {
           ['comments', 'Comments', d.comments.length],
         ]}
       />
-      {tab === 'cleaners' && <People rows={d.cleaners} kind="cleaner" overall={n} />}
+      {tab === 'cleaners' && <People rows={d.cleaners} overall={n} from={d.from} to={d.to} />}
       {tab === 'comments' && <Comments list={d.comments} />}
       <p className="muted small">From MaidCentral's Scorecard Results, by the date of the clean. Read {new Date(d.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</p>
     </>
@@ -123,34 +123,103 @@ function Report({ d, tab, setTab }) {
 
 const ScorePill = ({ s }) => <span className={`pill ${SCORE_TONE[s.score]}`}>{s.score} · {s.label}</span>;
 
-function People({ rows, kind, overall }) {
-  const [min, setMin] = useState(kind === 'cleaner' ? 5 : 1);
-  const list = rows.filter((x) => x.responses >= min);
+// Each cleaner: how customers rated the visits they were on, in plain words.
+function statusOf(x, overall) {
+  const share = x.responses ? (x.concerns / x.responses) * 100 : 0;
+  const base = overall.concernShare || 0;
+  const rate = `${x.concerns} of ${x.responses} visits had concerns (${Math.round(share)}%, vs ${Math.round(base)}% overall)`;
+  // Worth a look: concerns on at least 2 visits and at least twice as often as overall,
+  // or an average clearly below everyone else's.
+  if (x.concerns >= 2 && share >= Math.max(base * 2, 5)) return { key: 'look', label: 'Worth a look', why: rate };
+  if (x.average != null && overall.average != null && x.average < overall.average - 0.15 && x.responses >= 5) return { key: 'look', label: 'Worth a look', why: `Average ${x.average}, below the ${overall.average} overall` };
+  if (!x.concerns && x.average >= 3.9) return { key: 'great', label: 'Doing great', why: 'No concerns, almost all 4s' };
+  return { key: 'good', label: 'Good', why: x.concerns ? rate : 'Happy customers, a few 3s' };
+}
+const STATUS_TONE = { great: 'ok', good: 'info', look: 'warn' };
+const SORTS = {
+  concerns: ['Most concerns first', (a, b) => b.concerns - a.concerns || a.average - b.average],
+  best: ['Best average first', (a, b) => b.average - a.average || b.responses - a.responses],
+  visits: ['Most rated visits first', (a, b) => b.responses - a.responses],
+  name: ['A–Z', (a, b) => a.name.localeCompare(b.name)],
+};
+
+function People({ rows, overall, from, to }) {
+  const [min, setMin] = useState(5);
+  const [sort, setSort] = useState('concerns');
+  const [open, setOpen] = useState(null);
+  const list = rows.filter((x) => x.responses >= min).sort(SORTS[sort][1]);
+  const hidden = rows.filter((x) => x.responses < min).length;
   return (
-    <Card
-      className="flush"
-      actions={<label className="inline-field small">At least<select value={min} onChange={(e) => setMin(Number(e.target.value))}>{[1, 5, 10, 20].map((x) => <option key={x} value={x}>{x}</option>)}</select>responses</label>}
-      title={kind === 'team' ? 'By team' : 'By cleaner'}
-    >
+    <Card className="flush">
+      <div className="sc-people-head">
+        <p>
+          How customers rated the visits each cleaner was on, {day(from)} – {day(to)}. Ratings are out of 4 (4 = Thrilled). A visit counts for every cleaner on it, so a concern on a
+          visit with two cleaners shows for both.
+        </p>
+        <div className="sc-people-tools">
+          <label className="inline-field">Show cleaners with at least
+            <select value={min} onChange={(e) => setMin(Number(e.target.value))}>{[1, 3, 5, 10, 20].map((x) => <option key={x} value={x}>{x}</option>)}</select>
+            rated visits
+          </label>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
+            {Object.entries(SORTS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+      </div>
       <div className="tablewrap">
-        <table className="data">
-          <thead><tr><th>{kind === 'team' ? 'Team' : 'Cleaner'}</th><th>Average</th><th>Thrilled</th><th>Concerns</th><th>Responses</th><th>Last concern</th></tr></thead>
+        <table className="data sc-people">
+          <thead>
+            <tr>
+              <th>Cleaner</th>
+              <th>How they're doing</th>
+              <th>Rated visits <Help>Visits where the customer answered the scorecard (out of all the scorecards sent for their visits).</Help></th>
+              <th>Average rating</th>
+              <th>Rated 4 "Thrilled"</th>
+              <th>Visits with concerns <Help>Visits rated 0, 1 or 2. Tap to see them.</Help></th>
+            </tr>
+          </thead>
           <tbody>
-            {list.map((x) => (
-              <tr key={x.name}>
-                <td><b>{x.name}</b></td>
-                <td><b className={x.average != null && x.average < overall.average - 0.1 ? 'bad-text' : ''}>{x.average ?? '–'}</b></td>
-                <td>{x.thrilledShare == null ? '–' : `${Math.round(x.thrilledShare)}%`}</td>
-                <td>{x.concerns ? <b className="bad-text">{x.concerns}</b> : 0}{x.concernShare ? <span className="muted small"> ({Math.round(x.concernShare)}%)</span> : ''}</td>
-                <td>{x.responses}<span className="muted small"> of {x.sent} ({Math.round(x.responseRate || 0)}%)</span></td>
-                <td className="small">{x.lastConcern ? `${day(x.lastConcern.date)} · ${x.lastConcern.customer} (${x.lastConcern.score})` : <span className="muted">none</span>}</td>
-              </tr>
-            ))}
+            {list.map((x) => {
+              const st = statusOf(x, overall);
+              const isOpen = open === x.name;
+              return [
+                <tr key={x.name} className={x.concerns ? 'clickable' : ''} onClick={() => x.concerns && setOpen(isOpen ? null : x.name)}>
+                  <td><b>{x.name}</b></td>
+                  <td><span className={`pill ${STATUS_TONE[st.key]}`}>{st.label}</span><span className="muted small block">{st.why}</span></td>
+                  <td><b>{x.responses}</b><span className="muted small block">of {x.sent} scorecards sent</span></td>
+                  <td>
+                    <span className="sc-avg"><b>{x.average ?? '–'}</b><span className="muted small"> out of 4</span></span>
+                    {x.average != null && <span className="sc-avg-bar"><i style={{ width: `${(x.average / 4) * 100}%` }} /></span>}
+                  </td>
+                  <td>{x.thrilledShare == null ? '–' : `${Math.round(x.thrilledShare)}%`}<span className="muted small block">{x.thrilled} of {x.responses} visits</span></td>
+                  <td>
+                    {x.concerns ? (
+                      <button className="linkish" onClick={(e) => (e.stopPropagation(), setOpen(isOpen ? null : x.name))}>
+                        <b className="bad-text">{x.concerns}</b> {isOpen ? 'hide' : 'see them'}
+                      </button>
+                    ) : <span className="ok-text">None</span>}
+                  </td>
+                </tr>,
+                isOpen && (
+                  <tr key={`${x.name}-c`} className="sc-people-detail">
+                    <td colSpan={6}>
+                      {x.concernVisits.map((v, i) => (
+                        <div key={i} className="sc-cv">
+                          <span className="small"><b>{day(v.date)}</b> · {v.customer}{v.with?.length ? ` · with ${v.with.join(', ')}` : ''}</span>
+                          <ScorePill s={v} />
+                          <span className="sc-comment">{v.comment || <span className="muted">No comment</span>}</span>
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ),
+              ];
+            })}
           </tbody>
         </table>
       </div>
-      {!list.length && <Empty icon="users" title="Nobody with that many responses" />}
-      <div className="card-foot muted small">A visit counts for every cleaner on it. Red average: more than 0.1 below the overall {overall.average}.</div>
+      {!list.length && <Empty icon="users" title="No cleaner has that many rated visits in this period" />}
+      {hidden > 0 && <div className="card-foot muted small">{hidden} cleaner{hidden > 1 ? 's' : ''} with fewer than {min} rated visits not shown: too few ratings to judge.</div>}
     </Card>
   );
 }
