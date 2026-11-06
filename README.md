@@ -73,7 +73,8 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       schedule adds what's true on each date: an opening taken that date by a moved or
       one-time booking (the first visit starts the next free date), and time free on one
       date only (someone skipped), offered as a one-time opening with who's missing. The
-      4-week plan marks skipped visits (outlined) and moved/one-time bookings (striped).
+      4-week plan shows three things: booked (grey), open for a new regular (green, labelled
+      Weekly / 2 wks / 4 wks) and free on one date only ("Once", amber); hover for details.
     - Real statuses: the Dispatch Board for the same weeks (plus 2 weeks either side) gives
       MaidCentral's own status for each booking, so a regular visit missing from its day is
       labelled Skipped, Cancelled, Moved (to which date, time and team), on another team

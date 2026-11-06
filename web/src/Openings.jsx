@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
@@ -9,8 +9,9 @@ import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainF
 // Frequency colours (MaidCentral's own, from the jobs on the board), with fallbacks.
 const FIT_COLOR = { Weekly: '#92B558', 'Every 2 weeks': '#005960', 'Every 4 weeks': '#578CAC', 'One-time': '#d2691e', 'On demand': '#c48f65' };
 // Labels inside the small open blocks on the 4-week plan.
-const FIT_SHORT = { Weekly: 'wkly', 'Every 2 weeks': '2 wk', 'Every 4 weeks': '4 wk', 'One-time': '1×' };
-const FIT_LONG = { Weekly: 'open weekly', 'Every 2 weeks': 'open every other wk', 'Every 4 weeks': 'open every 4 wks', 'One-time': 'free this date only' };
+const FIT_SHORT = { Weekly: 'Weekly', 'Every 2 weeks': '2 wks', 'Every 4 weeks': '4 wks', 'One-time': 'Once' };
+// "North Home - Ann North" -> "Ann North".
+const customerOf = (title) => String(title || '').split(' - ').pop();
 // "Good for…" wording for an opening's frequency.
 const GOOD_FOR = { Weekly: 'Weekly customer', 'Every 2 weeks': 'Every-other-week customer', 'Every 4 weeks': 'Every-4-weeks customer', 'One-time': 'One-time clean (this date only)' };
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''}${m < 720 ? 'a' : 'p'}`;
@@ -119,11 +120,6 @@ function CyclePlan({ data, highlight, onClear }) {
     }
     return null;
   });
-  const freqColors = useMemo(() => {
-    const m = { ...FIT_COLOR };
-    for (const t of teams) for (const day of Object.values(t.days)) for (const j of day?.jobs || []) if (j.frequency && j.color) m[j.frequency] = j.color;
-    return m;
-  }, [teams]);
 
   return (
     <>
@@ -143,22 +139,19 @@ function CyclePlan({ data, highlight, onClear }) {
           {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <div className="chips">
-          {['all', 'Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => (
-            <button key={f} className={focus === f ? 'chip on' : 'chip'} onClick={() => setFocus(f)}>
-              {f !== 'all' && <i className="dot" style={{ background: freqColors[f] }} />}
-              {f === 'all' ? 'All' : plainFreq(f)}
-            </button>
+          <span className="muted small">Show openings for:</span>
+          {[['all', 'Any customer'], ['Weekly', 'Weekly'], ['Every 2 weeks', 'Every other week'], ['Every 4 weeks', 'Every 4 weeks'], ['One-time', 'One-time clean']].map(([f, label]) => (
+            <button key={f} className={focus === f ? 'chip on' : 'chip'} onClick={() => setFocus(f)}>{label}</button>
           ))}
         </div>
       </div>
       <Card className="flush">
         <div className="cycle-legend">
-          {['Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => <span key={f}><i style={{ background: freqColors[f] }} />{plainFreq(f)} job</span>)}
-          <span><i className="hatch" />Free time (the label says which customers it suits)</span>
-          <span><i className="k-skipped" />Not here this date: skipped, moved, cancelled or on another team (hover for which; still their spot)</span>
-          <span><i className="k-extra" />Moved here or one-time (hover for where from)</span>
-          <span className="muted">Each bar is one team's day, {hourLabel(dayStart)}–{hourLabel(dayEnd)}</span>
-          <Help wide>Read across a row to see a team's next 4 weeks on that weekday. Openings come from MaidCentral's Master Schedule (the recurring pattern), so a skipped visit doesn't open a recurring spot and a booking moved into a gap doesn't hide one. Coloured blocks are recurring customers (by how often they're cleaned); an outlined block is a customer who skipped that date (still their spot); a striped block is a booking moved there or a one-time clean. Dashed blocks are free time: "wkly" free every week, "2 wk" free in alternate weeks (weeks 1 & 3 or 2 & 4), "4 wk" once in the cycle, "1×" free on that date only. A crossed-out opening is taken that date by a moved or one-time booking; the first visit starts the next free date.</Help>
+          <span><i className="k-booked" />Booked</span>
+          <span><i className="k-open" />Open for a new regular: Weekly, every 2 wks or every 4 wks</span>
+          <span><i className="k-once" />Once: free that date only (a regular is away)</span>
+          <span className="muted">Hover any block for details</span>
+          <Help wide>Each bar is one team's day ({hourLabel(dayStart)}–{hourLabel(dayEnd)}); read across a row to see the next 4 weeks on that weekday. Green openings come from MaidCentral's Master Schedule, so they are real recurring spots: a customer who skipped or moved doesn't create one. When a regular is away on a date, their time shows as "Once" (good for a one-time clean only). A booking moved into an open spot shows as booked that date; hover it to see where it came from.</Help>
         </div>
         <div className="tablewrap plain">
           <table className="cycle">
@@ -190,39 +183,33 @@ function CyclePlan({ data, highlight, onClear }) {
                               <div className="cbar" style={{ '--hours': (dayEnd - dayStart) / 60 }}>
                                 {isHl(t, dt) && <div className="cbar-hl" style={{ left: `${pct(highlight.s)}%`, width: `${pct(highlight.e) - pct(highlight.s)}%` }} />}
                                 {day.window && <div className="cbar-window" style={{ left: `${pct(day.window.s)}%`, width: `${pct(day.window.e) - pct(day.window.s)}%` }} />}
-                                {day.jobs.map((j, i) => {
-                                  const f = j.frequency || 'Unknown';
-                                  const dim = focus !== 'all' && f !== focus;
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`cbar-job ${dim ? 'dim' : ''} ${j.status === 'extra' ? 'extra' : j.status !== 'booked' ? `skipped st-${j.status}` : ''}`}
-                                      style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, '--freq': freqColors[f] || '#9ca3af', background: j.status !== 'booked' && j.status !== 'extra' ? 'transparent' : freqColors[f] || '#9ca3af' }}
-                                      title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${j.status === 'extra' ? `Not a regular here: ${j.reason}` : j.status !== 'booked' ? `Not here this date: ${j.reason}. Still their ${plainFreq(f).toLowerCase()} spot.` : plainFreq(f)}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
-                                    />
-                                  );
-                                })}
-                                {day.open.map((g, i) => {
-                                  const dim = focus !== 'all' && g.fit !== focus;
-                                  return (
-                                    <div
-                                      key={`o${i}`}
-                                      className={`cbar-open ${dim ? 'dim' : ''} ${g.taken ? 'taken' : ''}`}
-                                      style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%`, '--fit': freqColors[g.fit] }}
-                                      title={`${g.fit === 'One-time' ? `Free ${hhmm(g.s)}–${hhmm(g.e)} this date only: ${g.why || 'one-time clean'}` : `Free ${hhmm(g.s)}–${hhmm(g.e)} · good for an ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 ? ` (with ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')})` : g.weeks === 1 ? ' (every week)' : ''}`}${g.taken ? `\nTaken this date by ${g.taken.join(', ')} (moved or one-time): the first visit starts the next free date` : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}
-                                    >
-                                      <span>{FIT_SHORT[g.fit]}</span>
-                                    </div>
-                                  );
-                                })}
+                                {day.jobs.filter((j) => j.status === 'booked' || j.status === 'extra').map((j, i) => (
+                                  <div
+                                    key={i}
+                                    className={`cbar-job plan-job ${focus !== 'all' ? 'quiet' : ''}`}
+                                    style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%` }}
+                                    title={`${hhmm(j.s)}–${hhmm(j.e)} ${customerOf(j.title)}\n${j.status === 'extra' ? `Booked this date only: ${j.reason}` : `${plainFreq(j.frequency || 'Unknown')} customer`}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
+                                  />
+                                ))}
+                                {day.open.filter((g) => !g.taken).map((g, i) => (
+                                  <div
+                                    key={`o${i}`}
+                                    className={`cbar-open plan-open ${g.fit === 'One-time' ? 'once' : ''} ${focus !== 'all' && g.fit !== focus ? 'dim' : ''}`}
+                                    style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%` }}
+                                    title={g.fit === 'One-time'
+                                      ? `Free ${hhmm(g.s)}–${hhmm(g.e)} on this date only (one-time clean)\n${g.why || ''}`
+                                      : `Open ${hhmm(g.s)}–${hhmm(g.e)}: good for a new ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 ? `\nAlso free ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')}` : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}
+                                  >
+                                    <span>{FIT_SHORT[g.fit]}</span>
+                                  </div>
+                                ))}
                               </div>
                               <span className="cbar-meta">
                                 {day.booked} h booked
-                                {day.open.map((g, i) => (
-                                  <span key={i} className="cbar-meta-open" style={{ '--fit': freqColors[g.fit] }}>
-                                    {' · '}<b>{Math.round((g.e - g.s) / 6) / 10} h</b> {FIT_LONG[g.fit]}{g.taken ? ' (taken this date)' : ''}
-                                  </span>
-                                ))}
+                                {(() => {
+                                  const h = (fit) => Math.round(day.open.filter((g) => !g.taken && (fit ? g.fit === 'One-time' : g.fit !== 'One-time')).reduce((a, g) => a + g.e - g.s, 0) / 6) / 10;
+                                  return <>{h(false) > 0 && <> · <b className="m-open">{h(false)} h open</b></>}{h(true) > 0 && <> · <b className="m-once">{h(true)} h once</b></>}</>;
+                                })()}
                               </span>
                             </td>
                           );
@@ -236,9 +223,6 @@ function CyclePlan({ data, highlight, onClear }) {
           </table>
         </div>
       </Card>
-      <p className="muted small">
-        Read across a row to see a team's 4 weeks on that weekday. "Every other" free time is open in weeks 1 & 3 or 2 & 4, so a new every-other-week customer sits alongside the ones already booked in the other weeks.
-      </p>
     </>
   );
 }

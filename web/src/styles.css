@@ -949,9 +949,15 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 @media (max-width: 800px) { .sc-cv { grid-template-columns: 1fr; } }
 
 /* 4-week plan: the recurring pattern vs the dated schedule */
-.cbar-job.skipped { border: 1.5px dashed var(--freq); opacity: 0.9; }
-.cbar-job.extra { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px 6px) !important; box-shadow: 0 0 0 1px var(--panel), 0 0 0 2px var(--text-2); }
-.cbar-open.taken { opacity: 0.45; background-image: linear-gradient(to top right, transparent calc(50% - 1px), var(--fit) calc(50% - 1px), var(--fit) calc(50% + 1px), transparent calc(50% + 1px)); }
-.cycle-legend i.k-skipped { border: 1.5px dashed var(--muted); background: transparent; }
-.cycle-legend i.k-extra { background: repeating-linear-gradient(45deg, var(--muted) 0 3px, transparent 3px 6px); }
-.cbar-job.skipped.st-cancelled { border-color: var(--bad); }
+/* 4-week plan: three things only. Booked (slate), open for a regular (green), free once (amber). */
+.cbar-job.plan-job { background: var(--plan-booked); }
+.cbar-open.plan-open { --fit: var(--ok); border: 1.5px solid var(--ok); background: color-mix(in srgb, var(--ok) 16%, var(--panel)); color: var(--ok); font: 650 10px var(--font, inherit); }
+.cbar-open.plan-open.once { --fit: var(--warn); border: 1.5px dashed var(--warn); background: color-mix(in srgb, var(--warn) 12%, var(--panel)); color: var(--warn); }
+.cycle-legend i.k-booked { background: var(--plan-booked); }
+.cycle-legend i.k-open { background: color-mix(in srgb, var(--ok) 16%, var(--panel)); border: 1.5px solid var(--ok); }
+.cycle-legend i.k-once { background: color-mix(in srgb, var(--warn) 12%, var(--panel)); border: 1.5px dashed var(--warn); }
+.cbar-meta .m-open { color: var(--ok); font-weight: 650; }
+.cbar-meta .m-once { color: var(--warn); font-weight: 650; }
+:root { --plan-booked: #94a3b8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --plan-booked: #64748b; } }
+:root[data-theme='dark'] { --plan-booked: #64748b; }
