@@ -155,8 +155,8 @@ function CyclePlan({ data, highlight, onClear }) {
         <div className="cycle-legend">
           {['Weekly', 'Every 2 weeks', 'Every 4 weeks', 'One-time'].map((f) => <span key={f}><i style={{ background: freqColors[f] }} />{plainFreq(f)} job</span>)}
           <span><i className="hatch" />Free time (the label says which customers it suits)</span>
-          <span><i className="k-skipped" />Skipped this date (still their spot)</span>
-          <span><i className="k-extra" />Moved here or one-time</span>
+          <span><i className="k-skipped" />Not here this date: skipped, moved, cancelled or on another team (hover for which; still their spot)</span>
+          <span><i className="k-extra" />Moved here or one-time (hover for where from)</span>
           <span className="muted">Each bar is one team's day, {hourLabel(dayStart)}–{hourLabel(dayEnd)}</span>
           <Help wide>Read across a row to see a team's next 4 weeks on that weekday. Openings come from MaidCentral's Master Schedule (the recurring pattern), so a skipped visit doesn't open a recurring spot and a booking moved into a gap doesn't hide one. Coloured blocks are recurring customers (by how often they're cleaned); an outlined block is a customer who skipped that date (still their spot); a striped block is a booking moved there or a one-time clean. Dashed blocks are free time: "wkly" free every week, "2 wk" free in alternate weeks (weeks 1 & 3 or 2 & 4), "4 wk" once in the cycle, "1×" free on that date only. A crossed-out opening is taken that date by a moved or one-time booking; the first visit starts the next free date.</Help>
         </div>
@@ -196,9 +196,9 @@ function CyclePlan({ data, highlight, onClear }) {
                                   return (
                                     <div
                                       key={i}
-                                      className={`cbar-job ${dim ? 'dim' : ''} ${j.status === 'skipped' ? 'skipped' : j.status === 'extra' ? 'extra' : ''}`}
-                                      style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, '--freq': freqColors[f] || '#9ca3af', background: j.status === 'skipped' ? 'transparent' : freqColors[f] || '#9ca3af' }}
-                                      title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${j.status === 'skipped' ? `Skipped this date: still their ${plainFreq(f).toLowerCase()} spot` : j.status === 'extra' ? 'Moved here or one-time: not part of the recurring pattern' : plainFreq(f)}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
+                                      className={`cbar-job ${dim ? 'dim' : ''} ${j.status === 'extra' ? 'extra' : j.status !== 'booked' ? `skipped st-${j.status}` : ''}`}
+                                      style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, '--freq': freqColors[f] || '#9ca3af', background: j.status !== 'booked' && j.status !== 'extra' ? 'transparent' : freqColors[f] || '#9ca3af' }}
+                                      title={`${hhmm(j.s)}–${hhmm(j.e)} ${j.title}\n${j.status === 'extra' ? `Not a regular here: ${j.reason}` : j.status !== 'booked' ? `Not here this date: ${j.reason}. Still their ${plainFreq(f).toLowerCase()} spot.` : plainFreq(f)}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
                                     />
                                   );
                                 })}

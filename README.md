@@ -74,6 +74,12 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       one-time booking (the first visit starts the next free date), and time free on one
       date only (someone skipped), offered as a one-time opening with who's missing. The
       4-week plan marks skipped visits (outlined) and moved/one-time bookings (striped).
+    - Real statuses: the Dispatch Board for the same weeks (plus 2 weeks either side) gives
+      MaidCentral's own status for each booking, so a regular visit missing from its day is
+      labelled Skipped, Cancelled, Moved (to which date, time and team), on another team
+      that day, or not booked; a booking that isn't part of the pattern is labelled "moved
+      here from <date>", one-time, or booked outside the customer's usual day. If the board
+      can't be read, openings still work and the labels say the status isn't available.
     - Capacity tab (`server/src/planner.js`): how full each team's day is (booked hours
       vs the team's shift window, 8:15 AM leave to the return time), split repeat /
       one-time, with the day's timeline when a day is clicked. (The separate Scheduling

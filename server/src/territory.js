@@ -18,6 +18,7 @@ import { areaNames, areaKey } from './areas.js';
 import { localToday, mondayOf } from './geo.js';
 import { perSession, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
+import { parseBoard, isVisit } from './prices.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -263,11 +264,17 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
   const prog = { stage: 'locations', done: 0, total: dates.length, startedAt: Date.now() };
   progress.set(mc, prog);
-  const [homes, zs, shapes, master] = await Promise.all([
+  const usDay = (ms) => {
+    const [y, m, d] = new Date(ms).toISOString().slice(0, 10).split('-');
+    return `${m}/${d}/${y}`;
+  };
+  const [homes, zs, shapes, master, board] = await Promise.all([
     book(mc),
     zones(mc),
     zoneShapes(mc).catch(() => ({ features: [] })),
     mc.getHtml('/Report/MasterSchedule').then(parseMaster),
+    // Real statuses (Skipped, Moved, Cancelled…), 2 weeks either side of the 4 weeks.
+    mc.postFormHtml('/Report/DispatchBoard', { StartDate: usDay(start - 14 * DAY), EndDate: usDay(start + 41 * DAY) }).then(parseBoard).catch(() => null),
   ]).catch((e) => {
     progress.delete(mc);
     throw e;
@@ -355,6 +362,56 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     const byWeek = new Map([1, 2, 3, 4].map((w) => [w, events.filter((ev) => ev.weeks.includes(w)).sort((a, c) => a.s - c.s)]));
     pattern.set(`${b.teamId}|${b.weekday}`, { block: b, byWeek, dateWeek });
   }
+
+  // Where each recurring customer is expected (from the pattern), to tell a moved visit's
+  // new date from their next regular one.
+  const expected = new Map();
+  for (const [key, pt] of pattern) {
+    const teamId = Number(key.split('|')[0]);
+    for (const [d, w] of pt.dateWeek) for (const v of pt.byWeek.get(w) || []) {
+      const k = norm(v.customer);
+      if (!expected.has(k)) expected.set(k, new Set());
+      expected.get(k).add(`${d}|${teamId}`);
+    }
+  }
+  const rowsBy = new Map();
+  const rowById = new Map();
+  for (const r of board || []) {
+    const k = norm(r.customer);
+    if (!rowsBy.has(k)) rowsBy.set(k, []);
+    rowsBy.get(k).push(r);
+    rowById.set(String(r.jobId), r);
+  }
+  const shortDay = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const gap = (a, b) => Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`));
+  // A recurring visit that isn't on its team's day: MaidCentral's own status for it.
+  const whyMissing = (customer, date, teamName) => {
+    if (!board) return { status: 'missing', text: 'not on the schedule this date (status not available)' };
+    const rows = rowsBy.get(norm(customer)) || [];
+    const here = rows.filter((r) => r.date === date);
+    const elsewhere = here.find((r) => isVisit(r.status) && norm(r.team) !== norm(teamName));
+    if (elsewhere) return { status: 'other-team', text: `with ${elsewhere.team} this day instead (${elsewhere.time})` };
+    const st = here.map((r) => r.status).find(Boolean) || '';
+    if (/moved/i.test(st)) {
+      const to = rows
+        .filter((r) => r.date !== date && isVisit(r.status) && !expected.get(norm(customer))?.has(`${r.date}|${[...teams.values()].find((t) => norm(t.name) === norm(r.team))?.id}`))
+        .sort((a, b) => gap(a.date, date) - gap(b.date, date))[0];
+      return { status: 'moved', text: to ? `moved to ${shortDay(to.date)} ${to.time} with ${to.team}` : 'moved to another date' };
+    }
+    if (/skip/i.test(st)) return { status: 'skipped', text: 'skipped (marked in MaidCentral)' };
+    if (/cancel/i.test(st)) return { status: 'cancelled', text: 'cancelled' };
+    if (st && !isVisit(st)) return { status: 'other', text: st.toLowerCase() };
+    return { status: 'not-booked', text: 'no booking this date' };
+  };
+  // A booking that isn't part of the pattern: where it came from.
+  const whyExtra = (job, date) => {
+    const row = rowById.get(String(job.id));
+    if (!row) return job.frequency?.short === 'One-time' ? 'one-time clean' : 'not part of the recurring pattern';
+    if (/single|one.?time|on demand/i.test(row.frequency)) return 'one-time clean';
+    const from = (rowsBy.get(norm(row.customer)) || []).filter((r) => /moved/i.test(r.status) && r.date !== date).sort((a, b) => gap(a.date, date) - gap(b.date, date))[0];
+    if (from) return `moved here from ${shortDay(from.date)}`;
+    return `${row.frequency ? `${row.frequency.toLowerCase()} customer` : 'customer'} booked here outside their usual day or team`;
+  };
 
   // Free time in a list of visits: the working day minus the visits, starting after the
   // drive from the office and ending in time to drive back.
@@ -489,7 +546,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
         if (!extra.length) continue;
         const missing = matchDay(pt?.byWeek.get(w) || [], day.jobs).missing;
         for (const [s, e] of extra) {
-          const gone = missing.filter((v) => v.s < e && v.e > s).map((v) => v.customer);
+          const gone = missing.filter((v) => v.s < e && v.e > s).map((v) => `${v.customer}: ${whyMissing(v.customer, d, team.name).text}`);
           const { before, after } = neighbourInfo(visits, s, e);
           const neighbours = [];
           for (const [v, when] of [[before, 'before'], [after, 'after']]) if (v?.loc) neighbours.push({ ...v.loc, title: v.title, when });
@@ -511,7 +568,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
             firstDate: d,
             takenOn: [],
             weeklyHours: 0,
-            why: gone.length ? `${gone.join(', ')} ${gone.length > 1 ? 'are' : 'is'} not on the schedule this date (skipped or moved)` : 'free on this date only',
+            why: gone.length ? gone.join('; ') : 'free on this date only',
             area: describeArea(neighbours, usual),
             legs: [{ date: d, before: before?.loc || null, after: after?.loc || null, beforeEnd: before?.e ?? null, afterStart: after?.s ?? null }],
             members: day.t.members.filter((m) => !m.absent).map((m) => m.name),
@@ -547,11 +604,12 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
           const m = matchDay(planned, day?.jobs || []);
           const jobs = planned.map((v) => {
             const j = m.pairs.get(v);
-            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : 'skipped' };
+            const why = j ? null : whyMissing(v.customer, d.date, team.name);
+            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : why.status, reason: why?.text || null };
           });
           for (const j of m.extras) {
             const h = lookup(j.title);
-            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra' });
+            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date) });
           }
           return [d.date, {
             window: day?.t.window ? { s: mod(Date.parse(`${day.t.window.start}Z`)), e: mod(Date.parse(`${day.t.window.end}Z`)) } : null,
@@ -592,6 +650,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     weeks: 4,
     cycle,
     source: 'master-schedule',
+    statuses: board ? 'dispatch-board' : 'unavailable',
     minHours: minMin / 60,
     openings: out.sort((a, b) => b.weeklyHours - a.weeklyHours || a.weekdayIndex - b.weekdayIndex || a.start - b.start),
     dayStart: hhmm(open[0][0]),

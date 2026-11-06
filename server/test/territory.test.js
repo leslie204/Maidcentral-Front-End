@@ -71,8 +71,20 @@ const MASTER = `<html><body>${[
   block(2, 'Red', '#c40909', [[2, 'Sam South', 900, 1030, [2, 6], 'E1'], [3, 'Sue Two', 1300, 1430, [4, 6], 'E2']]),
   block(3, 'Green', '#00b526', [[5, 'Gil Green', 900, 1030, [2, 4], 'E2'], [7, 'Kim Skip', 1300, 1430, [3, 4], 'E4']]),
 ].join('\n')}</body></html>`;
+// The Dispatch Board: MaidCentral's own status for each booking. Kim's 11/23 visit is marked
+// Skipped; Moe's Wednesday 11/18 visit was moved to Green's Monday 11/16.
+const BHEAD = ['Job ID', 'Customer', 'Freq.', 'Scheduled', 'Team', 'Alwd. Hours', 'Bill Rate', 'Status'];
+const brow = (id, who, freq, when, team, status) => `<tr>${[id, who, freq, when, team, '4.00', '$200.00', status].map((x) => `<td>${x}</td>`).join('')}</tr>`;
+const BOARD = `<table><thead><tr>${BHEAD.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+${brow(70, 'Kim Skip', 'Every Four Weeks', '11/23/2026 1:00 PM - 3:00 PM', 'Green', 'Skipped')}
+${brow(60, 'Moe Moved', 'Every Four Weeks', '11/18/2026 9:00 AM - 11:00 AM', 'Green', 'Moved')}
+${brow(6, 'Moe Moved', 'Every Four Weeks', '11/16/2026 9:00 AM - 11:00 AM', 'Green', 'Pending')}
+</tbody></table>`;
 const mc = {
   host: 'test.maidcentral.com',
+  async postFormHtml(path) {
+    return { '/Report/DispatchBoard': BOARD }[path];
+  },
   async getHtml(path) {
     return { '/Report/CustomerEfficiencyMap': CEM, '/Zone': ZONES, '/Job/Schedule': KEY, '/Company/Settings': COMPANY, '/Report/MasterSchedule': MASTER }[path];
   },
@@ -127,7 +139,7 @@ test('openings follow the recurring pattern: skips are one-time only, moved book
   // Kim skipped 11/23 (her every-4-weeks week 3): free that day only, as a one-time opening.
   const once = green.filter((x) => x.fit === 'One-time');
   assert.deepEqual(once.map((x) => [x.dates, x.label]), [[['2026-11-23'], '1:00 PM – 3:00 PM']]);
-  assert.match(once[0].why, /Kim Skip is not on the schedule/);
+  assert.match(once[0].why, /Kim Skip: skipped \(marked in MaidCentral\)/);
   assert.ok(!green.some((x) => x.weeks > 0 && x.dates.includes('2026-11-23') && overlaps(x, 13 * 60, 15 * 60)), 'Kim\'s slot is not sold as recurring');
   // Moe was moved into the week 2 morning, but Green's weeks 2 & 4 mornings are recurring
   // openings (every 2 weeks); the first visit is the week the spot is really free.
@@ -139,6 +151,14 @@ test('openings follow the recurring pattern: skips are one-time only, moved book
   const g = o.cycle.teams.find((t) => t.name === 'Green');
   assert.deepEqual(g.days['2026-11-23'].jobs.map((j) => [j.title.split(' - ')[0], j.status]), [['Gil Home', 'booked'], ['Kim Home', 'skipped']]);
   assert.deepEqual(g.days['2026-11-16'].jobs.map((j) => [j.title.split(' - ')[0], j.status]), [['Moe Home', 'extra']]);
+  // Real statuses from the Dispatch Board.
+  assert.equal(o.statuses, 'dispatch-board');
+  assert.equal(g.days['2026-11-23'].jobs[1].reason, 'skipped (marked in MaidCentral)');
+  assert.equal(g.days['2026-11-16'].jobs[0].reason, 'moved here from Wed, Nov 18');
+  // Without the board the app still works, and says it couldn't tell.
+  const blind = await openings({ ...mc, host: 'blind.maidcentral.com', postFormHtml: async () => { throw new Error('down'); } }, { from: MONDAYS[0], minHours: 1.5 });
+  assert.equal(blind.statuses, 'unavailable');
+  assert.equal(blind.cycle.teams.find((t) => t.name === 'Green').days['2026-11-23'].jobs[1].status, 'missing');
   assert.equal(g.days['2026-11-23'].week, 3);
 });
 
@@ -187,7 +207,7 @@ test('area names: place names from zone descriptions, duplicates told apart by Z
 
 test('openings are cached per person and filtered by length without re-reading MaidCentral', async () => {
   let calls = 0;
-  const counting = { ...mc, host: 'count.maidcentral.com', getJson: async (p, q) => (calls++, mc.getJson(p, q)), getHtml: mc.getHtml };
+  const counting = { ...mc, host: 'count.maidcentral.com', getJson: async (p, q) => (calls++, mc.getJson(p, q)), getHtml: mc.getHtml, postFormHtml: mc.postFormHtml };
   const a = await openings(counting, { from: MONDAYS[0], minHours: 1.5 });
   const after = calls;
   const b = await openings(counting, { from: MONDAYS[0], minHours: 3 });

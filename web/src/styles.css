@@ -954,3 +954,4 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .cbar-open.taken { opacity: 0.45; background-image: linear-gradient(to top right, transparent calc(50% - 1px), var(--fit) calc(50% - 1px), var(--fit) calc(50% + 1px), transparent calc(50% + 1px)); }
 .cycle-legend i.k-skipped { border: 1.5px dashed var(--muted); background: transparent; }
 .cycle-legend i.k-extra { background: repeating-linear-gradient(45deg, var(--muted) 0 3px, transparent 3px 6px); }
+.cbar-job.skipped.st-cancelled { border-color: var(--bad); }
