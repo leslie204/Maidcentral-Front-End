@@ -31,7 +31,7 @@ function plainReason(s, { team = true } = {}) {
   else if (s.sameTeam) parts.push('Their own team');
   const sh = Math.abs(s.shiftMin);
   parts.push(sh < 15 ? 'usual time' : `${sh >= 60 ? `${Math.round(sh / 30) / 2} h` : `${Math.round(sh / 5) * 5} min`} ${s.shiftMin < 0 ? 'earlier' : 'later'} than usual`);
-  parts.push(s.extraDriveMin <= 5 ? 'team already nearby' : `+${s.exactDrive ? '' : '≈'}${s.extraDriveMin} min driving${s.exactDrive ? ' (Google Maps)' : ''}`);
+  parts.push(s.extraDriveMin <= 5 ? 'team already nearby' : `+${s.exactDrive ? '' : '≈'}${s.extraDriveMin} min driving`);
   return parts.join(' · ');
 }
 const warning = (s) => (s.reasons || []).find((x) => x.tone === 'warn' && /days from their/.test(x.text))?.text || null;
@@ -135,7 +135,7 @@ export default function Reschedule({ onError }) {
         }
       />
       {mode === 'one' ? <OneCustomer onError={onError} /> : <WholeDay onError={onError} />}
-      <p className="muted small rs-foot">New times fit into a team's route: driving from the job before (or the office at 8:15 AM) and on to the next job or back by the return time. Extra driving marked "Google Maps" is the real road time; "≈" is an estimate from distance. Nothing changes until you move the booking in MaidCentral.</p>
+      <p className="muted small rs-foot">New times fit into a team's route: driving from the job before (or the office at 8:15 AM) and on to the next job or back by the return time. Drive times are real road times (Spokane street map); a "≈" means the map wasn't available and it's an estimate from distance. Nothing changes until you move the booking in MaidCentral.</p>
     </>
   );
 }

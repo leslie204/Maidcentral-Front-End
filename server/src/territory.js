@@ -19,6 +19,7 @@ import { localToday, mondayOf } from './geo.js';
 import { perSession, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
 import { parseBoard, isVisit } from './prices.js';
+import { road, learn } from './routing.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -147,6 +148,13 @@ export const km = (a, b) => {
 // those trips look twice as long as they are. Exact road times, when a Google key is set,
 // come from routing.js.
 export const driveMin = (k) => (k < 0.05 ? 0 : Math.round(Math.min(4, 1 + 2 * k) + (k * 60) / Math.min(78, 30 + 2 * k)));
+// Drive minutes between two places: the real road time when the routing service knows it
+// (routing.js), else the estimate above; `unknown` when a place has no location.
+export const driveTime = (a, b, unknown = 12) => (a && b ? (road(a, b)?.min ?? driveMin(km(a, b))) : unknown);
+// Road distance in km (or straight line × 1.3 when the road isn't known).
+export const roadKm = (a, b) => road(a, b)?.km ?? km(a, b) * 1.3;
+// Teach the routing service every home and the office (once), plus any extra places.
+export const learnPlaces = (homes, base, extra = []) => learn([...homes, base, ...extra].filter((p) => p?.lat));
 
 // Interval maths on [start, end] minute pairs.
 function intersect(a, b) {
@@ -286,10 +294,11 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   });
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
+  await learnPlaces(homes, base);
   const names = areaNames(zs);
   const nameOf = (zone) => (zone ? names.get(areaKey(zone))?.label || zone : null);
   const cityOf = new Map(shapes.features.map((f) => [f.properties.zip, f.properties.city]));
-  const toOffice = (p) => (base.lat && p ? driveMin(km(p, base)) : 15);
+  const toOffice = (p) => (base.lat && p ? driveTime(p, base) : 15);
   // Read the 28 days, 6 at a time, reporting progress ("week 2 of 4").
   prog.stage = 'schedule';
   const days = new Array(dates.length);
@@ -704,8 +713,9 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
   const need = Math.round(Math.min(Math.max(Number(hours) || 2, 0.5), 8) * 60);
   const o = await openings(mc, { from, minHours: Math.max(need / 60, 0.5), dayStart, dayEnd });
   const base = await office(mc, homes);
+  await learnPlaces(homes, base, [target]);
   const back = returnBy();
-  const drive = (a, b) => (a && b ? driveMin(km(a, b)) : 15);
+  const drive = (a, b) => driveTime(a, b, 15);
   // Exact timing on every visit date: drive from the previous job (or the office), clean,
   // then drive to the next job in time or back to the office by the return time.
   const timing = (x) => {
@@ -749,13 +759,13 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       const dist = km(target, x.area.center);
       // Extra driving on each date: previous job -> new home -> next job, minus the direct drive.
       const detours = x.legs.map((l) => {
-        if (l.before && l.after) return km(l.before, target) + km(target, l.after) - km(l.before, l.after);
-        if (l.before || l.after) return km(l.before || l.after, target);
-        return dist;
+        if (l.before && l.after) return drive(l.before, target) + drive(target, l.after) - drive(l.before, l.after);
+        if (l.before || l.after) return drive(l.before || l.after, target);
+        return drive(x.area.center, target);
       });
-      const detour = detours.length ? detours.reduce((a, b) => a + b, 0) / detours.length : dist;
+      const extra = Math.max(0, Math.round(detours.length ? detours.reduce((a, b) => a + b, 0) / detours.length : drive(x.area.center, target)));
       const reasons = [];
-      let score = 100 - detour * 5;
+      let score = 100 - extra * 2.5;
       if (want === 1 && x.weeks !== 1) score -= 200;
       if (want === 2) score += x.weeks === 2 ? 30 : x.weeks === 1 ? 5 : -200;
       if (want === 4) score += x.weeks === 4 ? 30 : x.weeks === 2 ? 5 : x.weeks === 1 ? 0 : -200;
@@ -767,15 +777,14 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
         reasons.push({ text: `First visit ${x.firstDate}: ${x.takenOn.map((t) => t.date).join(', ')} is taken by a moved or one-time booking`, tone: 'neutral' });
       }
       if (want !== 0 && x.weeks === want) reasons.push({ text: { 1: 'Free every week', 2: 'Free every other week: right for this customer', 4: 'Free once every 4 weeks: right for this customer' }[x.weeks] || 'Right frequency', tone: 'good' });
-      const extra = driveMin(Math.max(detour, 0));
-      if (extra <= 5) reasons.push({ text: `On the team's way (≈${extra} min extra driving)`, tone: 'good' });
-      else reasons.push({ text: `≈${extra} min extra driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
+      if (extra <= 5) reasons.push({ text: `On the team's way (${extra} min extra driving)`, tone: 'good' });
+      else reasons.push({ text: `${extra} min extra driving`, tone: extra <= 15 ? 'neutral' : 'warn' });
       if (x.area.zone && norm(x.area.zone) === norm(target.zone)) (score += 15), reasons.push({ text: `Same area (${x.area.name || x.area.zone})`, tone: 'good' });
       const leftover = x.hours * 60 - need;
       if (leftover < 30) (score += 8), reasons.push({ text: 'Fills the free time exactly', tone: 'good' });
       if (t.lastOfDay) reasons.push({ text: `Back at the office by ${hhmm(t.endAt + (base.lat ? drive(target, base) : 15))}`, tone: 'neutral' });
       const { legs, ...rest } = x;
-      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, detourKm: Math.round(Math.max(detour, 0) * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };
+      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };
     })
     .filter((x) => x.score > -100)
     .sort((a, b) => b.score - a.score)

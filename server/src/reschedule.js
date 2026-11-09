@@ -10,8 +10,8 @@
 // A whole day is planned most-constrained first, each pick reserving its slot so no two
 // bookings land in the same place. Read-only: it suggests; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
-import { book, homeIndex, km, driveMin, zones } from './territory.js';
-import { roadTimes, routingOn } from './routing.js';
+import { book, homeIndex, driveTime, learnPlaces, zones } from './territory.js';
+import { road } from './routing.js';
 import { areaNames, areaKey } from './areas.js';
 import { office } from './office.js';
 import { localToday } from './geo.js';
@@ -37,6 +37,7 @@ async function context(mc, date, days) {
   const lookup = homeIndex(homes);
   const names = areaNames(zs);
   const base = await office(mc, homes);
+  await learnPlaces(homes, base);
   const analysed = new Array(dates.length);
   let next = 0;
   await Promise.all(
@@ -87,7 +88,9 @@ export function build({ date, dates, analysed, lookup, names, base }) {
   return { date, dates, byDate, teams, office: base?.lat ? { lat: base.lat, lng: base.lng } : null };
 }
 
-const drive = (a, b) => (a && b ? driveMin(km(a, b)) : 12);
+const drive = (a, b) => driveTime(a, b, 12);
+// True when the drive is a real road time (not the distance estimate).
+const onRoad = (a, b) => Boolean(a && b && road(a, b));
 
 // The bookings on the date.
 export function bookingsOf(ctx) {
@@ -97,10 +100,8 @@ export function bookingsOf(ctx) {
 }
 
 // Every slot for one booking, best first. reserved: Map("teamId|date" -> [stops]) holds
-// visits already placed by this plan. drv(a, b) gives drive minutes (the estimate by
-// default); fixed: Map("teamId|date" -> position) re-checks only those team-days at the
-// position already chosen (used with exact road times).
-function slotsFor(ctx, b, opts, reserved, drv = drive, fixed = null) {
+// visits already placed by this plan.
+function slotsFor(ctx, b, opts, reserved) {
   const out = [];
   const weeks = WEEKS[b.frequency] || 0;
   for (const d of ctx.dates) {
@@ -111,19 +112,17 @@ function slotsFor(ctx, b, opts, reserved, drv = drive, fixed = null) {
     if (opts.dir === 'after' && away < 0) continue;
     for (const t of ctx.byDate.get(d) || []) {
       if (t.ws == null || t.crew < 2) continue;
-      if (fixed && !fixed.has(`${t.teamId}|${d}`)) continue;
       const stops = [...t.jobs.filter((j) => j.id !== b.id), ...(reserved.get(`${t.teamId}|${d}`) || [])].sort((x, y) => x.s - y.s);
       const dur = ceil5(b.cleanerMin / t.crew);
       let best = null;
       for (let i = 0; i <= stops.length; i++) {
-        if (fixed && fixed.get(`${t.teamId}|${d}`) !== i) continue;
         const prev = i === 0 ? { e: t.ws, loc: ctx.office, home: 'the office' } : stops[i - 1];
         const next = i === stops.length ? { s: t.we, loc: ctx.office, home: 'the office' } : stops[i];
-        const earliest = ceil5(prev.e + drv(prev.loc, b.loc));
-        const latest = next.s - drv(b.loc, next.loc) - dur;
+        const earliest = ceil5(prev.e + drive(prev.loc, b.loc));
+        const latest = next.s - drive(b.loc, next.loc) - dur;
         if (latest < earliest) continue;
         const start = Math.min(Math.max(ceil5(b.s), earliest), Math.floor(latest / 5) * 5);
-        const detour = Math.max(0, drv(prev.loc, b.loc) + drv(b.loc, next.loc) - drv(prev.loc, next.loc));
+        const detour = Math.max(0, drive(prev.loc, b.loc) + drive(b.loc, next.loc) - drive(prev.loc, next.loc));
         const sameTeam = t.teamId === b.teamId;
         const shift = start - b.s;
         // Recurring customers: keep the visit away from the ones before and after it.
@@ -140,7 +139,8 @@ function slotsFor(ctx, b, opts, reserved, drv = drive, fixed = null) {
       if (!best) continue;
       const reasons = [];
       if (best.sameTeam) reasons.push({ text: `Same team (${t.team})`, tone: 'good' });
-      const approx = drv === drive ? '≈' : '';
+      const exact = onRoad(best.prev.loc, b.loc) && onRoad(b.loc, best.next.loc) && onRoad(best.prev.loc, best.next.loc);
+      const approx = exact ? '' : '≈';
       reasons.push(best.detour <= 5 ? { text: `On ${t.team}'s way (${approx}${best.detour} min extra driving)`, tone: 'good' } : { text: `${approx}${best.detour} min extra driving`, tone: best.detour <= 15 ? 'neutral' : 'warn' });
       reasons.push(Math.abs(best.shift) < 15 ? { text: 'Their usual time', tone: 'good' } : { text: `${Math.round(Math.abs(best.shift) / 15) * 15 >= 60 ? `${Math.round(Math.abs(best.shift) / 30) / 2} h` : `${Math.round(Math.abs(best.shift) / 5) * 5} min`} ${best.shift < 0 ? 'earlier' : 'later'} than usual`, tone: Math.abs(best.shift) <= 60 ? 'neutral' : 'warn' });
       if (weeks && best.spacing < weeks * 7 * 0.6) reasons.push({ text: `Only ${best.spacing} days from their ${dayDiff(d, ctx.date) > 0 ? 'next' : 'previous'} visit`, tone: 'warn' });
@@ -154,9 +154,8 @@ function slotsFor(ctx, b, opts, reserved, drv = drive, fixed = null) {
         end: best.start + best.dur,
         label: `${hhmm(best.start)} – ${hhmm(best.start + best.dur)}`,
         between: [best.prev.home, best.next.home],
-        position: best.i,
-        legs: [[best.prev.loc, b.loc], [b.loc, best.next.loc], [best.prev.loc, best.next.loc]],
         extraDriveMin: best.detour,
+        exactDrive: exact,
         sameTeam: best.sameTeam,
         shiftMin: best.shift,
         score: Math.round(best.score),
@@ -256,39 +255,19 @@ export async function findBookings(mc, q = {}) {
 }
 
 // Best slots for one booking (the common case: one customer needs another day).
-export async function rescheduleOptions(mc, q = {}, road = roadTimes) {
+export async function rescheduleOptions(mc, q = {}) {
   if (!q.date || !q.job) throw new McError('input', 'Choose a date and a booking.');
   const ctx = await context(mc, q.date, q.days);
-  return optionsFor(ctx, q, road);
+  return optionsFor(ctx, q);
 }
-// Slots without the internal route details (locations stay on the server).
-const outward = ({ legs, position, ...s }) => s;
-// Options are ranked on the drive estimate; with Google routing on, the best few are then
-// re-checked with real road times (start time, extra driving, whether it still fits) and
-// re-ranked, so the drive minutes the office sees are the ones Google Maps would show.
-export async function optionsFor(ctx, q, road = roadTimes) {
+export function optionsFor(ctx, q) {
   const bookings = bookingsOf(ctx);
   const b = bookings.find((x) => String(x.id) === String(q.job));
   if (!b) throw new McError('input', 'That booking is not on this date.');
   const picks = parsePicks(q.picks);
   delete picks[String(b.id)];
-  const limit = Number(q.limit) || 12;
-  const opts = optsFrom(q);
-  const reserved = reservedFrom(ctx, picks, bookings);
-  let slots = slotsFor(ctx, b, opts, reserved);
-  let drives = 'estimate';
-  if (routingOn() && b.loc && slots.length) {
-    const short = slots.slice(0, limit + 8);
-    const r = await road(short.flatMap((s) => s.legs));
-    const drv = (x, y) => r.get(x, y) ?? drive(x, y);
-    const fixed = new Map(short.map((s) => [`${s.teamId}|${s.date}`, s.position]));
-    const exact = slotsFor(ctx, b, opts, reserved, drv, fixed);
-    for (const s of exact) s.exactDrive = s.legs.every(([x, y]) => !x || !y || r.get(x, y) != null);
-    slots = [...exact, ...slots.slice(limit + 8)].sort((x, y) => x.score - y.score);
-    if (exact.some((s) => s.exactDrive)) drives = 'google';
-  }
-  const shown = slots.slice(0, limit).map(outward);
-  return { booking: view(b), slots: shown, considered: slots.length, teams: [...ctx.teams.values()], drives };
+  const slots = slotsFor(ctx, b, optsFrom(q), reservedFrom(ctx, picks, bookings));
+  return { booking: view(b), slots: slots.slice(0, Number(q.limit) || 12), considered: slots.length, teams: [...ctx.teams.values()], drives: slots.some((x) => x.exactDrive) ? 'road' : 'estimate' };
 }
 
 // The whole day (or the chosen bookings) spread over the days around it.
@@ -339,7 +318,7 @@ export function planFor(ctx, q) {
       const end = start + ceil5(b.cleanerMin / Math.max(t?.crew || 2, 1));
       pick = { ...(pick || { date: c.date, weekday: WEEKDAY[new Date(`${c.date}T00:00:00Z`).getUTCDay()], daysAway: dayDiff(c.date, ctx.date), teamId: Number(c.teamId), team: t?.team || '', reasons: [] }), start, end, label: `${hhmm(start)} – ${hhmm(end)}`, fixed: true };
     }
-    return { booking: view(b), pick: pick ? outward({ ...pick, fixed: Boolean(c?.fixed) }) : null, alternatives: slots.filter((s) => !(pick && s.date === pick.date && s.teamId === pick.teamId)).slice(0, 4).map(outward) };
+    return { booking: view(b), pick: pick ? { ...pick, fixed: Boolean(c?.fixed) } : null, alternatives: slots.filter((s) => !(pick && s.date === pick.date && s.teamId === pick.teamId)).slice(0, 4) };
   });
   return {
     date: ctx.date,

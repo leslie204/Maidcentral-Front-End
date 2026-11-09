@@ -130,15 +130,18 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     are wrong and from when; rates found (e.g. how many still at the old rate), customers
     to fix and the under-billing in the range. Tick customers off as they're changed;
     "Re-check MaidCentral" reads prices again. Copy the to-fix list.
-  - Drive times (`server/src/territory.js` driveMin, `server/src/routing.js`): homes are
-    located by MaidCentral's Customer Efficiency Map (each home's own latitude/longitude).
-    Every screen estimates driving from straight-line distance, calibrated to Spokane: a
-    few minutes to get going, then a speed that rises with distance (≈35 km/h across a
-    neighbourhood, ≈60 km/h for 15 km, up to 78 km/h for Liberty Lake, Cheney or Deer Park,
-    which use the freeway/highways). With `GOOGLE_MAPS_API_KEY` set (Google Routes API), the reschedule
-    options shown are re-checked with real road times (labelled "Google Maps"); legs are
-    cached and capped by `ROUTING_MONTHLY_LIMIT` (default 9000 a month, inside Google's
-    free allowance), after which it falls back to the estimate.
+  - Drive times (`server/src/routing.js`, `osrm/`): real road times from our own routing
+    service, OSRM (open source) on OpenStreetMap roads cut to the Spokane area, deployed as
+    a second Railway service from `osrm/` (built at deploy time; no API key, no per-query
+    cost). The web service reaches it at `OSRM_URL` (Railway private network). Homes are
+    located by MaidCentral's Customer Efficiency Map; the app learns the drive time between
+    every pair of homes and the office (≈107,000 legs in under a second), keeps them in
+    memory and adds new places as they appear. Every screen uses them (Openings, Place a
+    customer, Call-outs, Reschedule, Optimization). OSRM's free-flow times are scaled by
+    `ROAD_FACTOR` (1.1) plus `ROAD_STOP_MIN` (2) to park. If the service is down, drives fall
+    back to an estimate from distance calibrated to Spokane (shown with "≈"), and it retries
+    a couple of minutes later. `/api/freshness` reports whether road times are in use.
+    To refresh the street map, redeploy the `osrm` service.
   - Reschedule (`server/src/reschedule.js`, page `/reschedule`), two flows:
     - Move a customer: find them by name (their bookings in the next 4 weeks; the page
       starts loading those as it opens) or by date; see the 3 best new times as big

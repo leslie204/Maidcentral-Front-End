@@ -15,7 +15,7 @@
 // the office by the return time. Jobs that fit nowhere are to be rescheduled.
 // Read-only: the plan says what to do; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
-import { book, homeIndex, km, driveMin } from './territory.js';
+import { book, homeIndex, driveTime, learnPlaces } from './territory.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { tables } from './extract.js';
 import { localToday } from './geo.js';
@@ -99,6 +99,7 @@ export async function dayState(mc, date, roleOverrides = new Map()) {
   const a = analyseDay(day);
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
+  await learnPlaces(homes, base);
   const isToday = date === localToday();
   const board = isToday ? await dispatchBoard(mc) : new Map();
   // Price per cleaner-hour, from today's board, to estimate other days.
@@ -144,7 +145,7 @@ export async function dayState(mc, date, roleOverrides = new Map()) {
         };
       });
       const last = jobs.length ? jobs.reduce((x, j) => (j.end > x.end ? j : x), jobs[0]) : null;
-      const bookedBack = last && base.lat && last.loc ? last.end + driveMin(km(last.loc, base)) : last ? last.end + 12 : null;
+      const bookedBack = last && base.lat && last.loc ? last.end + driveTime(last.loc, base) : last ? last.end + 12 : null;
       return { id: t.id, name: t.name, color: t.color, members, size, jobs, bookedBack };
     });
   const spare = a.spare.map(person);
@@ -155,7 +156,7 @@ export async function dayState(mc, date, roleOverrides = new Map()) {
 // any job can't start within its allowed window or the car can't be back in time.
 function route(car, jobs, size, opts, office, backBy) {
   if (!size) return jobs.length ? null : { stops: [], drive: 0, back: null };
-  const drive = (a, b) => (a && b ? driveMin(km(a, b)) : 12);
+  const drive = (a, b) => driveTime(a, b, 12);
   // The car leaves the office at the departure time (or later, if nobody's shift starts yet).
   const dayStart = car.members.length ? Math.max(opts.dayStart, Math.min(...car.members.map((m) => m.start))) : opts.dayStart;
   let t = dayStart;

@@ -21,7 +21,7 @@
 // office's own assumptions (labour cost, pay model, cost per km, revenue per cleaner-hour).
 // Read-only: it recommends; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
-import { book, homeIndex, km, driveMin, zones } from './territory.js';
+import { book, homeIndex, km, driveMin, driveTime, roadKm, learnPlaces, zones } from './territory.js';
 import { areaNames, areaKey } from './areas.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { revenueRate } from './callouts.js';
@@ -98,6 +98,7 @@ async function load(mc, from) {
     const [homes, zs, rate] = await Promise.all([book(mc), zones(mc), revenueRate(mc).catch(() => ({ rate: null, jobs: 0 }))]);
     const lookup = homeIndex(homes);
     const base = await office(mc, homes);
+    await learnPlaces(homes, base);
     const names = areaNames(zs);
     prog.stage = 'schedule';
     const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
@@ -230,8 +231,8 @@ export function build({ days, lookup, base, names, rate }) {
 // ---------- One team-day ----------
 
 const leg = (a, b) => {
-  const k = a && b ? km(a, b) * ROAD : UNKNOWN_KM;
-  return { km: k, min: driveMin(k / ROAD) };
+  if (!a || !b) return { km: UNKNOWN_KM, min: driveMin(UNKNOWN_KM / ROAD) };
+  return { km: roadKm(a, b), min: driveTime(a, b) };
 };
 
 // Free time in a day split into sellable blocks and fragments.
@@ -828,7 +829,7 @@ export async function currentState(mc, q = {}) {
         for (const id of o.jobIds) {
           const x = ds.jobs.get(id);
           if (!x.loc) continue;
-          const d = km(s.loc, x.loc) * ROAD;
+          const d = roadKm(s.loc, x.loc);
           if (!nearest || d < nearest.km) nearest = { km: round(d, 1), team: o.team };
         }
         void k;

@@ -24,6 +24,7 @@ import { rescheduleDay, rescheduleOptions, reschedulePlan, findBookings } from '
 import { priceCheck } from './prices.js';
 import { scorecards } from './scorecards.js';
 import { forget, FRESH } from './cache.js';
+import { routingStatus } from './routing.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -251,7 +252,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     if (warm) prewarm(req.mc);
     return { ok: true, at: new Date().toISOString(), fresh: FRESH };
   }));
-  api.get('/freshness', handle(async () => ({ fresh: FRESH })));
+  api.get('/freshness', handle(async () => ({ fresh: FRESH, roads: routingStatus() })));
   api.get('/reschedule/find', handle((req) => findBookings(req.mc, req.query)));
   api.get('/reschedule/options', handle((req) => rescheduleOptions(req.mc, req.query)));
   api.get('/reschedule/plan', handle((req) => reschedulePlan(req.mc, req.query)));

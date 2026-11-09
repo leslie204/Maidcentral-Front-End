@@ -1,100 +1,97 @@
-// Road drive times from Google's Routes API (Compute Route Matrix), for the few legs where
-// an exact number matters (the reschedule options the office is shown). Everything else
-// uses the calibrated estimate in territory.js (driveMin).
+// Road drive times from our own routing service (osrm/: OSRM on OpenStreetMap roads for the
+// Spokane area), reached over Railway's private network at OSRM_URL. No API key and no
+// per-query cost, so every screen uses it.
 //
-// Off unless GOOGLE_MAPS_API_KEY is set. Times are traffic-unaware (the "Essentials"
-// tier) and cached in memory (roads don't move), so the same leg is never paid for twice
-// while the server runs. A monthly element budget (ROUTING_MONTHLY_LIMIT, default 9000,
-// inside Google's free monthly allowance) stops calls once spent; the app then falls back
-// to the estimate. ROUTING=off turns it off (tests).
+// The homes don't move, so the app learns the drive time between every pair of places it
+// knows (all homes and the office) in a few table requests, keeps them in memory, and
+// adds new places (a new customer, a ZIP being placed) as they appear. Lookups are then
+// instant and synchronous: road(a, b) -> { min, km } or null when unknown, in which case
+// callers use the distance estimate (territory.js driveMin). If the service is down the
+// app keeps working on estimates and tries again a couple of minutes later.
+//
+// OSRM gives free-flow times, a little quicker than real driving in town; minutes are
+// scaled by ROAD_FACTOR (default 1.1) plus ROAD_STOP_MIN (default 2) to park and unload.
 
-const URL = 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix';
-const cache = new Map(); // "lat,lng>lat,lng" -> minutes (null = no route)
-const MAX_CACHE = 50_000;
-let budget = { month: null, used: 0 };
+const cache = new Map(); // "lat,lng>lat,lng" -> { min, km }
+const known = new Map(); // point key -> point; every pair among these is in the cache
+const CHUNK = 100; // points per side of a table request
+let failedAt = 0;
+let queue = Promise.resolve();
 
-const key = () => process.env.GOOGLE_MAPS_API_KEY;
-export const routingOn = () => Boolean(key()) && process.env.ROUTING !== 'off';
-const pt = (p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
-export const legKey = (a, b) => `${pt(a)}>${pt(b)}`;
-const waypoint = (p) => ({ waypoint: { location: { latLng: { latitude: p.lat, longitude: p.lng } } } });
+const baseUrl = () => String(process.env.OSRM_URL || '').replace(/\/+$/, '');
+export const routingOn = () => Boolean(baseUrl()) && process.env.ROUTING !== 'off';
+const pt = (p) => `${Number(p.lat).toFixed(5)},${Number(p.lng).toFixed(5)}`;
+const legKey = (a, b) => `${pt(a)}>${pt(b)}`;
+const valid = (p) => p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)) && (p.lat || p.lng);
+const factor = () => Number(process.env.ROAD_FACTOR) || 1.1;
+const stopMin = () => (process.env.ROAD_STOP_MIN != null ? Number(process.env.ROAD_STOP_MIN) : 2);
 
-function spend(n) {
-  const month = new Date().toISOString().slice(0, 7);
-  if (budget.month !== month) budget = { month, used: 0 };
-  const limit = Number(process.env.ROUTING_MONTHLY_LIMIT) || 9000;
-  if (budget.used + n > limit) return false;
-  budget.used += n;
-  return true;
+// Road time and distance between two places, if known.
+export function road(a, b) {
+  if (!valid(a) || !valid(b)) return null;
+  if (pt(a) === pt(b)) return { min: 0, km: 0 };
+  return cache.get(legKey(a, b)) || null;
+}
+
+async function table(points, fetchImpl) {
+  const coords = points.map((p) => `${Number(p.lng).toFixed(6)},${Number(p.lat).toFixed(6)}`).join(';');
+  const url = `${baseUrl()}/table/v1/driving/${coords}?annotations=duration,distance`;
+  const r = await (fetchImpl || fetch)(url, { signal: AbortSignal.timeout(20_000) });
+  if (!r.ok) throw new Error(`routing ${r.status}`);
+  const j = await r.json();
+  if (j.code !== 'Ok') throw new Error(`routing ${j.code}`);
+  points.forEach((a, i) => points.forEach((b, k) => {
+    if (i === k) return;
+    const secs = j.durations?.[i]?.[k];
+    const metres = j.distances?.[i]?.[k];
+    if (secs == null) return; // no road between them (shouldn't happen in one region)
+    cache.set(legKey(a, b), { min: Math.round((secs / 60) * factor() + (metres > 50 ? stopMin() : 0)), km: Math.round((metres || 0) / 100) / 10 });
+  }));
+}
+
+// Make sure the drive time between every pair of these places (and every place already
+// known) is cached. Cheap when nothing is new. Never throws.
+export function learn(places, { fetchImpl } = {}) {
+  if (!routingOn()) return Promise.resolve(false);
+  queue = queue.then(async () => {
+    const fresh = new Map();
+    for (const p of places || []) if (valid(p) && !known.has(pt(p))) fresh.set(pt(p), { lat: Number(p.lat), lng: Number(p.lng) });
+    if (!fresh.size) return true;
+    if (Date.now() - failedAt < 120_000) return false;
+    const old = [...known.values()];
+    const add = [...fresh.values()];
+    const chunks = (list) => Array.from({ length: Math.ceil(list.length / CHUNK) }, (_, i) => list.slice(i * CHUNK, (i + 1) * CHUNK));
+    const newChunks = chunks(add);
+    // New with new (each pair of new chunks), then new with every old chunk.
+    const jobs = [];
+    newChunks.forEach((a, i) => newChunks.slice(i).forEach((b, k) => jobs.push(k === 0 ? a : [...a, ...b])));
+    for (const a of newChunks) for (const b of chunks(old)) jobs.push([...a, ...b]);
+    // A table needs two places at least (a single new place is covered by its old chunks).
+    for (let i = jobs.length - 1; i >= 0; i--) if (jobs[i].length < 2) jobs.splice(i, 1);
+    try {
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(3, jobs.length) }, async () => {
+        while (next < jobs.length) await table(jobs[next++], fetchImpl);
+      }));
+      for (const [k, p] of fresh) known.set(k, p);
+      return true;
+    } catch (e) {
+      failedAt = Date.now();
+      console.warn(`Road routing unavailable, using estimates: ${e.message}`);
+      return false;
+    }
+  });
+  return queue;
 }
 
 export function routingStatus() {
-  const month = new Date().toISOString().slice(0, 7);
-  return { on: routingOn(), usedThisMonth: budget.month === month ? budget.used : 0, limit: Number(process.env.ROUTING_MONTHLY_LIMIT) || 9000, cached: cache.size };
-}
-
-// One origin to many destinations: the elements asked for are exactly the legs needed.
-async function fromOne(origin, dests) {
-  const r = await fetch(URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key(), 'X-Goog-FieldMask': 'originIndex,destinationIndex,duration,condition' },
-    body: JSON.stringify({ origins: [waypoint(origin)], destinations: dests.map(waypoint), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!r.ok) throw new Error(`Routes API ${r.status}`);
-  const rows = await r.json();
-  for (const e of Array.isArray(rows) ? rows : []) {
-    const d = dests[e.destinationIndex ?? 0];
-    if (!d) continue;
-    const secs = parseFloat(String(e.duration || '').replace(/s$/, ''));
-    cache.set(legKey(origin, d), e.condition === 'ROUTE_EXISTS' && Number.isFinite(secs) ? Math.round(secs / 60) : null);
-  }
-  if (cache.size > MAX_CACHE) for (const k of [...cache.keys()].slice(0, cache.size - MAX_CACHE)) cache.delete(k);
-  return true;
-}
-
-// Road minutes for a list of [from, to] legs (points { lat, lng }). Returns a function
-// (a, b) -> minutes, or null for a leg it couldn't get (the caller uses its estimate).
-// Never throws: on any trouble the app keeps working on estimates.
-export async function roadTimes(legs, fetchImpl) {
-  const lookup = (a, b) => {
-    if (!a || !b) return null;
-    if (pt(a) === pt(b)) return 0;
-    const v = cache.get(legKey(a, b));
-    return v === undefined ? null : v;
-  };
-  if (!routingOn()) return { get: lookup, exact: false };
-  const want = new Map(); // origin key -> { origin, dests: Map }
-  for (const [a, b] of legs) {
-    if (!a || !b || pt(a) === pt(b) || cache.has(legKey(a, b))) continue;
-    const o = pt(a);
-    if (!want.has(o)) want.set(o, { origin: a, dests: new Map() });
-    want.get(o).dests.set(pt(b), b);
-  }
-  const jobs = [...want.values()].flatMap(({ origin, dests }) => {
-    const list = [...dests.values()];
-    const out = [];
-    for (let i = 0; i < list.length; i += 25) out.push([origin, list.slice(i, i + 25)]);
-    return out;
-  });
-  let ok = true;
-  const run = fetchImpl ? (o, d) => fetchImpl(o, d, cache, legKey) : fromOne;
-  try {
-    let next = 0;
-    await Promise.all(Array.from({ length: Math.min(4, jobs.length) }, async () => {
-      while (next < jobs.length) {
-        const [o, d] = jobs[next++];
-        if (!spend(d.length) || !(await run(o, d))) ok = false;
-      }
-    }));
-  } catch {
-    ok = false;
-  }
-  return { get: lookup, exact: ok };
+  return { on: routingOn(), places: known.size, legs: cache.size, lastFailure: failedAt ? new Date(failedAt).toISOString() : null };
 }
 
 // Tests.
 export function _resetRouting() {
   cache.clear();
-  budget = { month: null, used: 0 };
+  known.clear();
+  failedAt = 0;
+  queue = Promise.resolve();
 }
