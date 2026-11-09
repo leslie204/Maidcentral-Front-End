@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { createApp } from './app.js';
+import { checkRouting } from './routing.js';
 import { MemoryStore, PgStore, parseKey } from './store.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,7 @@ const app = createApp({
 });
 const port = Number(process.env.PORT || 8787);
 const server = app.listen(port, () => console.log(`MaidCentral front end on :${port} (portal ${new URL(portalUrl).host})`));
+checkRouting();
 
 // Railway sends SIGTERM on redeploy: finish requests, close the pool.
 process.on('SIGTERM', () => {

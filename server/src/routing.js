@@ -84,6 +84,23 @@ export function learn(places, { fetchImpl } = {}) {
   return queue;
 }
 
+// At start-up: check the routing service answers (it may still be starting), and log one
+// real drive (downtown Spokane to Spokane Valley Mall) so the deploy log shows it works.
+export async function checkRouting({ tries = 10, every = 30_000, fetchImpl } = {}) {
+  if (!routingOn()) return console.log('Road routing: off (OSRM_URL not set); using estimates');
+  for (let i = 1; i <= tries; i++) {
+    try {
+      const r = await (fetchImpl || fetch)(`${baseUrl()}/route/v1/driving/-117.4260,47.6588;-117.2400,47.6720?overview=false`, { signal: AbortSignal.timeout(10_000) });
+      const j = await r.json();
+      if (j.code === 'Ok') return console.log(`Road routing: connected (downtown to Valley Mall ${Math.round(j.routes[0].duration / 60)} min, ${Math.round(j.routes[0].distance / 100) / 10} km)`);
+      throw new Error(j.code);
+    } catch (e) {
+      if (i === tries) return console.warn(`Road routing: not reachable at ${baseUrl()} (${e.message}); using estimates`);
+      await new Promise((ok) => setTimeout(ok, every));
+    }
+  }
+}
+
 export function routingStatus() {
   return { on: routingOn(), places: known.size, legs: cache.size, lastFailure: failedAt ? new Date(failedAt).toISOString() : null };
 }
