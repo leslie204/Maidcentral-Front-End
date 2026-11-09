@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build, bookingsOf, optionsFor, planFor } from '../src/reschedule.js';
+import { roadTimes, _resetRouting } from '../src/routing.js';
 
 process.env.OFFICE_LEAVE_AT = '8:15 AM';
 process.env.OFFICE_RETURN_BY = '4:45 PM';
@@ -47,8 +48,8 @@ test('bookings on the date', () => {
   assert.equal(b[0].cleanerMin, 240);
 });
 
-test('one booking: same team, nearby, usual time first; never on the date itself', () => {
-  const r = optionsFor(ctx(), { job: '1', today: TODAY });
+test('one booking: same team, nearby, usual time first; never on the date itself', async () => {
+  const r = await optionsFor(ctx(), { job: '1', today: TODAY });
   assert.ok(r.slots.length > 0);
   const best = r.slots[0];
   assert.equal(best.team, 'Blue');
@@ -57,14 +58,14 @@ test('one booking: same team, nearby, usual time first; never on the date itself
   assert.ok(r.slots.every((s) => s.date !== HOLIDAY));
   assert.ok(r.slots.every((s) => s.start >= 8 * 60 + 15 && s.end <= 16 * 60 + 45));
   // Before only / after only.
-  assert.ok(optionsFor(ctx(), { job: '1', today: TODAY, dir: 'before' }).slots.every((s) => s.daysAway < 0));
-  assert.ok(optionsFor(ctx(), { job: '1', today: TODAY, dir: 'after' }).slots.every((s) => s.daysAway > 0));
+  assert.ok((await optionsFor(ctx(), { job: '1', today: TODAY, dir: 'before' })).slots.every((s) => s.daysAway < 0));
+  assert.ok((await optionsFor(ctx(), { job: '1', today: TODAY, dir: 'after' })).slots.every((s) => s.daysAway > 0));
   // Not in the past.
-  assert.ok(optionsFor(ctx(), { job: '1', today: '2026-11-24' }).slots.every((s) => s.date > '2026-11-24'));
+  assert.ok((await optionsFor(ctx(), { job: '1', today: '2026-11-24' })).slots.every((s) => s.date > '2026-11-24'));
 });
 
-test('a weekly customer is not moved right next to their other visits', () => {
-  const r = optionsFor(ctx(), { job: '2', today: TODAY });
+test('a weekly customer is not moved right next to their other visits', async () => {
+  const r = await optionsFor(ctx(), { job: '2', today: TODAY });
   const far = r.slots.find((s) => Math.abs(s.daysAway) >= 3);
   if (far) assert.ok(far.reasons.some((x) => /days from their/.test(x.text)));
   assert.ok(Math.abs(r.slots[0].daysAway) <= 2);
@@ -123,4 +124,59 @@ test('find a customer: name search over the next 4 weeks, team names filled in',
   assert.deepEqual([r.results[0].date, r.results[0].team, r.results[0].customer, r.results[0].label], ['2026-11-26', 'Blue', 'Lisa Whalen', '9:00 AM – 11:00 AM']);
   assert.equal((await findBookings(mc, { q: 'nobody', today: '2026-11-20' })).results.length, 0);
   assert.equal((await findBookings(mc, { warm: '1', today: '2026-11-20' })).results.length, 0);
+});
+
+test('with Google routing on, the shown options use road times', async () => {
+  process.env.GOOGLE_MAPS_API_KEY = 'test-key';
+  try {
+    const asked = [];
+    // Every road leg takes 7 minutes.
+    const road = async (legs) => (asked.push(...legs), { get: (a, b) => (a && b ? 7 : null), exact: true });
+    const r = await optionsFor(ctx(), { job: '1', today: TODAY }, road);
+    assert.equal(r.drives, 'google');
+    assert.ok(asked.length > 0 && asked.length <= (12 + 8) * 3, 'only the shortlisted options are routed');
+    assert.ok(r.slots.some((s) => s.exactDrive));
+    const exact = r.slots.find((s) => s.exactDrive);
+    assert.ok(exact.reasons.every((x) => !x.text.includes('≈')), 'road times are not shown as estimates');
+    assert.ok(r.slots.every((s) => !('legs' in s)), 'locations stay on the server');
+    // Without a key: estimates, marked as such.
+    delete process.env.GOOGLE_MAPS_API_KEY;
+    const e = await optionsFor(ctx(), { job: '1', today: TODAY }, road);
+    assert.equal(e.drives, 'estimate');
+  } finally {
+    delete process.env.GOOGLE_MAPS_API_KEY;
+  }
+});
+
+test('road times are cached and kept inside the monthly budget', async () => {
+  _resetRouting();
+  process.env.GOOGLE_MAPS_API_KEY = 'test-key';
+  process.env.ROUTING_MONTHLY_LIMIT = '3';
+  try {
+    let calls = 0;
+    const fake = async (o, dests, cache, legKey) => {
+      calls += dests.length;
+      for (const d of dests) cache.set(legKey(o, d), 11);
+      return true;
+    };
+    const A = { lat: 47.6, lng: -117.4 };
+    const B = { lat: 47.7, lng: -117.3 };
+    const C = { lat: 47.65, lng: -117.2 };
+    const r = await roadTimes([[A, B], [A, C], [B, C]], fake);
+    assert.equal(r.get(A, B), 11);
+    assert.equal(r.get(A, A), 0);
+    const again = await roadTimes([[A, B], [A, C], [B, C]], fake);
+    assert.equal(calls, 3, 'cached legs are not asked again');
+    assert.equal(again.get(B, C), 11);
+    // The budget (3 legs) is spent: a new leg falls back to the estimate.
+    const D = { lat: 47.5, lng: -117.1 };
+    const over = await roadTimes([[A, D]], fake);
+    assert.equal(over.get(A, D), null);
+    assert.equal(over.exact, false);
+    assert.equal(calls, 3);
+  } finally {
+    delete process.env.GOOGLE_MAPS_API_KEY;
+    delete process.env.ROUTING_MONTHLY_LIMIT;
+    _resetRouting();
+  }
 });

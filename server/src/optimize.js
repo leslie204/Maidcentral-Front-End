@@ -21,7 +21,7 @@
 // office's own assumptions (labour cost, pay model, cost per km, revenue per cleaner-hour).
 // Read-only: it recommends; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
-import { book, homeIndex, km, zones } from './territory.js';
+import { book, homeIndex, km, driveMin, zones } from './territory.js';
 import { areaNames, areaKey } from './areas.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { revenueRate } from './callouts.js';
@@ -31,7 +31,6 @@ import { perSession, FRESH } from './cache.js';
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
 const ROAD = 1.3; // road distance vs straight line
-const SPEED = 40; // km/h in town
 const UNKNOWN_KM = 6; // a stop without a known location
 const mod = (iso) => Math.round((Date.parse(`${iso}Z`) % DAY) / MIN);
 const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(Math.round(m) % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
@@ -232,7 +231,7 @@ export function build({ days, lookup, base, names, rate }) {
 
 const leg = (a, b) => {
   const k = a && b ? km(a, b) * ROAD : UNKNOWN_KM;
-  return { km: k, min: Math.round((k * 60) / SPEED) };
+  return { km: k, min: driveMin(k / ROAD) };
 };
 
 // Free time in a day split into sellable blocks and fragments.

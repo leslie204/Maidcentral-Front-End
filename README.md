@@ -130,6 +130,15 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     are wrong and from when; rates found (e.g. how many still at the old rate), customers
     to fix and the under-billing in the range. Tick customers off as they're changed;
     "Re-check MaidCentral" reads prices again. Copy the to-fix list.
+  - Drive times (`server/src/territory.js` driveMin, `server/src/routing.js`): homes are
+    located by MaidCentral's Customer Efficiency Map (each home's own latitude/longitude).
+    Every screen estimates driving from straight-line distance, calibrated to Spokane: a
+    few minutes to get going, then a speed that rises with distance (≈35 km/h across a
+    neighbourhood, ≈60 km/h for 15 km, up to 78 km/h for Liberty Lake, Cheney or Deer Park,
+    which use the freeway/highways). With `GOOGLE_MAPS_API_KEY` set (Google Routes API), the reschedule
+    options shown are re-checked with real road times (labelled "Google Maps"); legs are
+    cached and capped by `ROUTING_MONTHLY_LIMIT` (default 9000 a month, inside Google's
+    free allowance), after which it falls back to the estimate.
   - Reschedule (`server/src/reschedule.js`, page `/reschedule`), two flows:
     - Move a customer: find them by name (their bookings in the next 4 weeks; the page
       starts loading those as it opens) or by date; see the 3 best new times as big
@@ -180,7 +189,7 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     browser from editable assumptions (labour cost per cleaner-hour, paid until back at the
     office vs a fixed day, vehicle cost per km, revenue per cleaner-hour from today's
     Dispatch Board, variable costs, the share of freed time you'd sell per scenario).
-    Drive times are straight-line estimates (±25%); every number is labelled with that.
+    Drive times are estimates from distance (see Drive times below); every number is labelled with that.
   - Call-outs (`server/src/callouts.js`): tap everyone who called out (any number,
     today or tomorrow) and compare the ways to rearrange the day, ranked by how many
     jobs they keep (then revenue, fewest calls, least driving). Revenue shows only as an

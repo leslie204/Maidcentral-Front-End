@@ -98,21 +98,21 @@ const mc = {
 test('openings: weekly, every 2 weeks (paired weeks) and every 4 weeks, within working hours', async () => {
   const o = await openings(mc, { from: MONDAYS[0], minHours: 1.5 });
   const find = (team, fit) => o.openings.filter((x) => x.team === team && x.fit === fit);
-  // Blue ends near the office (north): free until the 4:45 return.
+  // Blue ends near the office (north): free until a couple of minutes before the 4:45 return.
   const blueWeekly = find('Blue', 'Weekly');
-  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:00 AM – 4:45 PM']);
+  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:00 AM – 4:43 PM']);
   assert.equal(o.returnBy, '4:45 PM');
   assert.ok(o.office.located);
   assert.ok(o.openings.every((x) => x.start >= 8 * 60), 'nothing before 8 AM');
   assert.equal(blueWeekly[0].area.zone, 'north');
   const red2 = find('Red', 'Every 2 weeks');
-  // Red ends in the south, ~12 km from the office: it must stop ~23 min before 4:45.
-  // 1–3 PM is free in weeks 1 & 3 only (Sue has weeks 2 & 4); 11–1 and 3–4:21 are free every week.
+  // Red ends in the south, ~12 km from the office: it must stop early enough to drive back by 4:45.
+  // 1–3 PM is free in weeks 1 & 3 only (Sue has weeks 2 & 4); 11–1 and 3 PM to the drive back are free every week.
   assert.deepEqual(red2.map((x) => [x.label, x.dates]), [['1:00 PM – 3:00 PM', ['2026-11-09', '2026-11-23']]]);
   assert.ok(o.openings.every((x) => x.end <= 16 * 60 + 45), 'nothing ends after 4:45');
   assert.deepEqual(find('Red', 'Weekly').map((x) => x.label), ['11:00 AM – 1:00 PM']);
   assert.equal(red2[0].area.zone, 'south hill');
-  // Week 2's 3:00 PM gap is the last of the day: with the drive back it ends 4:21, too short
+  // Week 2's 3:00 PM gap is the last of the day: with the drive back it's too short
   // for 1.5 h; with shorter openings allowed it shows as every 4 weeks.
   assert.equal(find('Red', 'Every 4 weeks').length, 0);
   // After 3 PM Red is free every week by the recurring pattern: a weekly spot, even though

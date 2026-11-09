@@ -140,8 +140,13 @@ export const km = (a, b) => {
   const x = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(x));
 };
-// Rough drive time: straight line × 1.3 at 40 km/h.
-export const driveMin = (k) => Math.round((k * 1.3 * 60) / 40);
+// Drive time from straight-line distance, calibrated to Spokane: about 4 minutes to get
+// going and park, then an average speed that rises with distance because longer trips use
+// I-90, US-395 and the highways (≈35 km/h for 3 km across a neighbourhood, ≈60 km/h for
+// 15 km, up to 78 km/h for Liberty Lake, Cheney or Deer Park). The old flat 40 km/h made
+// those trips look twice as long as they are. Exact road times, when a Google key is set,
+// come from routing.js.
+export const driveMin = (k) => (k < 0.05 ? 0 : Math.round(Math.min(4, 1 + 2 * k) + (k * 60) / Math.min(78, 30 + 2 * k)));
 
 // Interval maths on [start, end] minute pairs.
 function intersect(a, b) {
