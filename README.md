@@ -130,6 +130,16 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     are wrong and from when; rates found (e.g. how many still at the old rate), customers
     to fix and the under-billing in the range. Tick customers off as they're changed;
     "Re-check MaidCentral" reads prices again. Copy the to-fix list.
+  - Place a customer (`placeCustomer` in `server/src/territory.js`): by typed address
+    (suggestions from the US Census geocoder and OpenStreetMap's Photon search, both free
+    and keyless; `/api/places/search`), ZIP, area or an existing home. Each result shows the
+    drive in and out on the first visit (from the job before or the office, to the next job
+    or the office), the first date that's really free, and clashes later on: recurring spots
+    are checked against moved and one-time bookings already in MaidCentral for 12 weeks
+    (`LOOKAHEAD_WEEKS`, one Dispatch Board read). "Fit in a one-time clean before …" finds
+    one-time openings before a recurring customer's first regular visit. An extra-driving
+    limit filters results. The 4-week plan colours booked jobs by area (MaidCentral's Zone
+    colours) and shows each home's ZIP.
   - Drive times (`server/src/routing.js`, `osrm/`): real road times from our own routing
     service, OSRM (open source) on OpenStreetMap roads cut to the Spokane area, deployed as
     a second Railway service from `osrm/` (built at deploy time; no API key, no per-query

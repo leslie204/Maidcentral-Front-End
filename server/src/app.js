@@ -25,6 +25,7 @@ import { priceCheck } from './prices.js';
 import { scorecards } from './scorecards.js';
 import { forget, FRESH } from './cache.js';
 import { routingStatus } from './routing.js';
+import { searchAddress } from './geo.js';
 
 const IDLE_MS = 12 * 60 * 60 * 1000; // MaidCentral's own sign-in lasts 12 hours from last use
 const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
@@ -230,6 +231,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     const o = await openings(req.mc, req.query);
     return { ...o, openings: o.openings.map(({ legs, ...x }) => x) };
   }));
+  api.get('/places/search', handle((req) => searchAddress(req.query.q)));
   api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
   api.get('/openings/status', handle(async (req) => ({ progress: openingsStatus(req.mc) })));
   api.get('/callouts/roster', handle((req) => roster(req.mc, req.query)));

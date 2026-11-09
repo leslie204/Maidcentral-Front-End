@@ -266,6 +266,13 @@ export function prewarm(mc) {
 // taken that day by a moved or one-time booking (the first visit starts later), and time
 // free only that day (someone skipped), offered as a one-time opening.
 const FREQ_OF_CODE = { E1: 'Weekly', E2: 'Every 2 weeks', E3: 'Every 3 weeks', E4: 'Every 4 weeks' };
+// How far ahead recurring openings are checked against real bookings (moved and one-time
+// cleans already in MaidCentral), so a new regular isn't double-booked months out.
+export const LOOKAHEAD_WEEKS = 12;
+// "2026-11-26" -> "Thu Nov 26".
+const dayLabel = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).replace(',', '');
+// "North Home - Ann North" -> "Ann North".
+const who = (title) => String(title || '').split(' - ').pop().trim();
 
 async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const minHours = 0.5;
@@ -287,7 +294,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     zoneShapes(mc).catch(() => ({ features: [] })),
     mc.getHtml('/Report/MasterSchedule').then(parseMaster),
     // Real statuses (Skipped, Moved, Cancelled…), 2 weeks either side of the 4 weeks.
-    mc.postFormHtml('/Report/DispatchBoard', { StartDate: usDay(start - 14 * DAY), EndDate: usDay(start + 41 * DAY) }).then(parseBoard).catch(() => null),
+    mc.postFormHtml('/Report/DispatchBoard', { StartDate: usDay(start - 14 * DAY), EndDate: usDay(start + (LOOKAHEAD_WEEKS * 7 - 1) * DAY) }).then(parseBoard).catch(() => null),
   ]).catch((e) => {
     progress.delete(mc);
     throw e;
@@ -296,6 +303,9 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const base = await office(mc, homes);
   await learnPlaces(homes, base);
   const names = areaNames(zs);
+  // Each area's colour from MaidCentral's Zones page.
+  const zoneColor = new Map(zs.map((z) => [norm(z.name), z.color]));
+  const colorOf = (zone) => (zone ? zoneColor.get(norm(zone)) || null : null);
   const nameOf = (zone) => (zone ? names.get(areaKey(zone))?.label || zone : null);
   const cityOf = new Map(shapes.features.map((f) => [f.properties.zip, f.properties.city]));
   const toOffice = (p) => (base.lat && p ? driveTime(p, base) : 15);
@@ -321,7 +331,14 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   // Teams: from the pattern and the schedule (colours from either).
   const teams = new Map();
   for (const b of master) if (!teams.has(b.teamId)) teams.set(b.teamId, { id: b.teamId, name: b.team, color: b.color, textColor: b.textColor });
-  for (const d of analysed) for (const t of d.teams) teams.set(t.id, { ...teams.get(t.id), id: t.id, name: t.name, color: t.color || teams.get(t.id)?.color, textColor: t.textColor || teams.get(t.id)?.textColor });
+  // MaidCentral sometimes leaves a team's name off a day ("Team 4804"): keep the real name
+  // (from the Master Schedule or another day).
+  const placeholder = (n) => !n || /^Team \d+$/.test(n);
+  for (const d of analysed) for (const t of d.teams) {
+    const was = teams.get(t.id);
+    const name = placeholder(t.name) && was && !placeholder(was.name) ? was.name : t.name;
+    teams.set(t.id, { ...was, id: t.id, name, color: (name === t.name && t.color) || was?.color || t.color, textColor: (name === t.name && t.textColor) || was?.textColor || t.textColor });
+  }
 
   // Where a customer lives (pattern events carry the customer's name; jobs the title).
   const byCustomer = new Map();
@@ -398,6 +415,17 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   }
   const shortDay = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
   const gap = (a, b) => Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`));
+  // Real visits by team and date, with times: to catch bookings after the 4 weeks.
+  const boardBy = new Map();
+  for (const r of board || []) {
+    if (!r.date || !isVisit(r.status)) continue;
+    const s = minutes(r.time);
+    if (s == null) continue;
+    const e = minutes(r.endTime) ?? s + Math.round((r.allowedHours || 2) * 30);
+    const k = `${norm(r.team)}|${r.date}`;
+    if (!boardBy.has(k)) boardBy.set(k, []);
+    boardBy.get(k).push({ customer: r.customer, s, e });
+  }
   // A recurring visit that isn't on its team's day: MaidCentral's own status for it.
   const whyMissing = (customer, date, teamName) => {
     if (!board) return { status: 'missing', text: 'not on the schedule this date (status not available)' };
@@ -509,7 +537,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
             const d = dateOfWeek(w);
             const visits = pt?.byWeek.get(w) || [];
             const { before, after } = neighbourInfo(visits, s, e);
-            const leg = { date: d, week: w, before: before?.loc || null, after: after?.loc || null, beforeEnd: before?.e ?? null, afterStart: after?.s ?? null };
+            const leg = { date: d, week: w, before: before?.loc || null, after: after?.loc || null, beforeEnd: before?.e ?? null, afterStart: after?.s ?? null, beforeName: before ? who(before.title) : null, afterName: after ? who(after.title) : null };
             legs.push(leg);
             for (const [v, when] of [[before, 'before'], [after, 'after']]) if (v?.loc) neighbours.push({ ...v.loc, title: v.title, when });
             if (!before && !after) for (const v of visits) if (v.loc) neighbours.push({ ...v.loc, title: v.title, when: 'same day' });
@@ -521,6 +549,17 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
               if (blocking.length) takenOn.push({ date: d, by: blocking.map((j) => j.title) });
             }
           }
+          // After the 4 weeks: the same spot on later dates (the cycle repeats every 28 days),
+          // checked against real bookings for up to LOOKAHEAD_WEEKS.
+          const regulars = new Set((pt?.block.events || []).map((v) => norm(v.customer)));
+          for (const d0 of theDates) {
+            for (let k = 1; k * 4 < LOOKAHEAD_WEEKS; k++) {
+              const d = new Date(Date.parse(`${d0}T00:00:00Z`) + k * 28 * DAY).toISOString().slice(0, 10);
+              const by = (boardBy.get(`${norm(team.name)}|${d}`) || []).filter((r) => r.s < e && r.e > s && !regulars.has(norm(r.customer))).map((r) => r.customer);
+              if (by.length) takenOn.push({ date: d, by, later: true });
+            }
+          }
+          takenOn.sort((a, b) => a.date.localeCompare(b.date));
           const free = theDates.filter((d) => !takenOn.some((t) => t.date === d));
           out.push({
             id: `${team.id}-${wd}-${s}-${f.fit}-${f.wk.join('')}`,
@@ -584,7 +623,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
             weeklyHours: 0,
             why: gone.length ? gone.join('; ') : 'free on this date only',
             area: describeArea(neighbours, usual),
-            legs: [{ date: d, before: before?.loc || null, after: after?.loc || null, beforeEnd: before?.e ?? null, afterStart: after?.s ?? null }],
+            legs: [{ date: d, before: before?.loc || null, after: after?.loc || null, beforeEnd: before?.e ?? null, afterStart: after?.s ?? null, beforeName: before ? who(before.title) : null, afterName: after ? who(after.title) : null }],
             members: day.t.members.filter((m) => !m.absent).map((m) => m.name),
             source: 'date',
           });
@@ -619,11 +658,11 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
           const jobs = planned.map((v) => {
             const j = m.pairs.get(v);
             const why = j ? null : whyMissing(v.customer, d.date, team.name);
-            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : why.status, reason: why?.text || null };
+            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : why.status, reason: why?.text || null, zip: v.loc?.zip || null, color: colorOf(v.loc?.zone) };
           });
           for (const j of m.extras) {
             const h = lookup(j.title);
-            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date) });
+            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date), zip: h?.zip || null, color: colorOf(h?.zone) });
           }
           return [d.date, {
             window: day?.t.window ? { s: mod(Date.parse(`${day.t.window.start}Z`)), e: mod(Date.parse(`${day.t.window.end}Z`)) } : null,
@@ -665,6 +704,8 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     cycle,
     source: 'master-schedule',
     statuses: board ? 'dispatch-board' : 'unavailable',
+    lookahead: board ? { weeks: LOOKAHEAD_WEEKS, until: new Date(start + (LOOKAHEAD_WEEKS * 7 - 1) * DAY).toISOString().slice(0, 10) } : null,
+    areaColors: zs.filter((z) => z.color).map((z) => ({ zone: z.name, name: nameOf(z.name), color: z.color })),
     minHours: minMin / 60,
     openings: out.sort((a, b) => b.weeklyHours - a.weeklyHours || a.weekdayIndex - b.weekdayIndex || a.start - b.start),
     dayStart: hhmm(open[0][0]),
@@ -685,13 +726,26 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
 }
 
 // Where should a new customer go? Openings ranked by distance, frequency and length.
-//   target: zip, zone, or home (name of an existing home in the book)
+//   target: an address (lat, lng, address from the address search), zip, zone, or home
+//   (name of an existing home in the book)
 //   days: optional weekdays ("Tuesday,Thursday"); part: any | morning | afternoon
-export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2', hours = 2, days = '', part = 'any', dayStart, dayEnd }) {
+//   before: one-time cleans only before this date (to fit a customer in before their
+//   first regular visit); maxDrive: leave out openings needing more extra driving (minutes)
+export async function placeCustomer(mc, { from, zip, zone, home, lat, lng, address, frequency = '2', hours = 2, days = '', part = 'any', before, maxDrive, dayStart, dayEnd }) {
   const homes = await book(mc);
   const zs = await zones(mc);
   let target = null;
   let label = null;
+  if (lat != null && lng != null && lat !== '' && lng !== '') {
+    const p = { lat: Number(lat), lng: Number(lng) };
+    if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat - 47.7) > 1.5 || Math.abs(p.lng + 117.4) > 1.5) throw new McError('input', 'That address is outside the Spokane area.');
+    // Its area: the area of the nearest homes in the book.
+    const near = active(homes).map((h) => ({ h, d: km(p, h) })).sort((a, b) => a.d - b.d).slice(0, 5);
+    const zoneCount = {};
+    for (const { h } of near) if (h.zone) zoneCount[h.zone] = (zoneCount[h.zone] || 0) + 1;
+    target = { ...p, zone: Object.entries(zoneCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null, exact: true };
+    label = String(address || `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`).slice(0, 120);
+  }
   if (home) {
     const h = active(homes).find((x) => norm(`${x.home} ${x.customer}`).includes(norm(home)));
     if (h) (target = { lat: h.lat, lng: h.lng, zone: h.zone }), (label = `${h.home} (${areaNames(zs).get(areaKey(h.zone))?.label || h.zip})`);
@@ -749,7 +803,9 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       : // A recurring customer only goes in an opening that recurs at least as often (a
         // weekly customer needs a weekly spot), with a first date that's really free.
         o.openings.filter((x) => x.weeks > 0 && x.firstDate && x.weeks <= (want || 4));
+  const limitDrive = Number(maxDrive) > 0 ? Number(maxDrive) : null;
   const ranked = candidates
+    .filter((x) => !(want === 0 && before) || x.dates[0] < before)
     .filter((x) => x.hours * 60 >= need && x.area.center)
     .filter((x) => !wantDays.length || wantDays.includes(x.weekday))
     .filter((x) => part === 'morning' ? x.start < 12 * 60 : part === 'afternoon' ? x.end > 12 * 60 + need : true)
@@ -773,8 +829,15 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
         const ahead = Math.round((Date.parse(`${x.dates[0]}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
         score -= ahead * 0.5;
         reasons.push({ text: ahead <= 7 ? 'This week or next' : `In ${Math.ceil(ahead / 7)} weeks`, tone: ahead <= 7 ? 'good' : 'neutral' });
-      } else if (x.takenOn?.length) {
-        reasons.push({ text: `First visit ${x.firstDate}: ${x.takenOn.map((t) => t.date).join(', ')} is taken by a moved or one-time booking`, tone: 'neutral' });
+      } else {
+        const soon = (x.takenOn || []).filter((t) => !t.later);
+        const later = (x.takenOn || []).filter((t) => t.later);
+        if (soon.length) reasons.push({ text: `Starts ${dayLabel(x.firstDate)}: ${soon.map((t) => dayLabel(t.date)).join(', ')} already taken`, tone: 'neutral' });
+        // Bookings already in MaidCentral on later dates of this spot: those visits would clash.
+        if (later.length) {
+          reasons.push({ text: `Clashes later: ${later.map((t) => `${dayLabel(t.date)} (${t.by.join(', ')})`).join(', ')}`, tone: 'warn' });
+          score -= 12 * later.length;
+        }
       }
       if (want !== 0 && x.weeks === want) reasons.push({ text: { 1: 'Free every week', 2: 'Free every other week: right for this customer', 4: 'Free once every 4 weeks: right for this customer' }[x.weeks] || 'Right frequency', tone: 'good' });
       if (extra <= 5) reasons.push({ text: `On the team's way (${extra} min extra driving)`, tone: 'good' });
@@ -783,11 +846,23 @@ export async function placeCustomer(mc, { from, zip, zone, home, frequency = '2'
       const leftover = x.hours * 60 - need;
       if (leftover < 30) (score += 8), reasons.push({ text: 'Fills the free time exactly', tone: 'good' });
       if (t.lastOfDay) reasons.push({ text: `Back at the office by ${hhmm(t.endAt + (base.lat ? drive(target, base) : 15))}`, tone: 'neutral' });
+      // The drive in and out on the first visit: from the job before (or the office), and on
+      // to the next job (or back to the office).
+      const l = x.legs.find((g) => g.date === (x.firstDate || x.dates[0])) || x.legs[0];
+      const route = l
+        ? {
+          from: l.before ? l.beforeName || 'the job before' : 'the office',
+          fromMin: Math.round(l.before ? drive(l.before, target) : base.lat ? drive(base, target) : 15),
+          to: l.after ? l.afterName || 'the next job' : 'the office',
+          toMin: Math.round(l.after ? drive(target, l.after) : base.lat ? drive(target, base) : 15),
+        }
+        : null;
       const { legs, ...rest } = x;
-      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, extraDriveMin: extra, score: Math.round(score), reasons };
+      return { ...rest, arrive: hhmm(t.startAt), done: hhmm(t.endAt), arriveMin: t.startAt, doneMin: t.endAt, lastOfDay: t.lastOfDay, distanceKm: Math.round(dist * 10) / 10, extraDriveMin: extra, route, score: Math.round(score), reasons };
     })
     .filter((x) => x.score > -100)
+    .filter((x) => !limitDrive || x.extraDriveMin <= limitDrive)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 25);
-  return { target: { ...target, label }, frequency: want, hours: need / 60, returnBy: hhmm(back), office: { address: base.address, located: Boolean(base.lat) }, results: ranked };
+    .slice(0, 40);
+  return { target: { ...target, label }, frequency: want, hours: need / 60, returnBy: hhmm(back), office: { address: base.address, located: Boolean(base.lat) }, before: want === 0 && before ? before : null, maxDrive: limitDrive, lookahead: o.lookahead, results: ranked };
 }

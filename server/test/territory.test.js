@@ -79,6 +79,8 @@ const BOARD = `<table><thead><tr>${BHEAD.map((h) => `<th>${h}</th>`).join('')}</
 ${brow(70, 'Kim Skip', 'Every Four Weeks', '11/23/2026 1:00 PM - 3:00 PM', 'Green', 'Skipped')}
 ${brow(60, 'Moe Moved', 'Every Four Weeks', '11/18/2026 9:00 AM - 11:00 AM', 'Green', 'Moved')}
 ${brow(6, 'Moe Moved', 'Every Four Weeks', '11/16/2026 9:00 AM - 11:00 AM', 'Green', 'Pending')}
+${brow(80, 'Zed Later', 'Single', '12/14/2026 9:30 AM - 11:30 AM', 'Green', 'Pending')}
+${brow(81, 'Old Cancel', 'Single', '1/11/2027 9:00 AM - 11:00 AM', 'Green', 'Cancelled')}
 </tbody></table>`;
 const mc = {
   host: 'test.maidcentral.com',
@@ -145,7 +147,10 @@ test('openings follow the recurring pattern: skips are one-time only, moved book
   // openings (every 2 weeks); the first visit is the week the spot is really free.
   const morning = green.find((x) => x.fit === 'Every 2 weeks' && x.cycleWeeks.join() === '2,4' && x.start < 11 * 60);
   assert.ok(morning, 'the weeks 2 & 4 morning is an every-2-weeks opening');
-  assert.deepEqual(morning.takenOn, [{ date: '2026-11-16', by: ['Moe Home - Moe Moved'] }]);
+  // ...and 4 weeks after the cycle (12/14) a one-time clean is already booked there; a
+  // cancelled booking (1/11) doesn't count.
+  assert.deepEqual(morning.takenOn, [{ date: '2026-11-16', by: ['Moe Home - Moe Moved'] }, { date: '2026-12-14', by: ['Zed Later'], later: true }]);
+  assert.equal(o.lookahead.weeks, 12);
   assert.equal(morning.firstDate, '2026-11-30');
   // The board: Kim marked skipped on 11/23, Moe as an extra booking on 11/16.
   const g = o.cycle.teams.find((t) => t.name === 'Green');
@@ -175,6 +180,25 @@ test('place a customer: nearby team and matching frequency first', async () => {
   assert.equal(north.results[0].team, 'Blue');
   assert.ok(north.results.every((r) => r.weeks === 1), 'weekly customers only get weekly openings');
   await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], zip: '00000' }), /ZIP code, an area/);
+});
+
+test('place by address, warn about later bookings, and fit in a one-time clean before the first visit', async () => {
+  // An address on the north side (from the address search).
+  const at = await placeCustomer(mc, { from: MONDAYS[0], lat: '47.731', lng: '-117.409', address: '1 Test Ave, Spokane, WA 99208', frequency: '2', hours: 2 });
+  assert.equal(at.target.label, '1 Test Ave, Spokane, WA 99208');
+  assert.ok(at.results.length > 0);
+  assert.ok(at.results.every((r) => r.route && r.route.fromMin >= 0 && r.route.toMin >= 0), 'drive in and out shown');
+  const green = at.results.find((r) => r.team === 'Green' && r.firstDate === '2026-11-30');
+  assert.ok(green, 'Green\'s weeks 2 & 4 morning is offered');
+  assert.ok(green.reasons.some((x) => /Clashes later: Mon Dec 14 \(Zed Later\)/.test(x.text)));
+  await assert.rejects(placeCustomer(mc, { from: MONDAYS[0], lat: '40.7', lng: '-74', frequency: '2' }), /outside the Spokane area/);
+  // One-time cleans before a date only.
+  const early = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '0', hours: 1.5, before: '2026-11-20' });
+  assert.ok(early.results.length > 0 && early.results.every((r) => r.dates[0] < '2026-11-20'));
+  assert.equal(early.before, '2026-11-20');
+  // Extra driving limit.
+  const tight = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '2', hours: 2, maxDrive: '5' });
+  assert.ok(tight.results.every((r) => r.extraDriveMin <= 5));
 });
 
 test('place a one-time clean: single dates, no frequency language', async () => {

@@ -21,10 +21,10 @@ const mcDate = (isoDay) => {
   const [y, m, d] = isoDay.split('-');
   return `${m}/${d}/${y}`;
 };
-// "11/4/2026 8:45 AM - 11:15 AM" -> { date: '2026-11-04', time: '8:45 AM' }
+// "11/4/2026 8:45 AM - 11:15 AM" -> { date: '2026-11-04', time: '8:45 AM', end: '11:15 AM' }
 const when = (s) => {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)/i.exec(String(s || '').trim());
-  return m ? { date: `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`, time: m[4].toUpperCase() } : { date: null, time: null };
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)(?:\s*-\s*(\d{1,2}:\d{2}\s*[AP]M))?/i.exec(String(s || '').trim());
+  return m ? { date: `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`, time: m[4].toUpperCase(), end: m[5] ? m[5].toUpperCase() : null } : { date: null, time: null, end: null };
 };
 // Visits that won't happen as listed: the Dispatch Board shows every booking whatever its
 // status, including skipped visits (when a customer cancels, MaidCentral marks the visit
@@ -50,6 +50,7 @@ export function parseBoard(html) {
       frequency: String(v(r, 'Freq.')).trim(),
       date: w.date,
       time: w.time,
+      endTime: w.end,
       team: String(v(r, 'Team')).trim(),
       allowedHours: num(v(r, 'Alwd. Hours')),
       teamSize: num(v(r, 'Team Size')) || null,

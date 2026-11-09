@@ -961,3 +961,30 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 :root { --plan-booked: #94a3b8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --plan-booked: #64748b; } }
 :root[data-theme='dark'] { --plan-booked: #64748b; }
+/* Place a customer: address search, drive in/out, fill-in panel */
+.addr { position: relative; display: grid; gap: 4px; }
+.addr-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; margin-top: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); display: grid; overflow: hidden; }
+.addr-list button { display: flex; gap: 8px; align-items: center; text-align: left; padding: 9px 12px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); cursor: pointer; font: inherit; }
+.addr-list button:last-child { border-bottom: 0; }
+.addr-list button:hover { background: var(--panel-2); }
+.addr-none { padding: 9px 12px; }
+.addr-busy { position: absolute; right: 10px; top: 9px; }
+.addr-ok { color: var(--ok); display: inline-flex; gap: 4px; align-items: center; }
+.route-line { display: inline-flex; gap: 5px; align-items: center; color: var(--text-2); flex-basis: 100%; }
+.route-line b { color: var(--text); }
+.fill-btn { margin-top: 6px; display: inline-block; }
+.slot.place.filling { outline: 2px solid var(--accent); }
+.fill-panel { margin-top: 12px; padding: 12px; }
+.fill-panel .card-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+.fill-panel .card-head .btn { margin-left: auto; }
+/* 4-week plan: area colours and ZIPs */
+.cycle .cbar-job.plan-job { display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; container-type: inline-size; font: 600 9.5px/1 var(--font, inherit); letter-spacing: -0.01em; }
+@container (max-width: 26px) { .cycle .cbar-job.plan-job span { display: none; } }
+.area-key { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 11.5px; color: var(--text-2); }
+.area-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.cycle .cbar-job.plan-job.pale { box-shadow: inset 0 0 0 1px var(--text-2); }
+.area-key i { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); }
+.slot.place { grid-template-columns: 150px 190px minmax(0, 1fr) minmax(120px, 170px); }
+.slot.place .slot-gap { display: grid; gap: 6px; justify-items: end; text-align: right; }
+.slot.place .fill-btn { white-space: normal; text-align: right; line-height: 1.3; }
+@media (max-width: 1100px) { .slot.place { grid-template-columns: 140px minmax(0, 1fr); } .slot.place .slot-reasons, .slot.place .slot-gap { grid-column: 1 / -1; justify-items: start; text-align: left; } }

@@ -10,6 +10,14 @@ import { PageHeader, Stats, Tabs, Skeleton, ErrorNote, Empty, Card, Help, plainF
 const FIT_COLOR = { Weekly: '#92B558', 'Every 2 weeks': '#005960', 'Every 4 weeks': '#578CAC', 'One-time': '#d2691e', 'On demand': '#c48f65' };
 // Labels inside the small open blocks on the 4-week plan.
 const FIT_SHORT = { Weekly: 'Weekly', 'Every 2 weeks': '2 wks', 'Every 4 weeks': '4 wks', 'One-time': 'Once' };
+// Black or white text, whichever reads better on a background colour.
+const lumOf = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return 0;
+  const n = parseInt(m[1], 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+};
+const inkOn = (hex) => (lumOf(hex) > 0.6 ? '#111' : '#fff');
 // "North Home - Ann North" -> "Ann North".
 const customerOf = (title) => String(title || '').split(' - ').pop();
 // "Good for…" wording for an opening's frequency.
@@ -147,12 +155,19 @@ function CyclePlan({ data, highlight, onClear }) {
       </div>
       <Card className="flush">
         <div className="cycle-legend">
-          <span><i className="k-booked" />Booked</span>
+          <span><i className="k-booked" />Booked (coloured by area, with the ZIP)</span>
           <span><i className="k-open" />Open for a new regular: Weekly, every 2 wks or every 4 wks</span>
           <span><i className="k-once" />Once: free that date only (a regular is away)</span>
           <span className="muted">Hover any block for details</span>
-          <Help wide>Each bar is one team's day ({hourLabel(dayStart)}–{hourLabel(dayEnd)}); read across a row to see the next 4 weeks on that weekday. Green openings come from MaidCentral's Master Schedule, so they are real recurring spots: a customer who skipped or moved doesn't create one. When a regular is away on a date, their time shows as "Once" (good for a one-time clean only). A booking moved into an open spot shows as booked that date; hover it to see where it came from.</Help>
+          <Help wide>Booked jobs take their area's colour from MaidCentral's Zones and show the home's ZIP code. Each bar is one team's day ({hourLabel(dayStart)}–{hourLabel(dayEnd)}); read across a row to see the next 4 weeks on that weekday. Green openings come from MaidCentral's Master Schedule, so they are real recurring spots: a customer who skipped or moved doesn't create one. When a regular is away on a date, their time shows as "Once" (good for a one-time clean only). A booking moved into an open spot shows as booked that date; hover it to see where it came from.</Help>
         </div>
+        {data.areaColors?.length > 0 && (
+          <div className="area-key">
+            {[...new Map(data.areaColors.map((a) => [a.name || a.zone, a])).values()].map((a) => (
+              <span key={a.zone}><i style={{ background: a.color }} />{a.name || a.zone}</span>
+            ))}
+          </div>
+        )}
         <div className="tablewrap plain">
           <table className="cycle">
             <thead>
@@ -186,10 +201,12 @@ function CyclePlan({ data, highlight, onClear }) {
                                 {day.jobs.filter((j) => j.status === 'booked' || j.status === 'extra').map((j, i) => (
                                   <div
                                     key={i}
-                                    className={`cbar-job plan-job ${focus !== 'all' ? 'quiet' : ''}`}
-                                    style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%` }}
-                                    title={`${hhmm(j.s)}–${hhmm(j.e)} ${customerOf(j.title)}\n${j.status === 'extra' ? `Booked this date only: ${j.reason}` : `${plainFreq(j.frequency || 'Unknown')} customer`}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
-                                  />
+                                    className={`cbar-job plan-job ${focus !== 'all' ? 'quiet' : ''} ${lumOf(j.color) > 0.9 ? 'pale' : ''}`}
+                                    style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, ...(j.color ? { background: j.color, color: inkOn(j.color) } : {}) }}
+                                    title={`${hhmm(j.s)}–${hhmm(j.e)} ${customerOf(j.title)}${j.zip ? ` · ${j.zip}` : ''}\n${j.status === 'extra' ? `Booked this date only: ${j.reason}` : `${plainFreq(j.frequency || 'Unknown')} customer`}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
+                                  >
+                                    {j.zip && <span>{j.zip}</span>}
+                                  </div>
                                 ))}
                                 {day.open.filter((g) => !g.taken).map((g, i) => (
                                   <div
@@ -315,23 +332,134 @@ function WhereToSell({ data, onOpen }) {
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+// Address box with suggestions while typing (US Census + OpenStreetMap search).
+function AddressSearch({ value, onPick }) {
+  const [text, setText] = useState(value?.label || '');
+  const [list, setList] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const seq = useRef(0);
+  useEffect(() => {
+    const q = text.trim();
+    if (q.length < 6 || !/\d/.test(q) || q === value?.label) {
+      setList([]);
+      return undefined;
+    }
+    const n = ++seq.current;
+    const t = setTimeout(async () => {
+      setBusy(true);
+      try {
+        const r = await api.searchAddress(q);
+        if (n === seq.current) (setList(r.results || []), setOpen(true));
+      } catch {
+        if (n === seq.current) setList([]);
+      } finally {
+        if (n === seq.current) setBusy(false);
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [text, value]);
+  const pick = (x) => {
+    setText(x.label);
+    setOpen(false);
+    onPick(x);
+  };
+  return (
+    <div className="addr">
+      <input
+        placeholder="e.g. 1234 W Main Ave, Spokane"
+        value={text}
+        onChange={(e) => (setText(e.target.value), onPick(null))}
+        onFocus={() => list.length && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !value && list.length) (e.preventDefault(), pick(list[0]));
+        }}
+        autoComplete="off"
+        required
+      />
+      {busy && <span className="addr-busy muted small">Looking up…</span>}
+      {open && text.trim().length >= 6 && (
+        <div className="addr-list">
+          {list.length ? list.map((x, i) => (
+            <button type="button" key={i} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(x)}>
+              <Icon name="pin" size={14} /> {x.label}
+            </button>
+          )) : !busy && <span className="muted small addr-none">No match yet: add the street type (Ave, St, Rd) or the city.</span>}
+        </div>
+      )}
+      {value && <span className="addr-ok small"><Icon name="check" size={13} /> Found on the map</span>}
+    </div>
+  );
+}
+
+function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
+  return (
+    <div className="slot-list">
+      {result.results.map((r, i) => {
+        const c = teamColor({ name: r.team, color: r.color });
+        const later = r.firstDate && r.weeks > 0 ? Math.round((Date.parse(`${r.firstDate}T00:00:00Z`) - Date.now()) / 86_400_000) : 0;
+        return (
+          <div key={r.id} className={`slot place clickable ${i === 0 ? 'best' : ''} ${fillFor === r.id ? 'filling' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
+            <div className="slot-when">
+              <b>{r.weeks === 0 ? `${r.weekday.slice(0, 3)} ${shortDate(r.dates[0])}` : `${r.weekday}s`}</b>
+              <span>{r.arrive} – {r.done}</span>
+              <span className="muted small">free {r.label}</span>
+            </div>
+            <div className="slot-team">
+              <b><span className="team-swatch" style={{ '--team': c.bg }} />{r.team}</b>
+              <span className="muted small">{r.area.name || 'area unknown'}{r.area.zip ? ` · ${r.area.zip}` : ''}</span>
+            </div>
+            <div className="slot-reasons">
+              <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.weeks === 0 ? 'One-time clean' : plainFreq(r.fit)}</span>
+              {r.reasons.map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
+              {r.route && (
+                <span className="route-line small">
+                  <Icon name="car" size={13} /> {r.route.from} <b>{r.route.fromMin} min</b> → new home → <b>{r.route.toMin} min</b> {r.route.to}
+                </span>
+              )}
+            </div>
+            <span className="slot-gap muted small">
+              {r.weeks === 0 ? `one visit on ${shortDate(r.dates[0])}` : `first visit ${shortDate(r.firstDate || r.dates[0])}${r.dates.filter((d) => d > (r.firstDate || r.dates[0]) && !(r.takenOn || []).some((t) => t.date === d)).slice(0, 1).map((d) => `, then ${shortDate(d)}`).join('')}`}
+              {onFillIn && r.weeks > 0 && later > 6 && (
+                <button type="button" className="btn ghost sm fill-btn" onClick={(e) => (e.stopPropagation(), onFillIn(r))}>
+                  Fit in a one-time clean before {shortDate(r.firstDate)}
+                </button>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function PlaceCustomer({ from, zones, onError, onOpen }) {
-    const [form, setForm] = useState({ where: 'zip', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any' });
+  const [form, setForm] = useState({ where: 'address', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any', maxDrive: '' });
+  const [addr, setAddr] = useState(null);
   const [days, setDays] = useState([]);
   const [result, setResult] = useState(null);
+  const [fill, setFill] = useState(null); // { for: opening, result } one-time cleans before the first visit
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const query = (extra = {}) => {
+    const q = { from, frequency: form.frequency, hours: form.hours, part: form.part, days: days.join(','), ...extra };
+    if (form.maxDrive) q.maxDrive = form.maxDrive;
+    if (form.where === 'address' && addr) Object.assign(q, { lat: addr.lat, lng: addr.lng, address: addr.label });
+    if (form.where === 'zip') q.zip = form.zip;
+    if (form.where === 'zone') q.zone = form.zone;
+    if (form.where === 'home') q.home = form.home;
+    return q;
+  };
   const submit = async (e) => {
     e.preventDefault();
+    if (form.where === 'address' && !addr) return setError({ message: 'Pick the address from the suggestions first.' });
     setBusy(true);
     setError(null);
+    setFill(null);
     try {
-      const q = { from, frequency: form.frequency, hours: form.hours, part: form.part, days: days.join(',') };
-      if (form.where === 'zip') q.zip = form.zip;
-      if (form.where === 'zone') q.zone = form.zone;
-      if (form.where === 'home') q.home = form.home;
-      setResult(await api.placeCustomer(q));
+      setResult(await api.placeCustomer(query()));
     } catch (err) {
       onError(err);
       setError(err);
@@ -339,19 +467,31 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       setBusy(false);
     }
   };
+  const fillIn = async (r) => {
+    setFill({ for: r, result: null });
+    try {
+      const res = await api.placeCustomer(query({ frequency: '0', before: r.firstDate, days: '' }));
+      setFill({ for: r, result: res });
+      setTimeout(() => document.querySelector('.fill-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } catch (err) {
+      onError(err);
+      setFill(null);
+    }
+  };
   return (
     <>
       <form className="card place-form" onSubmit={submit}>
         <div className="place-where">
           <div className="segmented">
-                        {[['zip', 'ZIP'], ['zone', 'Area'], ['home', 'Existing home']].map(([k, label]) => (
+            {[['address', 'Address'], ['zip', 'ZIP'], ['zone', 'Area'], ['home', 'Existing home']].map(([k, label]) => (
               <button type="button" key={k} className={form.where === k ? 'on' : ''} onClick={() => setForm({ ...form, where: k })}>{label}</button>
             ))}
           </div>
+          {form.where === 'address' && <AddressSearch value={addr} onPick={setAddr} />}
           {form.where === 'zip' && <input placeholder="e.g. 99203" value={form.zip} onChange={set('zip')} inputMode="numeric" required />}
           {form.where === 'zone' && (
             <select value={form.zone} onChange={set('zone')} required>
-                            <option value="">Choose an area…</option>
+              <option value="">Choose an area…</option>
               {zones.map((z) => <option key={z.name} value={z.name}>{z.label || z.name}</option>)}
             </select>
           )}
@@ -360,7 +500,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
         <label className="field"><span>Frequency</span>
           <select value={form.frequency} onChange={set('frequency')}>
             <option value="1">Weekly</option>
-                        <option value="2">Every other week</option>
+            <option value="2">Every other week</option>
             <option value="4">Every 4 weeks</option>
             <option value="0">One-time</option>
           </select>
@@ -370,6 +510,15 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
         </label>
         <label className="field"><span>Time of day</span>
           <select value={form.part} onChange={set('part')}><option value="any">Any</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option></select>
+        </label>
+        <label className="field"><span>Extra driving</span>
+          <select value={form.maxDrive} onChange={set('maxDrive')}>
+            <option value="">Show all</option>
+            <option value="10">Up to 10 min</option>
+            <option value="20">Up to 20 min</option>
+            <option value="30">Up to 30 min</option>
+            <option value="45">Up to 45 min</option>
+          </select>
         </label>
         <div className="field"><span>Days the customer can do</span>
           <div className="daychips">
@@ -384,35 +533,24 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
       {busy && <Skeleton rows={5} height={64} />}
       {result && !busy && (
         <>
-                    <p className="muted small">Best openings for <b>{result.target.label}</b>, ranked by extra driving, {result.frequency === 0 ? 'how soon' : 'frequency'} and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.</p>
-          {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, or more days.</Empty>}
-          <div className="slot-list">
-            {result.results.map((r, i) => {
-              const c = teamColor({ name: r.team, color: r.color });
-              return (
-                <div key={r.id} className={`slot place clickable ${i === 0 ? 'best' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
-                  <div className="slot-when">
-                    <b>{r.weeks === 0 ? `${r.weekday.slice(0, 3)} ${shortDate(r.dates[0])}` : `${r.weekday}s`}</b>
-                    <span>{r.arrive} – {r.done}</span>
-                    <span className="muted small">free {r.label}</span>
-                  </div>
-                  <div className="slot-team">
-                    <b><span className="team-swatch" style={{ '--team': c.bg }} />{r.team}</b>
-                    <span className="muted small">{r.area.name || 'area unknown'}{r.area.zip ? ` · ${r.area.zip}` : ''}</span>
-                  </div>
-                  <div className="slot-reasons">
-                                        <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.weeks === 0 ? 'One-time clean' : plainFreq(r.fit)}</span>
-                    {r.reasons.map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
-                  </div>
-                  <span className="slot-gap muted small">{r.weeks === 0 ? `one visit on ${shortDate(r.dates[0])}` : `first visit ${shortDate(r.firstDate || r.dates[0])}${r.dates.filter((d) => d > (r.firstDate || r.dates[0]) && !(r.takenOn || []).some((t) => t.date === d)).slice(0, 1).map((d) => `, then ${shortDate(d)}`).join('')}`}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="muted small">Drive times are estimates from straight-line distance. To book, create the job in MaidCentral.</p>
+          <p className="muted small">
+            Best openings for <b>{result.target.label}</b>, ranked by extra driving, {result.frequency === 0 ? 'how soon' : 'frequency'} and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.
+            {result.frequency !== 0 && result.lookahead && <> Checked against moved and one-time bookings already in MaidCentral through {shortDate(result.lookahead.until)}.</>}
+          </p>
+          {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, more days{result.maxDrive ? ' or more extra driving' : ''}.</Empty>}
+          <PlaceResults result={result} onOpen={onOpen} onFillIn={result.frequency !== 0 ? fillIn : null} fillFor={fill?.for.id} />
+          {fill && (
+            <div className="card fill-panel">
+              <div className="card-head"><b>One-time cleans before {shortDate(fill.for.firstDate)}</b><span className="muted small">to fit them in until their regular {fill.for.weekday} with {fill.for.team} starts</span>
+                <button className="btn ghost sm" onClick={() => setFill(null)}>Close</button>
+              </div>
+              {!fill.result ? <Skeleton rows={3} height={56} /> : fill.result.results.length ? <PlaceResults result={fill.result} onOpen={onOpen} /> : <Empty icon="calendar" title="Nothing free before then">No one-time opening fits before {shortDate(fill.for.firstDate)}. Try a shorter job or allow more driving.</Empty>}
+            </div>
+          )}
+          <p className="muted small">Drive times are real road times from our Spokane street map (no traffic). To book, create the job in MaidCentral.</p>
         </>
       )}
-            {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Enter their ZIP code, area or a nearby existing home, how often and how long the clean is. You'll get times when a team is already nearby, that work on every visit and still get the team back to the office on time.</Empty>}
+      {!result && !busy && <Empty icon="pin" title="Where would a new customer fit best?">Type their address (or a ZIP, area or a nearby existing home), how often and how long the clean is. You'll get times when a team is already nearby, the drive in and out, and the first date that's really free.</Empty>}
     </>
   );
 }
