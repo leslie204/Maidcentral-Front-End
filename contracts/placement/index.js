@@ -25,7 +25,7 @@ function getAjv() {
   const spec = loadSpec();
   // OpenAPI keeps schemas under components/schemas; JSON Schema validators expect $defs.
   const defs = JSON.parse(JSON.stringify(spec.components.schemas).replaceAll('#/components/schemas/', '#/$defs/'));
-  ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false });
+  ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
   addFormats.default(ajv);
   ajv.addSchema({ $id: SCHEMA_ID, $defs: defs });
   return ajv;

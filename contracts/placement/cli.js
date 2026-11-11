@@ -21,7 +21,7 @@ const missing = ['base-url', 'brand', 'quote'].filter((k) => !values[k]);
 if (missing.length || !token) {
   console.error(`Missing: ${[...missing.map((k) => `--${k}`), ...(token ? [] : ['PLACEMENT_TOKEN'])].join(', ')}`);
   console.error('--quote is a JSON file with a QuoteRequest the app should find serviceable.');
-  console.error('--book is a JSON file with { "customer": {...} }. It WRITES a real booking: sandbox only.');
+  console.error('--book is a JSON file with { "customer": {...}, "answers": [...] }. It WRITES a real booking: sandbox only.');
   process.exit(2);
 }
 

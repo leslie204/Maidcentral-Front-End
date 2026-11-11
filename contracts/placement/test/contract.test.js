@@ -72,7 +72,7 @@ test('validateResponse checks the status as well as the body', () => {
 });
 
 const quoteRequest = spec.components.examples.QuoteRequest.value;
-const book = { customer: spec.components.examples.BookingRequest.value.customer, placed_by: { kind: 'system', id: 'test' } };
+const book = { customer: spec.components.examples.BookingRequest.value.customer, answers: [{ question_id: 'terms', value: true }], placed_by: { kind: 'system', id: 'test' } };
 
 async function withApp(options, fn) {
   const server = createFakeApp(options);
@@ -88,7 +88,8 @@ async function withApp(options, fn) {
 test('conformance: the reference fake app passes every check, including holds and booking', async () => {
   const results = await withApp({}, (baseUrl) => runConformance({ baseUrl, token: 'test-token', brand: 'urbanmop', quoteRequest, holds: true, book }));
   assert.deepEqual(results.filter((r) => !r.ok), []);
-  assert.ok(results.length >= 17, `ran ${results.length} checks`);
+  assert.ok(results.some((r) => r.name === 'bookings: missing required answers is invalid_request'));
+  assert.ok(results.length >= 18, `ran ${results.length} checks`);
 });
 
 test('conformance: read-only by default (no hold or booking calls)', async () => {

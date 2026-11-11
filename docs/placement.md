@@ -66,7 +66,14 @@ the quote form without hard-coding any brand.
    and statuses listed in the spec. `message` is shown to the rep, so write it for a person.
 9. **Money and time.** Money is integer cents with a currency. Times are RFC 3339 with an offset;
    `from` and `to` are dates in the brand's time zone, at most 31 days apart.
-10. **Versioning.** Breaking changes need `/api/placement/v2`. Within v1 only add things (optional
+10. **Booking questions.** If the brand asks questions on every booking (parking, pets, how they
+    heard about us, terms), list them in the catalog's `questions`. A booking missing a required
+    answer fails with `400 invalid_request` and `details.questions` listing the ids, and the hold
+    stays usable. A required checkbox (e.g. the customer accepted the terms) must be `true`: the
+    rep confirms it with the customer, it is never ticked by default.
+11. **Hourly services.** A service sold by time has `hourly` in the catalog; the quote then sends
+    `minutes`.
+12. **Versioning.** Breaking changes need `/api/placement/v2`. Within v1 only add things (optional
     fields, endpoints, error codes), and callers ignore fields they don't know.
 
 ## Checking an implementation
@@ -84,9 +91,12 @@ PLACEMENT_TOKEN=... npm run conformance -- --base-url https://<app> --brand urba
 PLACEMENT_TOKEN=... npm run conformance -- --base-url https://<app> --brand urbanmop --quote quote.json --holds
 ```
 
+Contract history: **1.1.0** added hourly services (`hourly`, `minutes`) and booking questions
+(`questions`, `answers`), both found while building the Launch27 side. 1.0.0 was the first draft.
+
 `--quote` is a JSON file with a QuoteRequest that the app should find serviceable (the
 `QuoteRequest` example in the spec works for a test company). `--holds` also creates and
-releases a hold. `--book book.json` (`{ "customer": {...} }`) also books, replays and checks
+releases a hold. `--book book.json` (`{ "customer": {...}, "answers": [...] }`) also books, replays and checks
 idempotency. That **writes a real customer and booking**, so only use it against a sandbox or
 test company.
 

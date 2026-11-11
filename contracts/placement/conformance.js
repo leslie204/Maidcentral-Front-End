@@ -17,7 +17,7 @@ const isoDate = (d) => d.toISOString().slice(0, 10);
  * @param {object} o.quoteRequest  A QuoteRequest the app should find serviceable
  * @param {number} [o.days=14] How many days of availability to ask for
  * @param {boolean} [o.holds=false] Create and release a hold
- * @param {object} [o.book]    { customer, placed_by } to book for real (sandbox only)
+ * @param {object} [o.book]    { customer, answers?, placed_by? } to book for real (sandbox only)
  * @param {number} [o.timeoutMs=15000] Per-request timeout; a slow call fails its check
  * @returns {Promise<{name: string, ok: boolean, problems: string[]}[]>}
  */
@@ -80,8 +80,10 @@ export async function runConformance({ baseUrl, token, brand, quoteRequest, days
     return expectError('getCatalog', res, 401, ['unauthorized']);
   });
 
+  let catalog = null;
   await check('catalog: valid for the brand', async () => {
     const res = await call('GET', `/catalog?brand=${encodeURIComponent(brand)}`);
+    catalog = res.body;
     return expect('getCatalog', res, [200], [res.body?.brand === brand ? null : `brand is ${res.body?.brand}, expected ${brand}`]);
   });
 
@@ -170,6 +172,18 @@ export async function runConformance({ baseUrl, token, brand, quoteRequest, days
   if (!book) return results;
 
   const key = `conformance-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const required = (catalog?.questions || []).filter((q) => q.required);
+  if (required.length) {
+    await check('bookings: missing required answers is invalid_request', async () => {
+      const h = await call('POST', '/holds', { body: { slot_token: slots[0].slot_token, placed_by: placedBy } });
+      if (h.status !== 201) return [`could not hold a slot: status ${h.status}`];
+      const res = await call('POST', '/bookings', { body: { hold_id: h.body.hold_id, customer: book.customer, placed_by: placedBy }, headers: { 'idempotency-key': `${key}-noanswers` } });
+      await call('DELETE', `/holds/${encodeURIComponent(h.body.hold_id)}`);
+      const listed = res.body?.error?.details?.questions;
+      return expectError('createBooking', res, 400, ['invalid_request']).concat(Array.isArray(listed) && required.every((q) => listed.includes(q.id)) ? [] : ['details.questions should list the unanswered required questions']);
+    });
+  }
+
   let bookingHold;
   let booking;
   let bookingBody;
@@ -177,7 +191,7 @@ export async function runConformance({ baseUrl, token, brand, quoteRequest, days
     const h = await call('POST', '/holds', { body: { slot_token: slots[0].slot_token, placed_by: placedBy } });
     if (h.status !== 201) return [`could not hold a slot to book: status ${h.status}`];
     bookingHold = h.body;
-    bookingBody = { hold_id: bookingHold.hold_id, customer: book.customer, placed_by: placedBy, source: { channel: 'other', campaign: 'conformance-check' } };
+    bookingBody = { hold_id: bookingHold.hold_id, customer: book.customer, placed_by: placedBy, source: { channel: 'other', campaign: 'conformance-check' }, ...(book.answers ? { answers: book.answers } : {}) };
     const res = await call('POST', '/bookings', { body: bookingBody, headers: { 'idempotency-key': key } });
     booking = res.body;
     return expect('createBooking', res, [201], [res.body?.brand === brand ? null : `brand is ${res.body?.brand}`]);

@@ -51,11 +51,11 @@ export function createFakeApp({ token = 'test-token', brand = 'urbanmop', tamper
   }
 
   const routes = {
-    'GET /health': () => ({ status: 200, body: { status: 'ok', platform: 'launch27', contract_version: '1.0.0', brands: [brand], capabilities: { holds: 'local' }, checked_at: new Date().toISOString() } }),
+    'GET /health': () => ({ status: 200, body: { status: 'ok', platform: 'launch27', contract_version: '1.1.0', brands: [brand], capabilities: { holds: 'local' }, checked_at: new Date().toISOString() } }),
 
     'GET /catalog': ({ query }) => {
       if (query.get('brand') !== brand) return err(422, 'brand_not_served', 'This app does not serve that brand.');
-      return { status: 200, body: { brand, currency: 'CAD', timezone: 'America/Toronto', frequencies: ['one_time', 'biweekly'], services: [{ code: 'standard', name: 'Standard clean', home_fields: [{ key: 'bedrooms', label: 'Bedrooms', required: true }], extras: [] }] } };
+      return { status: 200, body: { brand, currency: 'CAD', timezone: 'America/Toronto', frequencies: ['one_time', 'biweekly'], services: [{ code: 'standard', name: 'Standard clean', home_fields: [{ key: 'bedrooms', label: 'Bedrooms', required: true }], extras: [] }], questions: [{ id: 'terms', label: 'The customer accepts the terms of service', type: 'checkbox', required: true }] } };
     },
 
     'POST /quote': ({ body }) => {
@@ -100,6 +100,9 @@ export function createFakeApp({ token = 'test-token', brand = 'urbanmop', tamper
       const fingerprint = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
       const seen = idempotency.get(key);
       if (seen) return seen.fingerprint === fingerprint ? { status: 200, body: seen.booking } : err(409, 'idempotency_conflict', 'That key was used with a different request.');
+      if (!(body.answers || []).some((a) => a.question_id === 'terms' && a.value === true)) {
+        return { status: 400, body: { error: { code: 'invalid_request', message: 'Answer the required questions.', retryable: false, details: { questions: ['terms'] } } } };
+      }
       const h = holds.get(body.hold_id);
       if (!h || h.used) return err(404, 'hold_not_found', 'No such hold, or it was already used.');
       if (h.expires <= Date.now()) return err(410, 'hold_expired', 'The hold expired.');
