@@ -50,6 +50,7 @@ export const api = {
   openingsStatus: () => call('GET', '/api/openings/status'),
   placeCustomer: (q) => call('GET', `/api/openings/place?${new URLSearchParams(q)}`),
   searchAddress: (q) => call('GET', `/api/places/search?${new URLSearchParams({ q })}`),
+  searchHomes: (q) => call('GET', `/api/places/homes?${new URLSearchParams({ q })}`),
   cleaners: () => call('GET', '/api/cleaners'),
   cleaner: (id) => call('GET', `/api/cleaners/${encodeURIComponent(id)}`),
   customerJobs: (id) => call('GET', `/api/customers/${encodeURIComponent(id)}/jobs`),

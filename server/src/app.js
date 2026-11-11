@@ -17,7 +17,7 @@ import { customerProfile } from './customer.js';
 import { cleanerDirectory, cleanerProfile } from './employee.js';
 import { planOverview, planDay, continuity, findSlots, wall, cssColor } from './planner.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
-import { openings, placeCustomer, openingsStatus, prewarm } from './territory.js';
+import { openings, placeCustomer, openingsStatus, prewarm, searchHomes } from './territory.js';
 import { callOutScenarios, roster } from './callouts.js';
 import { optimize, currentState, applyChosen, compare, optimizeStatus } from './optimize.js';
 import { rescheduleDay, rescheduleOptions, reschedulePlan, findBookings } from './reschedule.js';
@@ -219,7 +219,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     const idFrom = (url) => /\/(\d+)(?:\?|$)/.exec(url || '')?.[1] || null;
     return {
       customers: (d.CustomerList || []).map((c) => ({ id: idFrom(c.Url), firstName: c.FirstName, lastName: c.LastName, company: c.CompanyName, phone: contact(c.Phones, 2), email: contact(c.Emails, 3), created: c.DateCreated, mcUrl: c.Url })),
-      homes: (d.HomeList || []).map((h) => ({ customerId: idFrom(h.CustomerUrl), name: h.HomeName, firstName: h.FirstName, lastName: h.LastName, address: h.Address, city: h.City, region: h.Region, postalCode: h.PostalCode, zone: h.HomeZoneName, zoneColor: h.HomeZoneColor })),
+      homes: (d.HomeList || []).map((h) => ({ customerId: idFrom(h.CustomerUrl), name: h.HomeName, firstName: h.FirstName, lastName: h.LastName, address: h.Address1 || h.Address, city: h.City, region: h.Region, postalCode: h.PostalCode, zone: h.HomeZoneName, zoneColor: h.HomeZoneColor })),
       employees: (d.EmployeeList || []).map((e) => ({ id: idFrom(e.Url), firstName: e.FirstName, lastName: e.LastName, phone: contact(e.Phones, 2), email: contact(e.Emails, 3), city: e.City, hireDate: e.HireDate })),
       leads: (d.LeadList || []).map((l) => ({ firstName: l.FirstName, lastName: l.LastName, address: l.Address, postalCode: l.PostalCode, status: l.QuoteStatusName, color: l.QuoteColor, created: l.DateCreated })),
     };
@@ -232,6 +232,7 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     return { ...o, openings: o.openings.map(({ legs, ...x }) => x) };
   }));
   api.get('/places/search', handle((req) => searchAddress(req.query.q)));
+  api.get('/places/homes', handle((req) => searchHomes(req.mc, req.query.q)));
   api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
   api.get('/openings/status', handle(async (req) => ({ progress: openingsStatus(req.mc) })));
   api.get('/callouts/roster', handle((req) => roster(req.mc, req.query)));

@@ -988,3 +988,10 @@ table.cv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); v
 .slot.place .slot-gap { display: grid; gap: 6px; justify-items: end; text-align: right; }
 .slot.place .fill-btn { white-space: normal; text-align: right; line-height: 1.3; }
 @media (max-width: 1100px) { .slot.place { grid-template-columns: 140px minmax(0, 1fr); } .slot.place .slot-reasons, .slot.place .slot-gap { grid-column: 1 / -1; justify-items: start; text-align: left; } }
+.addr-list.homes { max-height: 340px; overflow-y: auto; min-width: 420px; }
+.addr-list.homes button { align-items: flex-start; }
+.addr-list .zone-dot { width: 10px; height: 10px; border-radius: 3px; margin-top: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); }
+.addr-list .home-pick { flex: 1; min-width: 0; }
+.addr-list .home-pick .block { display: block; }
+.addr-list .pill { flex: none; }
+.card.place-form { overflow: visible; position: relative; z-index: 5; }

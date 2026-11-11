@@ -132,7 +132,9 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     "Re-check MaidCentral" reads prices again. Copy the to-fix list.
   - Place a customer (`placeCustomer` in `server/src/territory.js`): by typed address
     (suggestions from the US Census geocoder and OpenStreetMap's Photon search, both free
-    and keyless; `/api/places/search`), ZIP, area or an existing home. Each result shows the
+    and keyless; `/api/places/search`), ZIP, area or an existing home: any customer in
+    MaidCentral, past or present, picked from everyone with that name (`/api/places/homes`,
+    MaidCentral's global search; located from the recurring book, else by address). Each result shows the
     drive in and out on the first visit (from the job before or the office, to the next job
     or the office), the first date that's really free, and clashes later on: recurring spots
     are checked against moved and one-time bookings already in MaidCentral for 12 weeks

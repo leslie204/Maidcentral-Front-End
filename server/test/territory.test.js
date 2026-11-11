@@ -1,7 +1,7 @@
 // Openings by frequency and area on a made-up 4-week cycle.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openings, placeCustomer, km } from '../src/territory.js';
+import { openings, placeCustomer, searchHomes, km } from '../src/territory.js';
 
 process.env.OFFICE_RETURN_BY = '4:45 PM';
 process.env.OFFICE_GEOCODE = 'off'; // no network in tests: office = centre of homes in its ZIP
@@ -82,6 +82,16 @@ ${brow(6, 'Moe Moved', 'Every Four Weeks', '11/16/2026 9:00 AM - 11:00 AM', 'Gre
 ${brow(80, 'Zed Later', 'Single', '12/14/2026 9:30 AM - 11:30 AM', 'Green', 'Pending')}
 ${brow(81, 'Old Cancel', 'Single', '1/11/2027 9:00 AM - 11:00 AM', 'Green', 'Cancelled')}
 </tbody></table>`;
+// MaidCentral's global search: a regular (Ann North), a past customer twice (two records
+// of the same home) and another past customer with the same last name.
+const SEARCH = {
+  CustomerList: [],
+  HomeList: [
+    { HomeServiceInformationId: 11, FirstName: 'Ann', LastName: 'North', HomeName: 'North Home', Address1: '1 N St', City: 'Spokane', PostalCode: '99208', HomeZoneName: 'north', HomeZoneColor: '#00ff00', CustomerUrl: '/Customer/Detail/1' },
+    { HomeServiceInformationId: 12, FirstName: 'Pat', LastName: 'North', HomeName: 'Pat Home', Address1: '9 S Ave', City: 'Spokane', PostalCode: '99203', HomeZoneName: 'south hill', CustomerUrl: '/Customer/Detail/2' },
+    { HomeServiceInformationId: 12, FirstName: 'Pat', LastName: 'North', HomeName: 'Pat Home', Address1: '9 S Ave', City: 'Spokane', PostalCode: '99203', CustomerUrl: '/Customer/Detail/2' },
+  ],
+};
 const mc = {
   host: 'test.maidcentral.com',
   async postFormHtml(path) {
@@ -91,6 +101,7 @@ const mc = {
     return { '/Report/CustomerEfficiencyMap': CEM, '/Zone': ZONES, '/Job/Schedule': KEY, '/Company/Settings': COMPANY, '/Report/MasterSchedule': MASTER }[path];
   },
   async getJson(path, q) {
+    if (path === '/Search/Global') return SEARCH;
     const [m, d, y] = q.date.split('/').map(Number);
     const f = day(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
     return { '/Job/ReadJobs': f.jobs, '/Job/TeamMonitorTeams': f.teams, '/Schedule/Read': f.shifts, '/Schedule/ReadEmployees': f.employees }[path];
@@ -199,6 +210,23 @@ test('place by address, warn about later bookings, and fit in a one-time clean b
   // Extra driving limit.
   const tight = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '2', hours: 2, maxDrive: '5' });
   assert.ok(tight.results.every((r) => r.extraDriveMin <= 5));
+});
+
+test('existing homes: anyone in MaidCentral, past or present, each home once, regulars first', async () => {
+  const r = await searchHomes(mc, 'North');
+  assert.deepEqual(r.homes.map((h) => [h.customer, h.recurring, h.zip]), [['Ann North', true, '99208'], ['Pat North', false, '99203']]);
+  assert.equal(r.homes[1].street, '9 S Ave');
+  // A past customer whose address can't be looked up (no geocoder in tests): near their ZIP.
+  process.env.GEOCODE = 'off';
+  try {
+    const p = await placeCustomer(mc, { from: MONDAYS[0], homeName: 'Pat Home', homeCustomer: 'Pat North', homeStreet: '9 S Ave', homeCity: 'Spokane', homeZip: '99203', frequency: '2', hours: 2 });
+    assert.match(p.target.label, /^Pat North, Pat Home: near ZIP 99203/);
+    // A regular: their own map location.
+    const a = await placeCustomer(mc, { from: MONDAYS[0], homeName: 'North Home', homeCustomer: 'Ann North', homeZip: '99208', frequency: '2', hours: 2 });
+    assert.ok(a.target.exact);
+  } finally {
+    delete process.env.GEOCODE;
+  }
 });
 
 test('place a one-time clean: single dates, no frequency language', async () => {

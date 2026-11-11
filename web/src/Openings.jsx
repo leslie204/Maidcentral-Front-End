@@ -393,6 +393,70 @@ function AddressSearch({ value, onPick }) {
   );
 }
 
+// Any customer's home, past or present (MaidCentral's own search): pick from everyone with
+// that name.
+function HomeSearch({ value, onPick }) {
+  const [text, setText] = useState(value ? value.customer : '');
+  const [list, setList] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const seq = useRef(0);
+  useEffect(() => {
+    const q = text.trim();
+    if (q.length < 2 || (value && q === value.customer)) return undefined;
+    const n = ++seq.current;
+    const t = setTimeout(async () => {
+      setBusy(true);
+      try {
+        const r = await api.searchHomes(q);
+        if (n === seq.current) (setList(r.homes || []), setOpen(true));
+      } catch {
+        if (n === seq.current) setList([]);
+      } finally {
+        if (n === seq.current) setBusy(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [text, value]);
+  const pick = (h) => {
+    setText(h.customer);
+    setOpen(false);
+    onPick(h);
+  };
+  return (
+    <div className="addr">
+      <input
+        placeholder="Customer name (anyone, past or present)"
+        value={text}
+        onChange={(e) => (setText(e.target.value), onPick(null))}
+        onFocus={() => list.length && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !value && list.length === 1) (e.preventDefault(), pick(list[0]));
+        }}
+        autoComplete="off"
+        required
+      />
+      {busy && <span className="addr-busy muted small">Searching…</span>}
+      {open && text.trim().length >= 2 && (
+        <div className="addr-list homes">
+          {list.length ? list.map((h) => (
+            <button type="button" key={h.id} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(h)}>
+              <span className="zone-dot" style={{ background: h.zoneColor || 'var(--muted)' }} />
+              <span className="home-pick">
+                <b>{h.customer}</b>{h.company ? ` · ${h.company}` : ''} <span className="muted">· {h.home}</span>
+                <span className="muted small block">{h.address || 'no address'}{h.zip ? ` · ${h.zip}` : ''}{h.zone ? ` · ${h.zone}` : ''}</span>
+              </span>
+              <span className={`pill ${h.recurring ? 'ok' : ''}`}>{h.recurring ? 'Regular' : 'Past / one-time'}</span>
+            </button>
+          )) : !busy && <span className="muted small addr-none">No customer by that name in MaidCentral.</span>}
+        </div>
+      )}
+      {value && <span className="addr-ok small"><Icon name="check" size={13} /> {value.home}{value.address ? `, ${value.address}` : ''}</span>}
+    </div>
+  );
+}
+
 function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
   return (
     <div className="slot-list">
@@ -437,6 +501,7 @@ function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
 function PlaceCustomer({ from, zones, onError, onOpen }) {
   const [form, setForm] = useState({ where: 'address', zip: '', zone: '', home: '', frequency: '2', hours: '2', part: 'any', maxDrive: '' });
   const [addr, setAddr] = useState(null);
+  const [homePick, setHomePick] = useState(null);
   const [days, setDays] = useState([]);
   const [result, setResult] = useState(null);
   const [fill, setFill] = useState(null); // { for: opening, result } one-time cleans before the first visit
@@ -449,12 +514,13 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
     if (form.where === 'address' && addr) Object.assign(q, { lat: addr.lat, lng: addr.lng, address: addr.label });
     if (form.where === 'zip') q.zip = form.zip;
     if (form.where === 'zone') q.zone = form.zone;
-    if (form.where === 'home') q.home = form.home;
+    if (form.where === 'home' && homePick) Object.assign(q, { homeName: homePick.home || '', homeCustomer: homePick.customer || '', homeStreet: homePick.street || '', homeCity: homePick.city || '', homeZip: homePick.zip || '' });
     return q;
   };
   const submit = async (e) => {
     e.preventDefault();
     if (form.where === 'address' && !addr) return setError({ message: 'Pick the address from the suggestions first.' });
+    if (form.where === 'home' && !homePick) return setError({ message: 'Pick the customer from the list first.' });
     setBusy(true);
     setError(null);
     setFill(null);
@@ -495,7 +561,7 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
               {zones.map((z) => <option key={z.name} value={z.name}>{z.label || z.name}</option>)}
             </select>
           )}
-          {form.where === 'home' && <input placeholder="Home or customer name" value={form.home} onChange={set('home')} required />}
+          {form.where === 'home' && <HomeSearch value={homePick} onPick={setHomePick} />}
         </div>
         <label className="field"><span>Frequency</span>
           <select value={form.frequency} onChange={set('frequency')}>

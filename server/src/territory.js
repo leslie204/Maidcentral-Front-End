@@ -15,7 +15,7 @@ import { dayData, analyseDay, parseDay } from './planner.js';
 import { McError } from './mc.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
-import { localToday, mondayOf } from './geo.js';
+import { localToday, mondayOf, geocode } from './geo.js';
 import { perSession, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
 import { parseBoard, isVisit } from './prices.js';
@@ -725,18 +725,71 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   };
 }
 
+// Any home in MaidCentral, past or present (recurring, one-time, former), by name: for
+// placing near an existing home. MaidCentral's global search; each home once, with its
+// address, and whether it's one of today's recurring homes (with a known map location).
+export async function searchHomes(mc, text) {
+  const q = String(text || '').trim().slice(0, 80);
+  if (q.length < 2) return { query: q, homes: [] };
+  const [d, homes] = await Promise.all([mc.getJson('/Search/Global', { query: q }), book(mc)]);
+  const lookup = homeIndex(homes);
+  const seen = new Set();
+  const out = [];
+  for (const h of d.HomeList || []) {
+    const id = String(h.HomeServiceInformationId || h.Id || '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const customer = [h.FirstName, h.LastName].filter(Boolean).join(' ') || h.FullName || '';
+    const inBook = lookup(`${h.HomeName} - ${customer}`);
+    out.push({
+      id,
+      customerId: /\/(\d+)(?:\?|$)/.exec(h.CustomerUrl || '')?.[1] || null,
+      customer,
+      company: h.CompanyName || null,
+      home: h.HomeName || null,
+      address: [h.Address1, h.City].filter(Boolean).join(', '),
+      street: h.Address1 || null,
+      city: h.City || null,
+      region: h.Region || null,
+      zip: h.PostalCode || null,
+      zone: h.HomeZoneName || null,
+      zoneColor: h.HomeZoneColor || null,
+      recurring: Boolean(inBook && !inBook.paused),
+    });
+  }
+  // Regular customers first, then by name.
+  out.sort((a, b) => Number(b.recurring) - Number(a.recurring) || a.customer.localeCompare(b.customer));
+  return { query: q, homes: out.slice(0, 30) };
+}
+
 // Where should a new customer go? Openings ranked by distance, frequency and length.
 //   target: an address (lat, lng, address from the address search), zip, zone, or home
 //   (name of an existing home in the book)
 //   days: optional weekdays ("Tuesday,Thursday"); part: any | morning | afternoon
 //   before: one-time cleans only before this date (to fit a customer in before their
 //   first regular visit); maxDrive: leave out openings needing more extra driving (minutes)
-export async function placeCustomer(mc, { from, zip, zone, home, lat, lng, address, frequency = '2', hours = 2, days = '', part = 'any', before, maxDrive, dayStart, dayEnd }) {
+export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeCustomer, homeStreet, homeCity, homeZip, lat, lng, address, frequency = '2', hours = 2, days = '', part = 'any', before, maxDrive, dayStart, dayEnd }) {
   const homes = await book(mc);
   const zs = await zones(mc);
   let target = null;
   let label = null;
-  if (lat != null && lng != null && lat !== '' && lng !== '') {
+  // A home picked from the customer search: its map location from the recurring book if it's
+  // there, else its address looked up (US Census), else the centre of its ZIP code.
+  if (homeName || homeCustomer) {
+    const inBook = homeIndex(homes)(`${homeName || ''} - ${homeCustomer || ''}`);
+    const who = [homeCustomer, homeName].filter(Boolean).join(', ');
+    if (inBook) (target = { lat: inBook.lat, lng: inBook.lng, zone: inBook.zone, exact: true }), (label = `${who} (${areaNames(zs).get(areaKey(inBook.zone))?.label || inBook.zip})`);
+    else if (homeStreet) {
+      const g = await geocode(`${homeStreet}, ${homeCity || 'Spokane'}, WA ${homeZip || ''}`.trim());
+      if (g) {
+        lat = g.lat;
+        lng = g.lng;
+        address = `${who}: ${homeStreet}${homeCity ? `, ${homeCity}` : ''}`;
+      }
+    }
+    if (!target && lat == null && homeZip) zip = homeZip;
+  }
+  if (!target && lat != null && lng != null && lat !== '' && lng !== '') {
     const p = { lat: Number(lat), lng: Number(lng) };
     if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat - 47.7) > 1.5 || Math.abs(p.lng + 117.4) > 1.5) throw new McError('input', 'That address is outside the Spokane area.');
     // Its area: the area of the nearest homes in the book.
@@ -756,6 +809,8 @@ export async function placeCustomer(mc, { from, zip, zone, home, lat, lng, addre
     const pts = inZip.length ? inZip : active(homes).filter((h) => z && norm(h.zone) === norm(z.name));
     if (pts.length) target = { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng: pts.reduce((a, p) => a + p.lng, 0) / pts.length, zone: z?.name || pts[0].zone };
     label = `ZIP ${zip}${z ? ` (${areaNames(zs).get(areaKey(z.name))?.label || z.name})` : ''}`;
+    // A picked customer whose address couldn't be found on the map: near their ZIP.
+    if (homeName || homeCustomer) label = `${[homeCustomer, homeName].filter(Boolean).join(', ')}: near ${label} (address not found on the map)`;
   }
   if (!target && zone) {
     const pts = active(homes).filter((h) => norm(h.zone) === norm(zone));
