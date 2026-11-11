@@ -100,9 +100,18 @@ releases a hold. `--book book.json` (`{ "customer": {...}, "answers": [...] }`) 
 idempotency. That **writes a real customer and booking**, so only use it against a sandbox or
 test company.
 
+## Implementations
+
+| App | State |
+| --- | --- |
+| Launch27 front end (UrbanMop) | Implemented on `feature/placement-api`: passes every conformance check, booking included, against its synthetic Launch27. Brand keys `urbanmop-residential` (served) and `urbanmop-commercial` (not yet). See that repo's `docs/placement.md` |
+| MaidCentral front end (Clean Bee) | Not started: needs Phase 0 recon first |
+| BookingKoala front end | Not started |
+
 ## Where the contract lives
 
-It's drafted here because this repo is where the work started. It isn't specific to MaidCentral:
+It's drafted here because this repo is where the work started; the Launch27 front end has a
+vendored copy. It isn't specific to MaidCentral:
 once the Launch27 front end starts implementing it, move `contracts/placement` to its own repo
 or package so the Launch27, MaidCentral and BookingKoala apps and the hub all depend on the same
 version.

@@ -25,7 +25,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | 2. Verify writes | Not started |
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |
-| Placement contract (shared) | v1 drafted in `contracts/placement`, with a validator, conformance checker and reference fake app. Launch27 front end implements it first |
+| Placement contract (shared) | v1.1.0 in `contracts/placement`, with a validator, conformance checker and reference fake app. **Implemented in the Launch27 front end** (branch `feature/placement-api`), which passes every conformance check against its synthetic Launch27. MaidCentral is next, after Phase 0 |
 
 ## Decisions so far
 
