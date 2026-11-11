@@ -34,6 +34,7 @@ const searches = new Map();
 async function censusSearch(q) {
   const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${new URLSearchParams({ address: q, benchmark: 'Public_AR_Current', format: 'json' })}`;
   const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const ms = (await r.json())?.result?.addressMatches || [];
   return ms.map((m) => {
     const c = m.addressComponents || {};
@@ -45,6 +46,7 @@ async function censusSearch(q) {
 async function photonSearch(q) {
   const url = `https://photon.komoot.io/api/?${new URLSearchParams({ q, limit: '6', lang: 'en', lat: String(SPOKANE.lat), lon: String(SPOKANE.lng), bbox: SPOKANE.bbox })}`;
   const r = await fetch(url, { headers: { 'User-Agent': 'CleanBee-Scheduler/1.0' }, signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const fs = (await r.json())?.features || [];
   return fs.map((f) => {
     const p = f.properties || {};
@@ -60,7 +62,13 @@ export async function searchAddress(text) {
   if (searches.has(key)) return searches.get(key);
   // Most people type "1234 W Main Ave": add the city so the Census search can match it.
   const withCity = /spokane|valley|cheney|mead|deer park|liberty lake|medical lake|airway|nine mile|colbert|nine mile|rockford|\bwa\b|washington|\b99\d{3}\b/i.test(q) ? q : `${q}, Spokane, WA`;
-  const [census, photon] = await Promise.all([censusSearch(withCity).catch(() => []), photonSearch(q).catch(() => [])]);
+  const errs = {};
+  const [census, photon] = await Promise.all([
+    censusSearch(withCity).catch((e) => ((errs.census = e.message), [])),
+    photonSearch(q).catch((e) => ((errs.photon = e.message), [])),
+  ]);
+  // Counts and errors only (no addresses) in the log.
+  console.log(`Address search (${q.length} chars): census ${census.length}${errs.census ? ` error: ${errs.census}` : ''}, map ${photon.length}${errs.photon ? ` error: ${errs.photon}` : ''}`);
   const out = [];
   const near = (a, b) => Math.abs(a.lat - b.lat) < 0.0008 && Math.abs(a.lng - b.lng) < 0.0011;
   for (const x of [...census, ...photon.filter((p) => p.house), ...photon.filter((p) => !p.house)]) {

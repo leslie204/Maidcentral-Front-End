@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { createApp } from './app.js';
 import { checkRouting } from './routing.js';
+import { searchAddress } from './geo.js';
 import { MemoryStore, PgStore, parseKey } from './store.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,8 @@ const app = createApp({
 const port = Number(process.env.PORT || 8787);
 const server = app.listen(port, () => console.log(`MaidCentral front end on :${port} (portal ${new URL(portalUrl).host})`));
 checkRouting();
+// Check the address search answers (logs counts per source).
+searchAddress('623 N Hogan St').catch((e) => console.warn(`Address search check failed: ${e.message}`));
 
 // Railway sends SIGTERM on redeploy: finish requests, close the pool.
 process.on('SIGTERM', () => {
