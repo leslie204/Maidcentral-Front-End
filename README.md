@@ -12,6 +12,9 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
    redacted catalog: `docs/API.md` and `docs/api-catalog.json`.
 2. **Rebuild** (`server/` + `web/`, Phase 3 onwards): an Express server that signs people
    in and proxies MaidCentral, and a React app that rebuilds each admin page from the catalog.
+3. **Placement API** (Phase 3 onwards): the server also implements the shared
+   [placement contract](docs/placement.md), so the Sales Hub can quote, find open slots, hold
+   and book Clean Bee customers through this app's own scheduling rules.
 
 ## Status
 
@@ -22,6 +25,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | 2. Verify writes | Not started |
 | 3. App skeleton | Not started (waiting on the auth decision) |
 | 4. Pages | Not started |
+| Placement contract (shared) | v1 drafted in `contracts/placement`, with a validator, conformance checker and reference fake app. Launch27 front end implements it first |
 
 ## Decisions so far
 
@@ -30,6 +34,9 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | Hosting | Railway, in **its own Railway project**, completely separate from the Launch27 / UrbanMop project: its own services, Postgres databases (development / staging / production), variables and members. Nothing is shared with or referenced from the Launch27 project |
 | Portal address | Kept out of the repo (public); set as `MC_PORTAL_URL` |
 | Auth | Not decided yet: provisional recommendation in [docs/recon.md](docs/recon.md) |
+| Sales Hub | A separate app (its own Railway project) owns leads, brand attribution and nurturing for every brand. It never talks to Launch27, MaidCentral or BookingKoala directly |
+| Placing a customer | Each front end app keeps its own scheduling rules and exposes them through one shared API, the [placement contract](docs/placement.md) (`/api/placement/v1`: health, catalog, quote, availability, holds, bookings). The hub and the public booking forms both use it |
+| Contract location | Drafted here in `contracts/placement`; moves to its own repo or package once the Launch27 front end starts implementing it |
 
 ## Setup
 
@@ -110,10 +117,23 @@ which are often a client's name, are dropped.
 `capture/test/unit/privacy.test.js` fails if the committed catalog contains anything that
 looks like personal data.
 
+## Placement contract
+
+`contracts/placement/` holds the shared API spec (`openapi.yaml`), a validator for app tests
+(`validate`, `validateResponse`), and a conformance checker that calls a running app the way
+the hub will. Rules and the full flow are in [docs/placement.md](docs/placement.md).
+
+```bash
+PLACEMENT_TOKEN=... npm run conformance -- --base-url https://<app> --brand cleanbee --quote quote.json            # read-only
+PLACEMENT_TOKEN=... npm run conformance -- --base-url https://<app> --brand cleanbee --quote quote.json --holds    # + hold/release
+```
+
+`--book book.json` also writes a real booking: sandbox or test company only.
+
 ## Tests
 
 ```bash
-npm test             # unit tests (templating, safety rules, catalog, privacy, probe)
+npm test             # unit tests (capture tool; placement contract and conformance checker)
 npm run test:e2e     # runs the real crawler (headless Chromium) against a local fake portal
 npm run lint
 ```

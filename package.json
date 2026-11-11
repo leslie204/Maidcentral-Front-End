@@ -3,17 +3,19 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "capture"
+    "capture",
+    "contracts/placement"
   ],
   "scripts": {
     "capture": "npm start -w capture --",
     "catalog": "npm run catalog -w capture",
     "probe": "npm run probe -w capture --",
     "bundle-routes": "npm run bundle-routes -w capture",
-    "test": "npm test -w capture",
+    "test": "npm test --workspaces --if-present",
     "test:e2e": "npm run test:e2e -w capture",
     "lint": "eslint .",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm test",
+    "conformance": "npm run conformance -w contracts/placement --"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
