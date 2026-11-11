@@ -85,7 +85,14 @@ export function build({ date, dates, analysed, lookup, names, base }) {
   const placeholder = (n) => !n || /^Team \d+$/.test(n);
   for (const a of analysed) for (const t of a.teams) if (placeholder(teams.get(t.id).name) && !placeholder(t.name)) Object.assign(teams.get(t.id), { name: t.name, color: t.color, textColor: t.textColor });
   for (const list of byDate.values()) for (const t of list) t.team = teams.get(t.teamId).name;
-  return { date, dates, byDate, teams, office: base?.lat ? { lat: base.lat, lng: base.lng } : null };
+  // Days the business is closed (a holiday): a weekday with no bookings on any team, or a
+  // date in CLOSED_DATES. Nothing is moved onto them.
+  const closed = new Set(String(process.env.CLOSED_DATES || '').split(',').map((x) => x.trim()).filter(Boolean));
+  for (const [d, list] of byDate) {
+    const wd = new Date(`${d}T00:00:00Z`).getUTCDay();
+    if (d !== date && wd >= 1 && wd <= 5 && list.length && list.every((t) => !t.jobs.length)) closed.add(d);
+  }
+  return { date, dates, byDate, teams, closed, office: base?.lat ? { lat: base.lat, lng: base.lng } : null };
 }
 
 const drive = (a, b) => driveTime(a, b, 12);
@@ -106,7 +113,7 @@ function slotsFor(ctx, b, opts, reserved) {
   const weeks = WEEKS[b.frequency] || 0;
   for (const d of ctx.dates) {
     const away = dayDiff(d, ctx.date);
-    if (d <= opts.today) continue;
+    if (d <= opts.today || ctx.closed?.has(d)) continue;
     if (away === 0 && !opts.sameDay) continue;
     if (opts.dir === 'before' && away > 0) continue;
     if (opts.dir === 'after' && away < 0) continue;

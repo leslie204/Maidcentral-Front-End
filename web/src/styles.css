@@ -1013,3 +1013,4 @@ a.brand-item:hover { background: var(--panel-2); }
 .mobile-brand .brand-logo, .mobile-brand .brand-mark { width: 26px; height: 26px; }
 .login-logo { width: 220px; max-width: 100%; height: auto; display: block; }
 .login-brand { display: grid; justify-items: start; gap: 4px; }
+.cycle-cell.closed { background: repeating-linear-gradient(135deg, var(--panel-2) 0 6px, transparent 6px 12px); text-align: center; color: var(--text-2); font-weight: 600; }

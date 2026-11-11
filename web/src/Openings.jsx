@@ -193,6 +193,7 @@ function CyclePlan({ data, highlight, onClear }) {
                         {dates.map((dt) => {
                           const day = dt && t.days[dt];
                           if (!day) return <td key={dt} className="cycle-cell off"><span className="muted small">off</span></td>;
+                          if (day.closed) return <td key={dt} className="cycle-cell off closed"><span className="small">Closed</span></td>;
                           return (
                             <td key={dt} className={`cycle-cell ${isHl(t, dt) ? 'hl' : ''}`}>
                               <div className="cbar" style={{ '--hours': (dayEnd - dayStart) / 60 }}>
@@ -307,7 +308,7 @@ function WhereToSell({ data, onOpen }) {
                                         <td><span className="freq" style={{ '--freq': FIT_COLOR[o.fit] }}><i />{GOOD_FOR[o.fit] || plainFreq(o.fit)}</span></td>
                     <td className="nowrap"><span className="team-swatch" style={{ '--team': teamColor({ name: o.team, color: o.color }).bg }} />{o.team}</td>
                     <td className="small muted">
-                      {o.dates.map((d) => (o.takenOn || []).some((t) => t.date === d) ? <s key={d} title="Taken this date by a moved or one-time booking">{shortDate(d)}</s> : <span key={d}>{shortDate(d)}</span>).reduce((a, x, i) => (i ? [...a, ', ', x] : [x]), [])}
+                      {o.dates.map((d) => { const t = (o.takenOn || []).find((x) => x.date === d); return t ? <s key={d} title={t.closed ? 'Closed this date' : 'Taken this date by a moved or one-time booking'}>{shortDate(d)}</s> : <span key={d}>{shortDate(d)}</span>; }).reduce((a, x, i) => (i ? [...a, ', ', x] : [x]), [])}
                       {o.fit === 'One-time' && o.why && <span className="block">{o.why}</span>}
                     </td>
                     <td><b>{o.weeklyHours}</b></td>

@@ -64,6 +64,16 @@ test('one booking: same team, nearby, usual time first; never on the date itself
   assert.ok((optionsFor(ctx(), { job: '1', today: '2026-11-24' })).slots.every((s) => s.date > '2026-11-24'));
 });
 
+test('nothing is moved onto a closed day', () => {
+  process.env.CLOSED_DATES = '2026-11-25';
+  try {
+    const r = optionsFor(ctx(), { job: '1', today: TODAY });
+    assert.ok(r.slots.length > 0 && r.slots.every((s) => s.date !== '2026-11-25'));
+  } finally {
+    delete process.env.CLOSED_DATES;
+  }
+});
+
 test('a weekly customer is not moved right next to their other visits', async () => {
   const r = optionsFor(ctx(), { job: '2', today: TODAY });
   const far = r.slots.find((s) => Math.abs(s.daysAway) >= 3);

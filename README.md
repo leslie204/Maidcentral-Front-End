@@ -140,7 +140,10 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     are checked against moved and one-time bookings already in MaidCentral for 12 weeks
     (`LOOKAHEAD_WEEKS`, one Dispatch Board read). "Fit in a one-time clean before …" finds
     one-time openings before a recurring customer's first regular visit. An extra-driving
-    limit filters results. The 4-week plan colours booked jobs by area (MaidCentral's Zone
+    limit filters results. Closed days (a weekday with no bookings on any team, e.g.
+    Thanksgiving, or a date in `CLOSED_DATES`) and past dates are never offered: a new
+    regular's first visit rolls on to the next open date (into later cycles if needed),
+    and Reschedule doesn't move anyone onto a closed day. The 4-week plan colours booked jobs by area (MaidCentral's Zone
     colours) and shows each home's ZIP.
   - Drive times (`server/src/routing.js`, `osrm/`): real road times from our own routing
     service, OSRM (open source) on OpenStreetMap roads cut to the Spokane area, deployed as

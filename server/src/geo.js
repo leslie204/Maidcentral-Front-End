@@ -87,6 +87,7 @@ export async function searchAddress(text) {
 // Today's date where the business is (TENANT_TZ, default America/Los_Angeles), so the
 // server's "this Monday" matches the office's.
 export function localToday(tz = process.env.TENANT_TZ || 'America/Los_Angeles') {
+  if (process.env.TODAY) return process.env.TODAY; // tests: a fixed "today"
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}`;
 }

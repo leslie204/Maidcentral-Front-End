@@ -6,6 +6,8 @@ import { openings, placeCustomer, searchHomes, km } from '../src/territory.js';
 process.env.OFFICE_RETURN_BY = '4:45 PM';
 process.env.OFFICE_GEOCODE = 'off'; // no network in tests: office = centre of homes in its ZIP
 
+// The fixture's cycle starts Monday 11/9; "today" is the day before.
+process.env.TODAY = '2026-11-08';
 const at = (day, hhmm) => `/Date(${Date.parse(`${day}T${hhmm}:00Z`)})/`;
 const MONDAYS = ['2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'];
 const NORTH = { lat: 47.73, lng: -117.41 };
@@ -226,6 +228,30 @@ test('existing homes: anyone in MaidCentral, past or present, each home once, re
     assert.ok(a.target.exact);
   } finally {
     delete process.env.GEOCODE;
+  }
+});
+
+test('closed days and past dates are never a first visit or a one-time slot', async () => {
+  process.env.CLOSED_DATES = '2026-11-30';
+  process.env.TODAY = '2026-11-10';
+  try {
+    const o = await openings({ ...mc, host: 'closed.maidcentral.com' }, { from: MONDAYS[0], minHours: 1.5 });
+    assert.deepEqual(o.closedDates, ['2026-11-30']);
+    // Green's weeks 2 & 4 morning: 11/16 taken (Moe), 11/30 closed, 12/14 taken (Zed):
+    // the first visit rolls on to 12/28.
+    const morning = o.openings.find((x) => x.team === 'Green' && x.fit === 'Every 2 weeks' && x.cycleWeeks.join() === '2,4' && x.start < 11 * 60);
+    assert.equal(morning.firstDate, '2026-12-28');
+    assert.ok(morning.takenOn.some((x) => x.date === '2026-11-30' && x.closed));
+    // Blue's weekly afternoon: 11/9 is past, so the first visit is 11/16.
+    assert.equal(o.openings.find((x) => x.team === 'Blue' && x.fit === 'Weekly').firstDate, '2026-11-16');
+    // The 4-week plan marks the day closed, with nothing to sell.
+    const day = o.cycle.teams.find((x) => x.name === 'Blue').days['2026-11-30'];
+    assert.equal(day.closed, true);
+    assert.equal(day.open.length, 0);
+    assert.ok(!o.openings.some((x) => x.fit === 'One-time' && x.dates.includes('2026-11-30')));
+  } finally {
+    delete process.env.CLOSED_DATES;
+    process.env.TODAY = '2026-11-08';
   }
 });
 

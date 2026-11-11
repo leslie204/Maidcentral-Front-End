@@ -327,6 +327,16 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     progress.delete(mc);
   }
   const analysed = days.map((d, i) => ({ ms: dates[i], ...analyseDay(d) }));
+  // Days the business is closed (a holiday): a weekday with no bookings at all on any team,
+  // plus any dates listed in CLOSED_DATES (YYYY-MM-DD, comma separated). Nothing is offered
+  // on them, and a new regular's first visit skips them.
+  const closed = new Set(String(process.env.CLOSED_DATES || '').split(',').map((x) => x.trim()).filter(Boolean));
+  for (const a of analysed) {
+    const d = new Date(a.ms).toISOString().slice(0, 10);
+    const wd = new Date(a.ms).getUTCDay();
+    if (wd >= 1 && wd <= 5 && a.teams.length && a.teams.every((t) => !t.jobs.length)) closed.add(d);
+  }
+  const today = localToday();
 
   // Teams: from the pattern and the schedule (colours from either).
   const teams = new Map();
@@ -559,8 +569,12 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
               if (by.length) takenOn.push({ date: d, by, later: true });
             }
           }
+          for (const d of theDates) if (closed.has(d)) takenOn.push({ date: d, by: ['Closed'], closed: true });
           takenOn.sort((a, b) => a.date.localeCompare(b.date));
-          const free = theDates.filter((d) => !takenOn.some((t) => t.date === d));
+          // First visit: the first date from tomorrow on that's open and not taken, rolling into
+          // the next cycles (the spot repeats every 28 days) when this one's dates are used up.
+          const later = (k) => theDates.map((d) => new Date(Date.parse(`${d}T00:00:00Z`) + k * 28 * DAY).toISOString().slice(0, 10));
+          const free = [0, 1, 2].flatMap(later).filter((d) => d > today && !closed.has(d) && !takenOn.some((t) => t.date === d));
           out.push({
             id: `${team.id}-${wd}-${s}-${f.fit}-${f.wk.join('')}`,
             teamId: team.id,
@@ -591,7 +605,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
       // Time free on one date only (someone skipped or moved away): a one-time opening.
       for (const d of wdDates) {
         const day = actual.get(`${team.id}|${d}`);
-        if (!day?.t.window) continue;
+        if (!day?.t.window || closed.has(d)) continue;
         const w = pt?.dateWeek.get(d);
         const recurringHere = out.filter((o) => o.teamId === team.id && o.dates.includes(d)).map((o) => [o.start, o.end]);
         const visits = day.jobs.map((j) => ({ ...j, loc: place(j.title) }));
@@ -665,12 +679,13 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
             jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date), zip: h?.zip || null, color: colorOf(h?.zone) });
           }
           return [d.date, {
+            closed: closed.has(d.date),
             window: day?.t.window ? { s: mod(Date.parse(`${day.t.window.start}Z`)), e: mod(Date.parse(`${day.t.window.end}Z`)) } : null,
             week: w || null,
             conflicts: pt?.block.conflicts?.[w] || 0,
             jobs,
             booked: Math.round(jobs.filter((j) => j.status !== 'skipped').reduce((a, j) => a + (j.e - j.s), 0) / 6) / 10,
-            open: (fitsByTeamDate.get(`${team.id}|${d.date}`) || []).sort((a, b) => a.s - b.s),
+            open: closed.has(d.date) ? [] : (fitsByTeamDate.get(`${team.id}|${d.date}`) || []).sort((a, b) => a.s - b.s),
           }];
         }),
       ),
@@ -704,6 +719,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     cycle,
     source: 'master-schedule',
     statuses: board ? 'dispatch-board' : 'unavailable',
+    closedDates: [...closed].filter((d) => d >= from).sort(),
     lookahead: board ? { weeks: LOOKAHEAD_WEEKS, until: new Date(start + (LOOKAHEAD_WEEKS * 7 - 1) * DAY).toISOString().slice(0, 10) } : null,
     areaColors: zs.filter((z) => z.color).map((z) => ({ zone: z.name, name: nameOf(z.name), color: z.color })),
     minHours: minMin / 60,
@@ -885,9 +901,11 @@ export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeC
         score -= ahead * 0.5;
         reasons.push({ text: ahead <= 7 ? 'This week or next' : `In ${Math.ceil(ahead / 7)} weeks`, tone: ahead <= 7 ? 'good' : 'neutral' });
       } else {
-        const soon = (x.takenOn || []).filter((t) => !t.later);
+        const soon = (x.takenOn || []).filter((t) => !t.later && !t.closed && t.date > today);
         const later = (x.takenOn || []).filter((t) => t.later);
         if (soon.length) reasons.push({ text: `Starts ${dayLabel(x.firstDate)}: ${soon.map((t) => dayLabel(t.date)).join(', ')} already taken`, tone: 'neutral' });
+        const shut = (x.takenOn || []).filter((t) => t.closed && t.date > today && t.date < (x.firstDate || ''));
+        if (shut.length) reasons.push({ text: `Skips ${shut.map((t) => dayLabel(t.date)).join(', ')} (closed)`, tone: 'neutral' });
         // Bookings already in MaidCentral on later dates of this spot: those visits would clash.
         if (later.length) {
           reasons.push({ text: `Clashes later: ${later.map((t) => `${dayLabel(t.date)} (${t.by.join(', ')})`).join(', ')}`, tone: 'warn' });
