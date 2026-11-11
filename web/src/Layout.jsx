@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { api } from './api.js';
 import { onRefresh, triggerRefresh, lastRefreshAt } from './hooks.js';
+import { BRANDS, CURRENT } from './brands.js';
 
 export const NAV = [
   {
@@ -29,6 +30,57 @@ export const NAV = [
 const isActive = (pathname, path) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`) || (path === '/search' && pathname.startsWith('/customers')));
 
 // App shell: sidebar navigation, quick search (⌘K / Ctrl+K) and the page.
+// A brand's logo mark (or its initials until a logo is added).
+export function BrandMark({ brand, big = false }) {
+  return brand.logo
+    ? <img className={`brand-logo ${big ? 'big' : ''}`} src={brand.logo} alt="" aria-hidden="true" />
+    : <div className={`brand-mark ${big ? 'big' : ''}`} style={{ background: `linear-gradient(135deg, ${brand.colors[0]}, ${brand.colors[1]})` }} aria-hidden="true">{brand.initials}</div>;
+}
+
+// Top of the menu: this brand, and a menu to go to the other brands' portals.
+function BrandSwitcher() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    const esc = (e) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => (document.removeEventListener('mousedown', away), document.removeEventListener('keydown', esc));
+  }, [open]);
+  return (
+    <div className="brand-switch" ref={ref}>
+      <button className="brand-button" onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} title="Switch brand">
+        <BrandMark brand={CURRENT} />
+        <span className="brand-text">
+          <b>{CURRENT.name}</b>
+          <span>{CURRENT.tagline}</span>
+        </span>
+        <Icon name="chevronDown" size={14} className="icon brand-chevron" />
+      </button>
+      {open && (
+        <div className="brand-menu" role="menu">
+          <span className="brand-menu-head">Brands</span>
+          {BRANDS.map((b) => b.id === CURRENT.id ? (
+            <div key={b.id} className="brand-item current" role="menuitem" aria-current="true">
+              <BrandMark brand={b} />
+              <span className="brand-text"><b>{b.name}</b><span>You're here</span></span>
+              <Icon name="check" size={15} />
+            </div>
+          ) : (
+            <a key={b.id} className="brand-item" role="menuitem" href={b.url}>
+              <BrandMark brand={b} />
+              <span className="brand-text"><b>{b.name}</b><span>Open the {b.name} portal</span></span>
+              <Icon name="external" size={14} />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ me, pathname, go, onSignOut, children }) {
   const [open, setOpen] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(() => {
@@ -69,11 +121,7 @@ export default function Layout({ me, pathname, go, onSignOut, children }) {
     <div className={`shell ${collapsed ? 'nav-collapsed' : ''} ${open ? 'nav-open' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-head">
-          <div className="brand-mark" aria-hidden="true">CB</div>
-          <div className="brand-text">
-            <b>Clean Bee</b>
-            <span>Operations</span>
-          </div>
+          <BrandSwitcher />
           <button className="icon-button collapse" onClick={toggle} aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}>
             <Icon name="sidebar" size={16} />
           </button>
@@ -122,7 +170,7 @@ export default function Layout({ me, pathname, go, onSignOut, children }) {
           <button className="icon-button" onClick={() => setOpen(true)} aria-label="Menu">
             <Icon name="menu" />
           </button>
-          <b>Clean Bee</b>
+          <span className="mobile-brand"><BrandMark brand={CURRENT} /><b>{CURRENT.name}</b></span>
           <button className="icon-button" onClick={() => setPalette(true)} aria-label="Search">
             <Icon name="search" />
           </button>

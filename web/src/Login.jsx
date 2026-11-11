@@ -37,11 +37,8 @@ export default function Login({ onSignedIn }) {
     <div className="login">
       <form onSubmit={submit} className="login-card">
         <div className="login-brand">
-          <div className="brand-mark">CB</div>
-          <div>
-            <b>Clean Bee</b>
-            <span className="muted">Operations</span>
-          </div>
+          <img className="login-logo" src="/brands/clean-bee-logo.png" alt="Clean Bee" />
+          <span className="muted">Operations portal</span>
         </div>
         {step === 'password' ? (
           <>

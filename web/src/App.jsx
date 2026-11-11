@@ -14,6 +14,8 @@ import Optimize from './Optimize.jsx';
 import Reschedule from './Reschedule.jsx';
 import Prices from './Prices.jsx';
 import Scorecards from './Scorecards.jsx';
+import { BrandMark } from './Layout.jsx';
+import { CURRENT } from './brands.js';
 
 // Tiny router: the path decides the page.
 function usePath() {
@@ -45,7 +47,7 @@ export default function App() {
     if (e instanceof ApiError && e.status === 401) setMe(null);
   }, []);
 
-  if (me === undefined) return <div className="splash"><div className="brand-mark big">CB</div></div>;
+  if (me === undefined) return <div className="splash"><BrandMark brand={CURRENT} big /></div>;
   if (!me) return <Login onSignedIn={refresh} />;
 
   const [pathname, query = ''] = path.split('?');

@@ -12,6 +12,7 @@ const PATHS = {
   close: ['M6 6l12 12', 'M18 6 6 18'],
   chevronLeft: ['m15 5-7 7 7 7'],
   chevronRight: ['m9 5 7 7-7 7'],
+  chevronDown: ['m6 9 6 6 6-6'],
   external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
   alert: ['M12 3 2 21h20z', 'M12 10v4', 'M12 17h.01'],
   clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
