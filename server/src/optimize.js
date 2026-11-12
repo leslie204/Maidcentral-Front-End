@@ -21,7 +21,7 @@
 // office's own assumptions (labour cost, pay model, cost per km, revenue per cleaner-hour).
 // Read-only: it recommends; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
-import { book, homeIndex, km, driveMin, driveTime, roadKm, learnPlaces, zones } from './territory.js';
+import { book, homeIndex, km, driveMin, driveTime, roadKm, learnPlaces, zones, masterSchedule } from './territory.js';
 import { areaNames, areaKey } from './areas.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { revenueRate } from './callouts.js';
@@ -95,17 +95,13 @@ async function load(mc, from) {
   const prog = { stage: 'locations', done: 0, total: 28 };
   progress.set(mc, prog);
   try {
-    const [homes, zs, rate] = await Promise.all([book(mc), zones(mc), revenueRate(mc).catch(() => ({ rate: null, jobs: 0 }))]);
-    const lookup = homeIndex(homes);
-    const base = await office(mc, homes);
-    await learnPlaces(homes, base);
-    const names = areaNames(zs);
+    // Reports and the 28 days are read at once, ten days at a time.
     prog.stage = 'schedule';
     const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
     const days = new Array(28);
     let next = 0;
-    await Promise.all(
-      Array.from({ length: 6 }, async () => {
+    const readDays = Promise.all(
+      Array.from({ length: 10 }, async () => {
         while (next < 28) {
           const i = next++;
           days[i] = analyseDay(await dayData(mc, dates[i]));
@@ -113,22 +109,50 @@ async function load(mc, from) {
         }
       }),
     );
-    return build({ days, lookup, base, names, rate });
+    readDays.then(() => (prog.stage = 'reports'), () => {});
+    const optional = (p, otherwise) => p.catch((e) => {
+      if (e.code === 'expired') throw e;
+      return otherwise;
+    });
+    const [[homes, zs, rate, master]] = await Promise.all([
+      Promise.all([book(mc), zones(mc), optional(revenueRate(mc), { rate: null, jobs: 0 }), optional(masterSchedule(mc), null)]),
+      readDays,
+    ]);
+    const lookup = homeIndex(homes);
+    const base = await office(mc, homes);
+    await learnPlaces(homes, base);
+    const names = areaNames(zs);
+    // The recurring pattern: which customers are regulars on which weekday.
+    const pattern = master ? new Set(master.flatMap((b) => b.events.map((ev) => `${norm(ev.customer)}|${b.weekday}`))) : null;
+    return build({ days, lookup, base, names, rate, pattern });
   } finally {
     progress.delete(mc);
   }
 }
 
 // Exported for tests: builds the dataset from analysed days.
-export function build({ days, lookup, base, names, rate }) {
+// pattern (optional): "customer|weekday" for every regular visit in MaidCentral's Master
+// Schedule. A recurring customer booked on another weekday in this cycle (moved for a
+// holiday, a one-off reschedule) is then treated as a one-off visit, not as a series that
+// could be moved for good.
+export function build({ days, lookup, base, names, rate, pattern = null }) {
   const leave = leaveAt();
   const back = returnBy();
   const teams = new Map();
   const teamDays = new Map();
   const jobs = [];
   let unassigned = 0;
+  // Days the business is closed (a holiday): a weekday with teams but no bookings on any of
+  // them, or a date in CLOSED_DATES. They aren't working days: counting them would show a
+  // day of free time to sell and let customers be moved onto them.
+  const closed = new Set(String(process.env.CLOSED_DATES || '').split(',').map((x) => x.trim()).filter(Boolean));
+  for (const d of days) {
+    const wd = new Date(`${d.date}T00:00:00Z`).getUTCDay();
+    if (wd >= 1 && wd <= 5 && d.teams.length && d.teams.every((t) => !t.jobs.length)) closed.add(d.date);
+  }
   days.forEach((d, i) => {
     const weekday = new Date(`${d.date}T00:00:00Z`).getUTCDay();
+    if (closed.has(d.date)) return;
     unassigned += d.issues.filter((x) => x.kind === 'unassigned').reduce((s, x) => s + (x.jobs?.length || 0), 0);
     for (const t of d.teams) {
       if (!teams.has(t.id)) teams.set(t.id, { id: t.id, name: t.name, color: t.color, textColor: t.textColor });
@@ -194,6 +218,9 @@ export function build({ days, lookup, base, names, rate }) {
     const count = {};
     for (const j of s.jobs) count[j.teamId] = (count[j.teamId] || 0) + 1;
     s.teamId = Number(Object.entries(count).sort((a, b) => b[1] - a[1])[0][0]);
+    // A regular booked off their usual weekday this cycle: a one-off visit.
+    s.oneOff = Boolean(pattern && s.weeks >= 1 && !pattern.has(`${norm(String(s.title).split(' - ').pop())}|${s.weekday}`));
+    if (s.oneOff) s.weeks = 0;
     s.recurring = s.weeks >= 1;
     s.cleanerMin = Math.round(s.jobs.reduce((a, j) => a + j.cleanerMin, 0) / s.jobs.length);
   }
@@ -223,6 +250,7 @@ export function build({ days, lookup, base, names, rate }) {
     rate: rate?.rate ? round(rate.rate, 2) : null,
     rateJobs: rate?.jobs || 0,
     unassigned,
+    closedDates: [...closed].filter((d) => days.some((x) => x.date === d)).sort(),
     leave,
     back,
   };
@@ -333,7 +361,19 @@ function makeEval(ds, C) {
     if (memo.has(key)) return memo.get(key);
     let order = [...jobs].sort((a, b) => a.T - b.T);
     let best = schedule(td, order);
-    if (best && order.length > 2) {
+    if (order.length > 1 && order.length <= 6) {
+      // Up to 6 stops: every order is tried (at most 720), so the day's route is the best
+      // possible within the time limits, not just a good one.
+      const pick = (rest, done) => {
+        if (!rest.length) {
+          const m = schedule(td, done);
+          if (m && (!best || m.cost < best.cost - 0.01)) best = m;
+          return;
+        }
+        for (let i = 0; i < rest.length; i++) pick([...rest.slice(0, i), ...rest.slice(i + 1)], [...done, rest[i]]);
+      };
+      pick(order, []);
+    } else if (best && order.length > 2) {
       for (let pass = 0; pass < 3; pass++) {
         let improved = false;
         for (let i = 0; i < order.length; i++) {
@@ -705,7 +745,7 @@ export function run(ds, C) {
     } else {
       const fromTeam = ds.teams.get(rec.fromTeam)?.name;
       const toTeam = ds.teams.get(rec.toTeam)?.name;
-      const freq = s.frequency ? s.frequency.toLowerCase() : 'one-time';
+      const freq = s.oneOff ? 'one-off visit this cycle' : s.frequency ? s.frequency.toLowerCase() : 'one-time';
       if (rec.kind === 'swap') {
         title = `Swap ${s.home} (${fromTeam}) and ${p.home} (${toTeam}) on ${WEEKDAY[rec.fromWeekday]}s`;
         why = `Each customer is closer to the other team's route. Both keep their day; times stay within the limits you set.`;
@@ -726,6 +766,8 @@ export function run(ds, C) {
   return {
     constraints: C,
     seconds,
+    closedDates: ds.closedDates || [],
+    oneOffVisits: [...ds.series.values()].filter((x) => x.oneOff).reduce((n, x) => n + x.jobs.length, 0),
     current: now,
     optimised,
     capacityBound: capacityBound(ds, full.metrics),

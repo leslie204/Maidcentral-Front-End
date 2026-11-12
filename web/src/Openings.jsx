@@ -87,8 +87,8 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       {tab !== 'capacity' && <ErrorNote error={o.error} />}
       {o.loading && tab !== 'capacity' && (
         <div className="loading-card">
-          <b>{!prog ? 'Getting your openings from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations and areas…' : `Reading the schedule: week ${Math.min(Math.floor(prog.done / 7) + 1, 4)} of 4`}</b>
-          <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 12 : 12 + (prog.done / prog.total) * 88}%` }} /></div>
+          <b>{!prog ? 'Getting your openings from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations and areas…' : prog.stage === 'reports' ? 'Almost there: customer locations and booking statuses…' : `Reading the schedule: week ${Math.min(Math.floor(prog.done / 7) + 1, 4)} of 4`}</b>
+          <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 12 : prog.stage === 'reports' ? 92 : 12 + (prog.done / prog.total) * 76}%` }} /></div>
           <span className="muted small">This only takes a while the first time; after that it's kept up to date in the background.</span>
         </div>
       )}

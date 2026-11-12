@@ -33,21 +33,22 @@ async function context(mc, date, days) {
   const centre = parseDay(date);
   const span = days === 0 ? 0 : Math.min(Math.max(Number(days) || 7, 1), 21);
   const dates = Array.from({ length: span * 2 + 1 }, (_, i) => iso(centre + (i - span) * DAY));
-  const [homes, zs] = await Promise.all([book(mc), zones(mc).catch(() => [])]);
-  const lookup = homeIndex(homes);
-  const names = areaNames(zs);
-  const base = await office(mc, homes);
-  await learnPlaces(homes, base);
+  // The customer locations and the days are read at once, ten days at a time.
   const analysed = new Array(dates.length);
   let next = 0;
-  await Promise.all(
-    Array.from({ length: 6 }, async () => {
+  const readDays = Promise.all(
+    Array.from({ length: 10 }, async () => {
       while (next < dates.length) {
         const i = next++;
         analysed[i] = analyseDay(await dayData(mc, parseDay(dates[i])));
       }
     }),
   );
+  const [[homes, zs]] = await Promise.all([Promise.all([book(mc), zones(mc).catch(() => [])]), readDays]);
+  const lookup = homeIndex(homes);
+  const names = areaNames(zs);
+  const base = await office(mc, homes);
+  await learnPlaces(homes, base);
   return build({ date, dates, analysed, lookup, names, base });
 }
 

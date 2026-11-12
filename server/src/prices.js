@@ -10,7 +10,7 @@
 import { tables } from './extract.js';
 import { McError } from './mc.js';
 import { localToday } from './geo.js';
-import { perSession, FRESH } from './cache.js';
+import { keyed, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -47,6 +47,7 @@ export function parseBoard(html) {
       jobId: String(v(r, 'Job ID')).trim(),
       customer: String(v(r, 'Customer')).trim(),
       address: String(v(r, 'Address')).trim(),
+      phone: String(v(r, 'Phone')).trim() || null,
       frequency: String(v(r, 'Freq.')).trim(),
       date: w.date,
       time: w.time,
@@ -68,7 +69,7 @@ export function audit(bookings, { recurring = 122, oneTime = 130, tolerance = 1,
   for (const b of bookings) if (b.date && !isVisit(b.status)) leftOut[b.status] = (leftOut[b.status] || 0) + 1;
   const checked = bookings
     .filter((b) => b.date && isVisit(b.status))
-    .map((b) => {
+    .map(({ phone, ...b }) => {
       const kind = kindOf(b.frequency);
       const want = target[kind];
       const teamHours = b.allowedHours / perTeamOf;
@@ -145,21 +146,46 @@ export function audit(bookings, { recurring = 122, oneTime = 130, tolerance = 1,
   };
 }
 
-const cache = perSession(); // McSession -> Map(range -> { at, value })
+// The Dispatch Board for a date range, shared by everything that needs it (price check,
+// openings' statuses and later clashes, the revenue rate). One long report takes MaidCentral
+// up to half a minute, so it is read as calendar weeks, several at a time, and each week is
+// kept on its own: weeks around today for a few minutes, weeks more than a month out for
+// half an hour, weeks long gone for hours. maxAge caps how old a week may be; fresh re-reads.
+const weeks = keyed();
+const addDays = (isoDay, n) => iso(Date.parse(`${isoDay}T00:00:00Z`) + n * DAY);
+const weekStart = (isoDay) => addDays(isoDay, -((new Date(`${isoDay}T00:00:00Z`).getUTCDay() + 6) % 7));
+export async function boardRows(mc, from, to, { maxAge = Infinity, fresh = false } = {}) {
+  const today = localToday();
+  const starts = [];
+  for (let w = weekStart(from); w <= to; w = addDays(w, 7)) starts.push(w);
+  const ttlOf = (w) => {
+    if (fresh) return 0;
+    const base = addDays(w, 6) < addDays(today, -7) ? FRESH.past : w > addDays(today, 28) ? FRESH.farAhead : FRESH.fourWeeks;
+    return Math.min(base, maxAge);
+  };
+  const out = new Array(starts.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(5, starts.length) }, async () => {
+      while (next < starts.length) {
+        const k = next++;
+        const w = starts[k];
+        const end = addDays(w, 6);
+        out[k] = await weeks(mc, `board:${w}`, ttlOf(w), async () => {
+          const html = await mc.postFormHtml('/Report/DispatchBoard', { StartDate: mcDate(w), EndDate: mcDate(end) });
+          return { at: Date.now(), rows: parseBoard(html).filter((r) => r.date && r.date >= w && r.date <= end) };
+        });
+      }
+    }),
+  );
+  return { at: Math.min(...out.map((x) => x.at)), rows: out.flatMap((x) => x.rows).filter((r) => r.date >= from && r.date <= to) };
+}
 
 export async function priceCheck(mc, q = {}) {
   const from = q.from || localToday();
   const to = q.to || iso(Date.parse(`${from}T00:00:00Z`) + 27 * DAY);
   const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY) + 1;
   if (!(days >= 1) || days > 92) throw new McError('input', 'Choose a range of up to 3 months.');
-  if (!cache.has(mc)) cache.set(mc, new Map());
-  const m = cache.get(mc);
-  const key = `${from}|${to}`;
-  let hit = m.get(key);
-  if (!hit || q.fresh || Date.now() - hit.at > FRESH.report) {
-    const html = await mc.postFormHtml('/Report/DispatchBoard', { StartDate: mcDate(from), EndDate: mcDate(to) });
-    hit = { at: Date.now(), value: parseBoard(html) };
-    m.set(key, hit);
-  }
-  return { from, to, checkedAt: new Date(hit.at).toISOString(), ...audit(hit.value, q) };
+  const board = await boardRows(mc, from, to, { maxAge: FRESH.report, fresh: Boolean(q.fresh) });
+  return { from, to, checkedAt: new Date(board.at).toISOString(), ...audit(board.rows, q) };
 }

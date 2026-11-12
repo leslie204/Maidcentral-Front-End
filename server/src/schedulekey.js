@@ -3,9 +3,9 @@
 // carry colours (FrequencyColor…), so this turns them into names. Read once per session
 // and kept for hours, so a tenant's own colours are always used.
 import { root, textOf } from './extract.js';
-import { perSession, FRESH } from './cache.js';
+import { keyed, FRESH } from './cache.js';
 
-const cache = perSession();
+const cached = keyed();
 
 // name -> { short, weeks } (weeks: 0 one-off, null recurring without a fixed cycle)
 const FREQUENCIES = [
@@ -33,17 +33,15 @@ export function parseKey(html) {
   return key;
 }
 
-export async function scheduleKey(mc) {
-  const hit = cache.get(mc);
-  if (hit && Date.now() - hit.at < FRESH.reference) return hit.value;
-  let value = { frequency: {}, progress: {}, scorecard: {} };
-  try {
-    value = parseKey(await mc.getHtml('/Job/Schedule'));
-  } catch (e) {
-    if (e.code === 'expired') throw e; // otherwise: no key, jobs just show no frequency
-  }
-  cache.set(mc, { at: Date.now(), value });
-  return value;
+export function scheduleKey(mc) {
+  return cached(mc, 'key', FRESH.reference, async () => {
+    try {
+      return parseKey(await mc.getHtml('/Job/Schedule'));
+    } catch (e) {
+      if (e.code === 'expired') throw e; // otherwise: no key, jobs just show no frequency
+      return { frequency: {}, progress: {}, scorecard: {} };
+    }
+  });
 }
 
 // A job's frequency from its FrequencyColor, or null when the colour isn't in the key.

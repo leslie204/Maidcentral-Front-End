@@ -17,10 +17,9 @@
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { book, homeIndex, driveTime, learnPlaces } from './territory.js';
 import { office, returnBy, leaveAt } from './office.js';
-import { tables } from './extract.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
-import { isVisit } from './prices.js';
+import { isVisit, boardRows } from './prices.js';
 import { perSession, FRESH } from './cache.js';
 
 const MIN = 60_000;
@@ -49,40 +48,38 @@ function parseRoles(text) {
   );
 }
 
-// Today's prices, addresses, phones and car sizes (MaidCentral's Dispatch Board shows today).
-async function dispatchBoard(mc) {
+// That day's prices, phones and statuses by job, from the Dispatch Board (shared reader in
+// prices.js; any date, so tomorrow's call-outs get real prices and phone numbers too).
+async function dispatchBoard(mc, date) {
   try {
-    const t = tables(await mc.getHtml('/Report/DispatchBoard'))[0];
-    if (!t) return new Map();
-    const col = (h) => t.headers.indexOf(h);
-    const num = (v) => parseFloat(String(v || '').replace(/[^\d.-]/g, ''));
-    return new Map(
-      t.rows.map((r) => [
-        r.cells[col('Job ID')],
-        {
-          revenue: num(r.cells[col('Bill Rate')]) || 0,
-          cleanerHours: num(r.cells[col('Alwd. Hours')]) || null,
-          phone: r.cells[col('Phone')] || null,
-          status: r.cells[col('Status')] || '',
-        },
-      ]),
-    );
+    const { rows } = await boardRows(mc, date, date, { maxAge: FRESH.report });
+    return new Map(rows.map((r) => [r.jobId, { revenue: r.price || 0, cleanerHours: r.allowedHours || null, phone: r.phone || null, status: r.status || '' }]));
   } catch (e) {
     if (e.code === 'expired') throw e;
     return new Map();
   }
 }
 
-// Revenue per cleaner-hour from today's Dispatch Board (the only screen with prices), for
-// estimating other days. Cached for 30 minutes per person.
+// Revenue per cleaner-hour, from this week's Dispatch Board (the only screen with prices),
+// for estimating any day. Uses the shared board (prices.js), so it costs no extra read when
+// openings or the price check already have this week; a whole week also gives a steadier
+// rate than one day (and works on days with no bookings). Kept for an hour per person.
 const rates = perSession();
 export async function revenueRate(mc) {
   const hit = rates.get(mc);
   if (hit && Date.now() - hit.at < FRESH.reference) return hit;
-  // Only real visits: skipped, moved and cancelled bookings are left out.
-  const priced = [...(await dispatchBoard(mc)).values()].filter((b) => b.revenue && b.cleanerHours && isVisit(b.status));
-  const hours = priced.reduce((s, b) => s + b.cleanerHours, 0);
-  const v = { at: Date.now(), rate: hours ? priced.reduce((s, b) => s + b.revenue, 0) / hours : null, jobs: priced.length };
+  let priced = [];
+  try {
+    const today = localToday();
+    const monday = new Date(Date.parse(`${today}T00:00:00Z`) - ((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+    const sunday = new Date(Date.parse(`${monday}T00:00:00Z`) + 6 * 86_400_000).toISOString().slice(0, 10);
+    // Only real visits: skipped, moved and cancelled bookings are left out.
+    priced = (await boardRows(mc, monday, sunday)).rows.filter((b) => b.price > 0 && b.allowedHours > 0 && isVisit(b.status));
+  } catch (e) {
+    if (e.code === 'expired') throw e;
+  }
+  const hours = priced.reduce((s, b) => s + b.allowedHours, 0);
+  const v = { at: Date.now(), rate: hours ? priced.reduce((s, b) => s + b.price, 0) / hours : null, jobs: priced.length };
   rates.set(mc, v);
   return v;
 }
@@ -101,10 +98,11 @@ export async function dayState(mc, date, roleOverrides = new Map()) {
   const base = await office(mc, homes);
   await learnPlaces(homes, base);
   const isToday = date === localToday();
-  const board = isToday ? await dispatchBoard(mc) : new Map();
-  // Price per cleaner-hour, from today's board, to estimate other days.
+  const board = await dispatchBoard(mc, date);
+  // Price per cleaner-hour from that day's board, for any job the board doesn't list
+  // (else this week's rate, else a nominal 30).
   const priced = [...board.values()].filter((b) => b.revenue && b.cleanerHours && isVisit(b.status));
-  const perCleanerHour = priced.length ? priced.reduce((s, b) => s + b.revenue, 0) / priced.reduce((s, b) => s + b.cleanerHours, 0) : 30;
+  const perCleanerHour = priced.length ? priced.reduce((s, b) => s + b.revenue, 0) / priced.reduce((s, b) => s + b.cleanerHours, 0) : (await revenueRate(mc)).rate || 30;
   const person = (m) => {
     const fromMc = roleOf(posName.get(String(m.positionId)));
     const override = roleOverrides.get(String(m.employeeId));
@@ -494,7 +492,7 @@ export async function callOutScenarios(mc, { date, out = [], roles = '', availab
   return {
     date: day,
     isToday: state.isToday,
-    revenueEstimated: !state.isToday,
+    revenueEstimated: state.cars.some((c) => c.jobs.some((j) => j.revenueEstimated)),
     perCleanerHour: state.perCleanerHour,
     totalRevenue: money(totalRevenue),
     totalJobs,

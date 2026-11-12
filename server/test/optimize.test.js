@@ -106,3 +106,38 @@ test('every re-planned day leaves after 8:15 and is back by 4:45', () => {
   assert.equal(r.optimised.overtimeCleanerMin <= r.current.overtimeCleanerMin, true);
   assert.ok(r.capacityBound.teamDaysNeeded <= r.capacityBound.teamDaysUsed);
 });
+
+test('closed days are not working days, and a regular moved off their day is a one-off visit', () => {
+  // Wednesday of week 1 (day 2): both teams are staffed but nothing is booked (a holiday).
+  const list = days();
+  list[2] = { date: date(2), issues: [], teams: [team(1, 'Blue', 2, []), team(2, 'Red', 2, [])] };
+  // The Master Schedule has "C" as a regular on Thursdays only: the Tuesday visits are one-offs.
+  const ds = build({ days: list, lookup, base: OFFICE, names: new Map(), rate: { rate: 60, jobs: 5 }, pattern: new Set(['c|4']) });
+  assert.deepEqual(ds.closedDates, [date(2)]);
+  assert.ok(![...ds.teamDays.values()].some((td) => td.date === date(2)), 'no team-days on the closed date');
+  assert.ok([...ds.series.values()].every((s) => s.oneOff && !s.recurring));
+  const r = run(ds, constraintsFrom({ preset: 'maximum' }));
+  assert.equal(r.current.emptyTeamDays, 0, 'the holiday is not counted as empty days to sell');
+  assert.ok(r.recommendations.every((x) => x.kind === 'resequence' || x.toWeekday === x.fromWeekday), 'one-off visits are never moved to another weekday');
+  // With the pattern matching (regular on Tuesdays), they are ordinary series.
+  const reg = build({ days: days(), lookup, base: OFFICE, names: new Map(), rate: { rate: 60, jobs: 5 }, pattern: new Set(['c|2']) });
+  assert.ok([...reg.series.values()].every((s) => !s.oneOff && s.recurring));
+});
+
+test('a day of up to 6 stops gets the best possible order', () => {
+  // Booked north, south, north, south: the best order pairs them up.
+  const d = Array.from({ length: 28 }, (_, i) => ({
+    date: date(i),
+    issues: [],
+    teams: i === 1 ? [team(1, 'Blue', i, [job(1, 'N2', i, '09:00', '10:00'), job(2, 'S1', i, '10:45', '11:45'), job(3, 'N3', i, '12:30', '13:30'), job(4, 'S2', i, '14:15', '15:15')])] : [],
+  }));
+  const ds = build({ days: d, lookup, base: OFFICE, names: new Map(), rate: { rate: 60, jobs: 5 } });
+  const C = constraintsFrom({ preset: 'rebuild' });
+  const td = [...ds.teamDays.values()][0];
+  const ev = _test.makeEval(ds, C);
+  const jobs = td.jobIds.map((id) => ds.jobs.get(id));
+  const best = ev.flex(td, jobs);
+  const zones = best.stops.map((s) => ds.jobs.get(s.id).zone).join(',');
+  assert.ok(zones === 'north,north,south,south' || zones === 'south,south,north,north', zones);
+  assert.ok(best.drive < ev.booked(td, jobs).drive);
+});

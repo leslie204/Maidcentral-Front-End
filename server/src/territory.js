@@ -16,25 +16,15 @@ import { McError } from './mc.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
 import { localToday, mondayOf, geocode } from './geo.js';
-import { perSession, FRESH } from './cache.js';
+import { perSession, keyed, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
-import { parseBoard, isVisit } from './prices.js';
+import { boardRows, isVisit } from './prices.js';
 import { road, learn } from './routing.js';
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const cache = perSession();
-
-async function cached(mc, key, ttl, fn) {
-  if (!cache.has(mc)) cache.set(mc, new Map());
-  const m = cache.get(mc);
-  const hit = m.get(key);
-  if (hit && Date.now() - hit.at < ttl) return hit.value;
-  const value = await fn();
-  m.set(key, { at: Date.now(), value });
-  return value;
-}
+const cached = keyed(); // per person: one read per key at a time, kept for its ttl
 
 const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const FREQ = {
@@ -194,6 +184,11 @@ const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pa
 const results = perSession(); // McSession -> Map(key -> { at, value, pending })
 const progress = new WeakMap(); // McSession -> { done, total, startedAt }
 
+// The recurring pattern (MaidCentral's Master Schedule), shared by openings and optimization.
+export function masterSchedule(mc) {
+  return cached(mc, 'master', FRESH.fourWeeks, async () => parseMaster(await mc.getHtml('/Report/MasterSchedule')));
+}
+
 export function openingsStatus(mc) {
   const p = progress.get(mc);
   return p ? { stage: p.stage, done: p.done, total: p.total, seconds: Math.round((Date.now() - p.startedAt) / 1000) } : null;
@@ -284,21 +279,42 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const dates = Array.from({ length: 28 }, (_, i) => start + i * DAY);
   const prog = { stage: 'locations', done: 0, total: dates.length, startedAt: Date.now() };
   progress.set(mc, prog);
-  const usDay = (ms) => {
-    const [y, m, d] = new Date(ms).toISOString().slice(0, 10).split('-');
-    return `${m}/${d}/${y}`;
-  };
-  const [homes, zs, shapes, master, board] = await Promise.all([
-    book(mc),
-    zones(mc),
-    zoneShapes(mc).catch(() => ({ features: [] })),
-    mc.getHtml('/Report/MasterSchedule').then(parseMaster),
-    // Real statuses (Skipped, Moved, Cancelled…), 2 weeks either side of the 4 weeks.
-    mc.postFormHtml('/Report/DispatchBoard', { StartDate: usDay(start - 14 * DAY), EndDate: usDay(start + (LOOKAHEAD_WEEKS * 7 - 1) * DAY) }).then(parseBoard).catch(() => null),
-  ]).catch((e) => {
+  const isoOf = (ms) => new Date(ms).toISOString().slice(0, 10);
+  // Everything is read at once: the reports (customer locations, areas, the recurring
+  // pattern, real statuses) and the 28 days, ten days at a time.
+  prog.stage = 'schedule';
+  const days = new Array(dates.length);
+  let next = 0;
+  const readDays = Promise.all(
+    Array.from({ length: 10 }, async () => {
+      while (next < dates.length) {
+        const i = next++;
+        days[i] = await dayData(mc, dates[i]);
+        prog.done += 1;
+      }
+    }),
+  );
+  readDays.then(() => (prog.stage = 'reports'), () => {});
+  let homes, zs, shapes, master, board;
+  try {
+    [[homes, zs, shapes, master, board]] = await Promise.all([
+      Promise.all([
+        book(mc),
+        zones(mc),
+        zoneShapes(mc).catch(() => ({ features: [] })),
+        masterSchedule(mc),
+        // Real statuses (Skipped, Moved, Cancelled…) from 2 weeks before, and bookings up to
+        // LOOKAHEAD_WEEKS ahead (later clashes).
+        boardRows(mc, isoOf(start - 14 * DAY), isoOf(start + (LOOKAHEAD_WEEKS * 7 - 1) * DAY)).then((b) => b.rows, (e) => {
+          if (e.code === 'expired') throw e;
+          return null;
+        }),
+      ]),
+      readDays,
+    ]);
+  } finally {
     progress.delete(mc);
-    throw e;
-  });
+  }
   const lookup = homeIndex(homes);
   const base = await office(mc, homes);
   await learnPlaces(homes, base);
@@ -309,23 +325,6 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   const nameOf = (zone) => (zone ? names.get(areaKey(zone))?.label || zone : null);
   const cityOf = new Map(shapes.features.map((f) => [f.properties.zip, f.properties.city]));
   const toOffice = (p) => (base.lat && p ? driveTime(p, base) : 15);
-  // Read the 28 days, 6 at a time, reporting progress ("week 2 of 4").
-  prog.stage = 'schedule';
-  const days = new Array(dates.length);
-  let next = 0;
-  try {
-    await Promise.all(
-      Array.from({ length: 6 }, async () => {
-        while (next < dates.length) {
-          const i = next++;
-          days[i] = await dayData(mc, dates[i]);
-          prog.done += 1;
-        }
-      }),
-    );
-  } finally {
-    progress.delete(mc);
-  }
   const analysed = days.map((d, i) => ({ ms: dates[i], ...analyseDay(d) }));
   // Days the business is closed (a holiday): a weekday with no bookings at all on any team,
   // plus any dates listed in CLOSED_DATES (YYYY-MM-DD, comma separated). Nothing is offered

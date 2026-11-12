@@ -11,12 +11,12 @@
 import { mcDate, McError } from './mc.js';
 import { scheduleKey, frequencyOf } from './schedulekey.js';
 import { returnBy, leaveAt } from './office.js';
-import { perSession, FRESH } from './cache.js';
+import { perSession, keyed, FRESH } from './cache.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
-const cache = perSession(); // McSession -> Map(key -> { at, ttl, value })
+const cached = keyed(); // per person: one read per key at a time, kept for its ttl
 
 export const wall = (ms) => (ms == null ? null : new Date(ms).toISOString().slice(0, 19));
 export const hours = (ms) => Math.round((ms / HOUR) * 100) / 100;
@@ -28,17 +28,6 @@ const mcDay = (iso) => {
 export function parseDay(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) throw new McError('input', 'Use from=YYYY-MM-DD');
   return Date.parse(`${value}T00:00:00Z`);
-}
-
-async function cached(mc, key, ttl, fn) {
-  if (!cache.has(mc)) cache.set(mc, new Map());
-  const m = cache.get(mc);
-  const hit = m.get(key);
-  if (hit && Date.now() - hit.at < hit.ttl) return hit.value;
-  const value = await fn();
-  m.set(key, { at: Date.now(), ttl, value });
-  if (m.size > 200) m.delete(m.keys().next().value);
-  return value;
 }
 
 // Runs fn over items, at most `limit` at a time.
@@ -56,6 +45,53 @@ async function pool(items, limit, fn) {
   return out;
 }
 
+// Cleaners' names. MaidCentral's list is per date, takes about a second to load, and is
+// nearly the same every day, so it is read once and shared by every day; a day is only
+// read again when it has someone on shift who isn't known yet. Kept for an hour.
+const people = perSession(); // McSession -> { at, byId, asked: Map(iso -> promise) }
+async function employeesFor(mc, date, iso, shifts) {
+  let p = people.get(mc);
+  if (!p || Date.now() - p.at > FRESH.reference) {
+    p = { at: Date.now(), byId: new Map(), asked: new Map(), unlisted: new Set() };
+    people.set(mc, p);
+  }
+  const read = () => {
+    if (!p.asked.has(iso)) {
+      p.asked.set(
+        iso,
+        mc.getJson('/Schedule/ReadEmployees', { date }).then(
+          (list) => {
+            for (const e of list || []) p.byId.set(e.EmployeeID ?? e.value, e);
+          },
+          (e) => {
+            p.asked.delete(iso);
+            throw e;
+          },
+        ),
+      );
+    }
+    return p.asked.get(iso);
+  };
+  // The first list (whichever day asked first), then this day's own only if it's needed.
+  await (p.asked.size ? p.asked.values().next().value : read());
+  // Someone on shift who isn't known: read this day's list once. If they aren't on it either
+  // (MaidCentral lists some shifts for people it leaves off the list), don't ask again.
+  // One day at a time checks, so ten days loading together don't each read for the same person.
+  const unknown = () => (shifts || []).map((s) => s.EmployeeID).filter((id) => id != null && !p.byId.has(id) && !p.unlisted.has(id));
+  const mine = (p.lock || Promise.resolve()).catch(() => {}).then(async () => {
+    if (!unknown().length) return;
+    await read();
+    for (const id of unknown()) p.unlisted.add(id);
+  });
+  p.lock = mine;
+  await mine;
+  return [...p.byId.values()];
+}
+
+// Teams' names and colours as seen on any day: MaidCentral sometimes leaves a team off one
+// day's list although it has jobs that day, which showed as "Team 4804".
+const teamsSeen = perSession(); // McSession -> Map(teamId -> team)
+
 // One day as MaidCentral's schedule screens show it. Past days are cached for hours,
 // today and later for a few minutes.
 export async function dayData(mc, dayMs, { jobsOnly = false } = {}) {
@@ -63,15 +99,20 @@ export async function dayData(mc, dayMs, { jobsOnly = false } = {}) {
   const date = mcDay(iso);
   const past = dayMs < Date.now() - DAY;
   const ttl = past ? FRESH.past : FRESH.schedule;
-  const jobs = await cached(mc, `jobs:${iso}`, ttl, () => mc.getJson('/Job/ReadJobs', { date, view: 'HalfHourView' }));
-  if (jobsOnly) return { iso, jobs, key: await scheduleKey(mc) };
-  const [teams, shifts, employees] = await Promise.all([
+  const jobsP = cached(mc, `jobs:${iso}`, ttl, () => mc.getJson('/Job/ReadJobs', { date, view: 'HalfHourView' }));
+  if (jobsOnly) return { iso, jobs: await jobsP, key: await scheduleKey(mc) };
+  const [jobs, teams, shifts, key] = await Promise.all([
+    jobsP,
     // Team Monitor's list carries the team colours (Schedule/ReadTeams doesn't).
     cached(mc, `teams:${iso}`, ttl, () => mc.getJson('/Job/TeamMonitorTeams', { date, view: 'HalfHourView' })),
     cached(mc, `shifts:${iso}`, ttl, () => mc.getJson('/Schedule/Read', { date, view: 'HalfHourView' })),
-    cached(mc, `employees:${iso}`, ttl, () => mc.getJson('/Schedule/ReadEmployees', { date })),
+    scheduleKey(mc),
   ]);
-  return { iso, jobs, teams, shifts, employees, key: await scheduleKey(mc) };
+  if (!teamsSeen.has(mc)) teamsSeen.set(mc, new Map());
+  const known = teamsSeen.get(mc);
+  for (const t of teams || []) if (t.TeamID && (t.TeamName || t.text)) known.set(t.TeamID, t);
+  const employees = await employeesFor(mc, date, iso, shifts);
+  return { iso, jobs, teams, shifts, employees, known, key };
 }
 
 const jobView = (j, key) => ({
@@ -126,7 +167,7 @@ export function analyseDay(day) {
   const issues = [];
   const teamIds = new Set([...teamMeta.keys(), ...jobs.map((j) => j.teamId), ...shifts.map((s) => s.teamId)].filter(Boolean));
   const teams = [...teamIds].map((id) => {
-    const meta = teamMeta.get(id) || {};
+    const meta = teamMeta.get(id) || day.known?.get(id) || {};
     const name = meta.TeamName || meta.text || `Team ${id}`;
     const members = shifts.filter((s) => s.teamId === id);
     const working = members.filter((s) => !s.absent && s.start && s.end);

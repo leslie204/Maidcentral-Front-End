@@ -97,9 +97,9 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
       `OFFICE_LAT`/`OFFICE_LNG`; fallback: centre of the homes in its ZIP). The Capacity
       tab caps team days at the same time.
     - Speed: results are cached per person (never shared across users), warmed at
-      sign-in and every 15 minutes for anyone active in the last 2 hours, and served at
+      sign-in and kept warm for anyone active in the last 30 minutes, and served at
       once while a refresh runs in the background; the page shows progress while the
-      first read runs.
+      first read runs (about 10 seconds).
     - Wording: plain language ("every other week", "good for", "hours per week") and
       "?" help next to anything that needs explaining.
     - Where to sell: areas ranked by open hours per week and the list of openings by
@@ -240,12 +240,28 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
   days' schedule is re-read after 2 minutes (past days after 6 hours); Dispatch Board
   prices after 2 minutes; views built from 4 weeks of schedule (Openings, Optimization)
   after 5 minutes, never shown more than 10 minutes old (kept warm every 4 minutes for
-  people using the app); customer locations, areas and the frequency legend after 1
+  people who used the app in the last 30 minutes); customer locations, areas and the frequency legend after 1
   hour. Every open screen updates itself every 5 minutes while visible (Team Monitor
   every minute for today). The sidebar shows when data was last read and a Refresh
   button that clears every copy kept for that person (`POST /api/refresh`) so all
   screens read MaidCentral again together. What the office entered for past days
   (call-out results, rescheduling picks) is cleared when the app opens.
+- **How MaidCentral is read (`cache.js` `keyed`, `planner.js` `dayData`, `prices.js`
+  `boardRows`):** one request per thing is ever in flight per person (a second caller
+  waits for it instead of asking again). Days and reports load together, ten days at a
+  time. Cleaners' names are read once and shared by all days (the per-day list takes a
+  second and barely changes). The Dispatch Board, which takes MaidCentral up to half a
+  minute for a long range, is read as calendar weeks in parallel and each week is kept on
+  its own (weeks near today 5 minutes, more than 4 weeks out 30 minutes, long past 6
+  hours); openings, the price check, call-outs (prices and phones for any date) and the
+  revenue rate all share it. The Master Schedule is read once for openings and
+  optimization. A cold start of Openings takes about 10 seconds (was about 45).
+- **Optimization and the recurring pattern:** closed days (a weekday with no bookings on
+  any team, or `CLOSED_DATES`) are not working days, so a holiday is not counted as free
+  time to sell. A regular booked off their Master Schedule weekday this cycle is a one-off
+  visit (it can change team that day, but is never proposed as a permanent move). A day of
+  up to 6 stops is sequenced by trying every order, so its route is the best possible
+  within the time limits.
 - **Times:** MaidCentral sends wall-clock times as if they were UTC; the server returns
   them as local ISO strings without a zone, so they show the same as in MaidCentral.
 - **Config:** `MC_PORTAL_URL` (required), `OFFICE_LEAVE_AT` (default `8:15 AM`),

@@ -111,9 +111,9 @@ export default function Optimize({ onError, go }) {
       <ErrorNote error={cur.error} />
       {cur.loading && (
         <div className="loading-card">
-          <b>{!prog ? 'Reading the 4-week cycle from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations…' : `Reading the schedule: day ${prog.done} of ${prog.total}`}</b>
-          <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 10 : 10 + (prog.done / prog.total) * 90}%` }} /></div>
-          <span className="muted small">About 20 seconds the first time; then it's kept for 15 minutes.</span>
+          <b>{!prog ? 'Reading the 4-week cycle from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations…' : prog.stage === 'reports' ? 'Almost there: customer locations and the recurring pattern…' : `Reading the schedule: day ${prog.done} of ${prog.total}`}</b>
+          <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 10 : prog.stage === 'reports' ? 92 : 10 + (prog.done / prog.total) * 78}%` }} /></div>
+          <span className="muted small">About 10 seconds the first time; after that it's kept up to date in the background.</span>
         </div>
       )}
       {c && (

@@ -47,13 +47,14 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
 
   app.get('/healthz', (req, res) => res.json({ ok: true }));
 
-  // Keep openings fresh for people active in the last 2 hours, so the page opens at once
-  // (rebuilt a little more often than they go stale; see FRESH in cache.js).
+  // Keep openings fresh for people active in the last 30 minutes, so the page opens at once
+  // (rebuilt a little more often than they go stale; see FRESH in cache.js). After that the
+  // background reads stop; the next visit reads everything again in about 10 seconds.
   if (warm) {
     setInterval(() => {
       for (const s of cache.values()) {
         const lastUsed = s.expiresAt - IDLE_MS;
-        if (s.mc.signedIn && Date.now() - lastUsed < 2 * 60 * 60 * 1000) prewarm(s.mc);
+        if (s.mc.signedIn && Date.now() - lastUsed < 30 * 60 * 1000) prewarm(s.mc);
       }
     }, 4 * 60 * 1000).unref();
   }
