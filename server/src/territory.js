@@ -14,7 +14,7 @@ import { root, tables } from './extract.js';
 import { dayData, analyseDay, parseDay, freshJobs } from './planner.js';
 import { mcDate } from './mc.js';
 import { McError } from './mc.js';
-import { office, returnBy, leaveAt } from './office.js';
+import { office, returnBy, leaveAt, minGap } from './office.js';
 import { areaNames, areaKey } from './areas.js';
 import { localToday, mondayOf, geocode } from './geo.js';
 import { perSession, keyed, FRESH } from './cache.js';
@@ -485,6 +485,10 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
     gaps = gaps.map(([gs, ge]) => {
       let a = gs;
       let z = ge;
+      // At least minGap() between houses: free time starts that long after a house and ends
+      // that long before the next one.
+      if (visits.some((v) => Math.abs(v.e - a) <= 5)) a += minGap();
+      if (visits.some((v) => Math.abs(v.s - z) <= 5)) z -= minGap();
       if (!visits.some((v) => v.e <= a + 5)) {
         const after = visits.filter((v) => v.s >= z - 5).sort((x, y) => x.s - y.s)[0];
         a = Math.max(a, leave + toOffice(after?.loc || null));
@@ -860,8 +864,9 @@ export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeC
     let latest = Infinity;
     let lastOfDay = false;
     for (const l of x.legs) {
-      earliest = Math.max(earliest, l.beforeEnd != null ? l.beforeEnd + (l.before ? drive(l.before, target) : 15) : leaveAt() + (base.lat ? drive(base, target) : 15));
-      if (l.afterStart != null) latest = Math.min(latest, l.afterStart - (l.after ? drive(target, l.after) : 15));
+      // Between houses: the drive, but never less than minGap().
+      earliest = Math.max(earliest, l.beforeEnd != null ? l.beforeEnd + Math.max(l.before ? drive(l.before, target) : 15, minGap()) : leaveAt() + (base.lat ? drive(base, target) : 15));
+      if (l.afterStart != null) latest = Math.min(latest, l.afterStart - Math.max(l.after ? drive(target, l.after) : 15, minGap()));
       else {
         lastOfDay = true;
         latest = Math.min(latest, back - (base.lat ? drive(target, base) : 15));

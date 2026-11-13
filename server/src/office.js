@@ -11,6 +11,13 @@ const located = new Map(); // portal host -> office
 
 // Cars leave the office no earlier than OFFICE_LEAVE_AT (default 8:15 AM); the first job
 // starts after the drive from there.
+// The least time allowed between one house and the next (packing up, parking, the drive),
+// whatever the drive time says: MIN_GAP_MIN, default 15 minutes.
+export function minGap() {
+  const v = Number(process.env.MIN_GAP_MIN);
+  return Number.isFinite(v) && v >= 0 ? v : 15;
+}
+
 export function leaveAt() {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(process.env.OFFICE_LEAVE_AT || '8:15 AM').trim());
   return m ? ((Number(m[1]) % 12) + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]) : 8 * 60 + 15;

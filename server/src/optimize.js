@@ -23,7 +23,7 @@
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { book, homeIndex, km, driveMin, driveTime, roadKm, learnPlaces, zones, masterSchedule } from './territory.js';
 import { areaNames, areaKey } from './areas.js';
-import { office, returnBy, leaveAt } from './office.js';
+import { office, returnBy, leaveAt, minGap } from './office.js';
 import { revenueRate } from './callouts.js';
 import { McError } from './mc.js';
 import { perSession, FRESH } from './cache.js';
@@ -334,7 +334,8 @@ function makeEval(ds, C) {
     let prevZone = null;
     for (const j of order) {
       const l = leg(at, j.loc);
-      const start = Math.max(t + l.min, j.T - C.early);
+      // From the office: the drive. Between houses: the drive, but never less than minGap().
+      const start = Math.max(t + (stops.length ? Math.max(l.min, minGap()) : l.min), j.T - C.early);
       if (start > j.T + C.late) return null;
       const dur = Math.ceil(j.cleanerMin / td.size / 5) * 5;
       free.push({ len: start - l.min - t, start: t, nearZone: prevZone || j.area });

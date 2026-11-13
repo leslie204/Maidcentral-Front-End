@@ -113,9 +113,10 @@ const mc = {
 test('openings: weekly, every 2 weeks (paired weeks) and every 4 weeks, within working hours', async () => {
   const o = await openings(mc, { from: MONDAYS[0], minHours: 1.5 });
   const find = (team, fit) => o.openings.filter((x) => x.team === team && x.fit === fit);
-  // Blue ends near the office (north): free until a couple of minutes before the 4:45 return.
+  // Blue's last house ends at 11: free from 11:15 (15 minutes between houses) until a couple
+  // of minutes before the 4:45 return (it ends near the office, in the north).
   const blueWeekly = find('Blue', 'Weekly');
-  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:00 AM – 4:43 PM']);
+  assert.deepEqual(blueWeekly.map((x) => x.label), ['11:15 AM – 4:43 PM']);
   assert.equal(o.returnBy, '4:45 PM');
   assert.ok(o.office.located);
   assert.ok(o.openings.every((x) => x.start >= 8 * 60), 'nothing before 8 AM');
@@ -123,9 +124,10 @@ test('openings: weekly, every 2 weeks (paired weeks) and every 4 weeks, within w
   const red2 = find('Red', 'Every 2 weeks');
   // Red ends in the south, ~12 km from the office: it must stop early enough to drive back by 4:45.
   // 1–3 PM is free in weeks 1 & 3 only (Sue has weeks 2 & 4); 11–1 and 3 PM to the drive back are free every week.
-  assert.deepEqual(red2.map((x) => [x.label, x.dates]), [['1:00 PM – 3:00 PM', ['2026-11-09', '2026-11-23']]]);
+  // (each edge 15 minutes from Sue's 1–3 PM in weeks 2 & 4, the gap kept between houses)
+  assert.deepEqual(red2.map((x) => [x.label, x.dates]), [['12:45 PM – 3:15 PM', ['2026-11-09', '2026-11-23']]]);
   assert.ok(o.openings.every((x) => x.end <= 16 * 60 + 45), 'nothing ends after 4:45');
-  assert.deepEqual(find('Red', 'Weekly').map((x) => x.label), ['11:00 AM – 1:00 PM']);
+  assert.deepEqual(find('Red', 'Weekly').map((x) => x.label), ['11:15 AM – 12:45 PM']);
   assert.equal(red2[0].area.zone, 'south hill');
   // Week 2's 3:00 PM gap is the last of the day: with the drive back it's too short
   // for 1.5 h; with shorter openings allowed it shows as every 4 weeks.
@@ -134,7 +136,7 @@ test('openings: weekly, every 2 weeks (paired weeks) and every 4 weeks, within w
   // week 4 has a one-time visit there (that only marks 11/30 as taken).
   const short = await openings(mc, { from: MONDAYS[0], minHours: 1 });
   const late = short.openings.filter((x) => x.team === 'Red' && x.weeks > 0 && x.start >= 15 * 60);
-  assert.deepEqual(late.map((x) => [x.fit, x.start, x.firstDate]), [['Weekly', 15 * 60, '2026-11-09']]);
+  assert.deepEqual(late.map((x) => [x.fit, x.start, x.firstDate]), [['Weekly', 15 * 60 + 15, '2026-11-09']]);
   assert.deepEqual(late[0].takenOn, [{ date: '2026-11-30', by: ['South Two Home - Sue Two'] }]);
   // The 4-week board.
   assert.equal(o.cycle.weeks.length, 4);
@@ -153,7 +155,8 @@ test('openings follow the recurring pattern: skips are one-time only, moved book
   const overlaps = (x, s, e) => x.start < e && x.end > s;
   // Kim skipped 11/23 (her every-4-weeks week 3): free that day only, as a one-time opening.
   const once = green.filter((x) => x.fit === 'One-time');
-  assert.deepEqual(once.map((x) => [x.dates, x.label]), [[['2026-11-23'], '1:00 PM – 3:00 PM']]);
+  // Her 1–3 PM, plus the 15-minute gaps that kept the recurring openings either side of it.
+  assert.deepEqual(once.map((x) => [x.dates, x.label]), [[['2026-11-23'], '12:45 PM – 3:15 PM']]);
   assert.match(once[0].why, /Kim Skip: skipped \(marked in MaidCentral\)/);
   assert.ok(!green.some((x) => x.weeks > 0 && x.dates.includes('2026-11-23') && overlaps(x, 13 * 60, 15 * 60)), 'Kim\'s slot is not sold as recurring');
   // Moe was moved into the week 2 morning, but Green's weeks 2 & 4 mornings are recurring

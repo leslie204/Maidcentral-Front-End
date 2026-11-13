@@ -268,7 +268,7 @@ function DoubleBookings({ onError }) {
         </div>
         <div className="slot-team"><b><span className="team-swatch" style={{ '--team': c.bg }} />{g.team}</b>
           <span className={`pill ${g.kind === 'overlap' ? 'bad' : 'warn'}`}>
-            {g.kind === 'overlap' ? (g.same ? 'Same time' : g.full ? `Fully overlaps (${g.minutes} min)` : `Overlap ${g.minutes} min`) : `${g.gap ? `${g.gap} min gap` : 'Back to back'}, ${g.drive} min drive`}
+            {g.kind === 'overlap' ? (g.same ? 'Same time' : g.full ? `Fully overlaps (${g.minutes} min)` : `Overlap ${g.minutes} min`) : `${g.gap ? `${g.gap} min gap` : 'Back to back'}, ${g.need > g.drive ? `needs ${g.need} min` : `${g.drive} min drive`}`}
           </span>
         </div>
         <div className="dbl-pair">

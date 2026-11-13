@@ -13,7 +13,7 @@ import { dayData, analyseDay, parseDay } from './planner.js';
 import { book, homeIndex, driveTime, learnPlaces, zones } from './territory.js';
 import { road } from './routing.js';
 import { areaNames, areaKey } from './areas.js';
-import { office } from './office.js';
+import { office, minGap } from './office.js';
 import { localToday } from './geo.js';
 import { McError, mcDate } from './mc.js';
 import { frequencyOf } from './schedulekey.js';
@@ -126,8 +126,10 @@ function slotsFor(ctx, b, opts, reserved) {
       for (let i = 0; i <= stops.length; i++) {
         const prev = i === 0 ? { e: t.ws, loc: ctx.office, home: 'the office' } : stops[i - 1];
         const next = i === stops.length ? { s: t.we, loc: ctx.office, home: 'the office' } : stops[i];
-        const earliest = ceil5(prev.e + drive(prev.loc, b.loc));
-        const latest = next.s - drive(b.loc, next.loc) - dur;
+        // Between houses: the drive, but never less than minGap().
+        const gapIn = (x, d) => (x.home === 'the office' ? d : Math.max(d, minGap()));
+        const earliest = ceil5(prev.e + gapIn(prev, drive(prev.loc, b.loc)));
+        const latest = next.s - gapIn(next, drive(b.loc, next.loc)) - dur;
         if (latest < earliest) continue;
         const start = Math.min(Math.max(ceil5(b.s), earliest), Math.floor(latest / 5) * 5);
         const detour = Math.max(0, drive(prev.loc, b.loc) + drive(b.loc, next.loc) - drive(prev.loc, next.loc));

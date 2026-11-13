@@ -16,7 +16,7 @@
 // Read-only: the plan says what to do; changes are made in MaidCentral.
 import { dayData, analyseDay, parseDay } from './planner.js';
 import { book, homeIndex, driveTime, learnPlaces } from './territory.js';
-import { office, returnBy, leaveAt } from './office.js';
+import { office, returnBy, leaveAt, minGap } from './office.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
 import { isVisit, boardRows } from './prices.js';
@@ -183,7 +183,8 @@ function route(car, jobs, size, opts, office, backBy) {
       if (j.pinStart != null) (earliest = j.pinStart), (latest = j.pinStart);
       if (j.after != null) earliest = Math.max(earliest, j.after);
       if (j.before != null) latest = Math.min(latest, j.before);
-      start = Math.max(t + d, earliest);
+      // From the office: the drive. Between houses: the drive, but never less than minGap().
+      start = Math.max(t + (stops.length ? Math.max(d, minGap()) : d), earliest);
       if (start > latest) return null;
       end = start + Math.ceil(j.cleanerMinutes / size / 5) * 5;
     }

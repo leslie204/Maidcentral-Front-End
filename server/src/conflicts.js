@@ -5,7 +5,7 @@
 // Skipped, moved and cancelled bookings don't count. Read-only: fixes are made in MaidCentral.
 import { boardRows, isVisit } from './prices.js';
 import { book, homeIndex, driveTime, learnPlaces } from './territory.js';
-import { office } from './office.js';
+import { office, minGap } from './office.js';
 import { localToday } from './geo.js';
 import { McError } from './mc.js';
 
@@ -50,9 +50,11 @@ export function findConflicts(rows, { drive = () => null, slack = 5 } = {}) {
       const a = list[i];
       const b = list.slice(i + 1).find((x) => x.s >= a.e);
       if (b && list.slice(i + 1).every((x) => x.s >= a.e || x === b)) {
-        const need = drive(a, b);
+        const d = drive(a, b);
+        // The drive, but never less than the minimum gap between houses.
+        const need = d == null ? null : Math.max(d, minGap());
         const gap = b.s - a.e;
-        if (need != null && gap + slack < need && norm(a.customer) !== norm(b.customer)) out.push({ kind: 'tight', team, date, minutes: need - gap, gap, drive: need, bookings: [view(a), view(b)] });
+        if (need != null && gap + slack < need && norm(a.customer) !== norm(b.customer)) out.push({ kind: 'tight', team, date, minutes: need - gap, gap, drive: d, need, bookings: [view(a), view(b)] });
       }
     }
   }

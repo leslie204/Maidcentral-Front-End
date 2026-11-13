@@ -145,6 +145,11 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     regular's first visit rolls on to the next open date (into later cycles if needed),
     and Reschedule doesn't move anyone onto a closed day. The 4-week plan colours booked jobs by area (MaidCentral's Zone
     colours) and shows each home's ZIP.
+  - At least 15 minutes between houses (`minGap()` in `server/src/office.js`, set with
+    `MIN_GAP_MIN`): open time on the 4-week plan starts 15 minutes after a house and ends 15
+    minutes before the next, and every suggested time (Place a customer, Reschedule,
+    Call-outs, Optimization) allows the drive or 15 minutes, whichever is longer. The
+    "No time to drive" check uses the same rule.
   - Double bookings (`server/src/conflicts.js`, Openings › Double bookings tab,
     `/api/conflicts`): two real bookings on the same team whose times overlap, and
     back-to-back bookings with less time between them than the drive (road times). Read

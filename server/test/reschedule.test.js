@@ -198,3 +198,17 @@ test('routing: many places are learned in chunks, and an outage falls back to es
     _resetRouting();
   }
 });
+
+test('at least 15 minutes between houses (MIN_GAP_MIN changes it)', () => {
+  // Blue's other days: Di 9:00–11:30, a few hundred metres from Ann (a 1–2 minute drive).
+  const after = (r) => r.slots.filter((s) => s.team === 'Blue' && s.start >= 11 * 60);
+  const r = optionsFor(ctx(), { job: '1', today: TODAY });
+  assert.ok(after(r).length > 0 && after(r).every((s) => s.start >= 11 * 60 + 45), 'not before 11:45 (11:30 + 15)');
+  process.env.MIN_GAP_MIN = '60';
+  try {
+    const r2 = optionsFor(ctx(), { job: '1', today: TODAY });
+    assert.ok(after(r2).every((s) => s.start >= 12 * 60 + 30), 'not before 12:30 with a 60-minute minimum');
+  } finally {
+    delete process.env.MIN_GAP_MIN;
+  }
+});
