@@ -19,6 +19,7 @@ import { localToday, mondayOf, geocode } from './geo.js';
 import { perSession, keyed, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
 import { boardRows, isVisit } from './prices.js';
+import { findConflicts } from './conflicts.js';
 import { road, learn } from './routing.js';
 
 const MIN = 60_000;
@@ -424,6 +425,17 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   }
   const shortDay = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
   const gap = (a, b) => Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`));
+  // Double bookings (two real bookings overlapping on one team), for the 4-week plan.
+  const clash = new Map(); // "team|date|customer" -> the other customers
+  for (const c of findConflicts(board || [])) {
+    if (c.kind !== 'overlap') continue;
+    const [a, b] = c.bookings;
+    for (const [x, y] of [[a, b], [b, a]]) {
+      const k = `${norm(c.team)}|${c.date}|${norm(x.customer)}`;
+      clash.set(k, [...(clash.get(k) || []), `${y.customer} (${y.time})`]);
+    }
+  }
+  const clashOf = (team, date, title) => clash.get(`${norm(team)}|${date}|${norm(who(title))}`) || null;
   // Real visits by team and date, with times: to catch bookings after the 4 weeks.
   const boardBy = new Map();
   for (const r of board || []) {
@@ -671,11 +683,11 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
           const jobs = planned.map((v) => {
             const j = m.pairs.get(v);
             const why = j ? null : whyMissing(v.customer, d.date, team.name);
-            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : why.status, reason: why?.text || null, zip: v.loc?.zip || null, color: colorOf(v.loc?.zone) };
+            return { s: j ? j.s : v.s, e: j ? j.e : v.e, title: j?.title || v.title, frequency: v.frequency, zone: v.loc?.zone || null, area: nameOf(v.loc?.zone), status: j ? 'booked' : why.status, reason: why?.text || null, zip: v.loc?.zip || null, color: colorOf(v.loc?.zone), clash: j ? clashOf(team.name, d.date, j.title) : null };
           });
           for (const j of m.extras) {
             const h = lookup(j.title);
-            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date), zip: h?.zip || null, color: colorOf(h?.zone) });
+            jobs.push({ s: j.s, e: j.e, title: j.title, frequency: j.frequency?.short || null, zone: h?.zone || null, area: nameOf(h?.zone), status: 'extra', reason: whyExtra(j, d.date), zip: h?.zip || null, color: colorOf(h?.zone), clash: clashOf(team.name, d.date, j.title) });
           }
           return [d.date, {
             closed: closed.has(d.date),
@@ -902,7 +914,7 @@ export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeC
       } else {
         const soon = (x.takenOn || []).filter((t) => !t.later && !t.closed && t.date > today);
         const later = (x.takenOn || []).filter((t) => t.later);
-        if (soon.length) reasons.push({ text: `Starts ${dayLabel(x.firstDate)}: ${soon.map((t) => dayLabel(t.date)).join(', ')} already taken`, tone: 'neutral' });
+        if (soon.length) reasons.push({ text: `Starts ${dayLabel(x.firstDate)}: already taken ${soon.map((t) => `${dayLabel(t.date)} (${t.by.map(who).join(', ')})`).join(', ')}`, tone: 'neutral' });
         const shut = (x.takenOn || []).filter((t) => t.closed && t.date > today && t.date < (x.firstDate || ''));
         if (shut.length) reasons.push({ text: `Skips ${shut.map((t) => dayLabel(t.date)).join(', ')} (closed)`, tone: 'neutral' });
         // Bookings already in MaidCentral on later dates of this spot: those visits would clash.

@@ -49,6 +49,7 @@ export const api = {
   openings: (q) => call('GET', `/api/openings?${new URLSearchParams(q)}`),
   openingsStatus: () => call('GET', '/api/openings/status'),
   placeCustomer: (q) => call('GET', `/api/openings/place?${new URLSearchParams(q)}`),
+  conflicts: (q) => call('GET', `/api/conflicts?${new URLSearchParams(q)}`),
   searchAddress: (q) => call('GET', `/api/places/search?${new URLSearchParams({ q })}`),
   searchHomes: (q) => call('GET', `/api/places/homes?${new URLSearchParams({ q })}`),
   cleaners: () => call('GET', '/api/cleaners'),

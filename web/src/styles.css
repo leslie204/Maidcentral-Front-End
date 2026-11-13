@@ -1014,3 +1014,14 @@ a.brand-item:hover { background: var(--panel-2); }
 .login-logo { width: 220px; max-width: 100%; height: auto; display: block; }
 .login-brand { display: grid; justify-items: start; gap: 4px; }
 .cycle-cell.closed { background: repeating-linear-gradient(135deg, var(--panel-2) 0 6px, transparent 6px 12px); text-align: center; color: var(--text-2); font-weight: 600; }
+.cycle .cbar-job.plan-job.clash { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--bad); z-index: 2; }
+.cycle-legend i.k-clash { background: var(--panel); box-shadow: inset 0 0 0 2px var(--bad); }
+.slot.dbl { grid-template-columns: 150px 190px minmax(0, 1fr); }
+.slot.dbl.overlap { border-left: 3px solid var(--bad); }
+.slot.dbl.tight { border-left: 3px solid var(--warn); }
+.slot.dbl .slot-team { gap: 6px; justify-items: start; }
+.dbl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dbl-pair > div { display: grid; gap: 2px; min-width: 0; }
+.dbl-pair .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+.section-title { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 18px 0 10px; }
+@media (max-width: 900px) { .slot.dbl { grid-template-columns: 1fr; } .dbl-pair { grid-template-columns: 1fr; } }

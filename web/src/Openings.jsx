@@ -62,7 +62,7 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       <PageHeader
         title="Openings"
         subtitle={`Where we can add repeat customers: each team's free time over the next 4 weeks, by area. Teams are back at the office by ${d?.returnBy || '4:45 PM'}.`}
-        actions={tab === 'capacity' ? null : (
+        actions={tab === 'capacity' || tab === 'double' ? null : (
           <label className="inline-field">
             Shortest job
             <select value={minHours} onChange={(e) => setMinHours(e.target.value)}>
@@ -83,9 +83,9 @@ export default function Openings({ onError, initialTab = 'plan' }) {
           ]}
         />
       )}
-      <Tabs value={tab} onChange={setTab} tabs={[['plan', '4-week plan'], ['sell', 'Where to sell'], ['place', 'Place a customer'], ['capacity', 'Capacity']]} />
-      {tab !== 'capacity' && <ErrorNote error={o.error} />}
-      {o.loading && tab !== 'capacity' && (
+      <Tabs value={tab} onChange={setTab} tabs={[['plan', '4-week plan'], ['sell', 'Where to sell'], ['place', 'Place a customer'], ['double', 'Double bookings'], ['capacity', 'Capacity']]} />
+      {tab !== 'capacity' && tab !== 'double' && <ErrorNote error={o.error} />}
+      {o.loading && tab !== 'capacity' && tab !== 'double' && (
         <div className="loading-card">
           <b>{!prog ? 'Getting your openings from MaidCentral…' : prog.stage === 'locations' ? 'Loading customer locations and areas…' : prog.stage === 'reports' ? 'Almost there: customer locations and booking statuses…' : `Reading the schedule: week ${Math.min(Math.floor(prog.done / 7) + 1, 4)} of 4`}</b>
           <div className="progress"><i style={{ width: `${!prog ? 4 : prog.stage === 'locations' ? 12 : prog.stage === 'reports' ? 92 : 12 + (prog.done / prog.total) * 76}%` }} /></div>
@@ -95,6 +95,7 @@ export default function Openings({ onError, initialTab = 'plan' }) {
       {d && tab === 'plan' && <CyclePlan data={d} highlight={highlight} onClear={() => setHighlight(null)} />}
       {d && tab === 'sell' && <WhereToSell data={d} onOpen={openInPlan} />}
       {tab === 'capacity' && <CapacityTab from={from} onError={onError} />}
+      {tab === 'double' && <DoubleBookings onError={onError} />}
       {tab === 'place' && <PlaceCustomer from={from} zones={d?.zones || []} onError={onError} onOpen={(r) => openInPlan(r, r.arriveMin ?? r.start, r.doneMin ?? r.end)} />}
     </>
   );
@@ -158,6 +159,7 @@ function CyclePlan({ data, highlight, onClear }) {
           <span><i className="k-booked" />Booked (coloured by area, with the ZIP)</span>
           <span><i className="k-open" />Open for a new regular: Weekly, every 2 wks or every 4 wks</span>
           <span><i className="k-once" />Once: free that date only (a regular is away)</span>
+          <span><i className="k-clash" />Double-booked (times overlap)</span>
           <span className="muted">Hover any block for details</span>
           <Help wide>Booked jobs take their area's colour from MaidCentral's Zones and show the home's ZIP code. Each bar is one team's day ({hourLabel(dayStart)}–{hourLabel(dayEnd)}); read across a row to see the next 4 weeks on that weekday. Green openings come from MaidCentral's Master Schedule, so they are real recurring spots: a customer who skipped or moved doesn't create one. When a regular is away on a date, their time shows as "Once" (good for a one-time clean only). A booking moved into an open spot shows as booked that date; hover it to see where it came from.</Help>
         </div>
@@ -202,9 +204,9 @@ function CyclePlan({ data, highlight, onClear }) {
                                 {day.jobs.filter((j) => j.status === 'booked' || j.status === 'extra').map((j, i) => (
                                   <div
                                     key={i}
-                                    className={`cbar-job plan-job ${focus !== 'all' ? 'quiet' : ''} ${lumOf(j.color) > 0.9 ? 'pale' : ''}`}
+                                    className={`cbar-job plan-job ${focus !== 'all' ? 'quiet' : ''} ${lumOf(j.color) > 0.9 ? 'pale' : ''} ${j.clash ? 'clash' : ''}`}
                                     style={{ left: `${pct(j.s)}%`, width: `${Math.max(pct(j.e) - pct(j.s), 0.8)}%`, ...(j.color ? { background: j.color, color: inkOn(j.color) } : {}) }}
-                                    title={`${hhmm(j.s)}–${hhmm(j.e)} ${customerOf(j.title)}${j.zip ? ` · ${j.zip}` : ''}\n${j.status === 'extra' ? `Booked this date only: ${j.reason}` : `${plainFreq(j.frequency || 'Unknown')} customer`}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}`}
+                                    title={`${hhmm(j.s)}–${hhmm(j.e)} ${customerOf(j.title)}${j.zip ? ` · ${j.zip}` : ''}\n${j.status === 'extra' ? `Booked this date only: ${j.reason}` : `${plainFreq(j.frequency || 'Unknown')} customer`}${j.area || j.zone ? ` · ${j.area || j.zone}` : ''}${j.clash ? `\nDOUBLE-BOOKED with ${j.clash.join(', ')}` : ''}`}
                                   >
                                     {j.zip && <span>{j.zip}</span>}
                                   </div>
@@ -241,6 +243,75 @@ function CyclePlan({ data, highlight, onClear }) {
           </table>
         </div>
       </Card>
+    </>
+  );
+}
+
+// ---------- Double bookings ----------
+
+const longDate = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+function DoubleBookings({ onError }) {
+  const [weeks, setWeeks] = useState('12');
+  const [showTight, setShowTight] = useState(false);
+  const r = useLoad(() => api.conflicts({ weeks }), weeks, onError);
+  const d = r.data;
+  const overlaps = d?.groups.filter((g) => g.kind === 'overlap') || [];
+  const tight = d?.groups.filter((g) => g.kind === 'tight') || [];
+  const card = (g, i) => {
+    const c = teamColor({ name: g.team });
+    return (
+      <div key={i} className={`slot dbl ${g.kind}`}>
+        <div className="slot-when">
+          <b>{longDate(g.firstDate)}</b>
+          {g.repeats && <span className="muted small">and {g.dates.length - 1} more: {g.dates.slice(1, 6).map((x) => shortDate(x)).join(', ')}{g.dates.length > 6 ? '…' : ''}</span>}
+        </div>
+        <div className="slot-team"><b><span className="team-swatch" style={{ '--team': c.bg }} />{g.team}</b>
+          <span className={`pill ${g.kind === 'overlap' ? 'bad' : 'warn'}`}>
+            {g.kind === 'overlap' ? (g.same ? 'Same time' : g.full ? `Fully overlaps (${g.minutes} min)` : `Overlap ${g.minutes} min`) : `${g.gap ? `${g.gap} min gap` : 'Back to back'}, ${g.drive} min drive`}
+          </span>
+        </div>
+        <div className="dbl-pair">
+          {g.bookings.map((b, k) => (
+            <div key={k}>
+              <b>{b.customer}</b>
+              <span className="mono small">{b.time}</span>
+              <span className="muted small">{b.frequency || ''}{b.address ? ` · ${b.address}` : ''}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <>
+      <div className="toolbar">
+        <span className="muted small">Real bookings only (skipped, moved and cancelled ones don't count). Look ahead</span>
+        <select value={weeks} onChange={(e) => setWeeks(e.target.value)}>
+          {[['4', '4 weeks'], ['8', '8 weeks'], ['12', '12 weeks'], ['26', '6 months']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+      <ErrorNote error={r.error} />
+      {r.loading && !d && <Skeleton rows={5} height={64} />}
+      {d && (
+        <>
+          <Stats
+            items={[
+              { label: 'Double bookings', value: overlaps.length, hint: `${d.overlaps} dates`, help: 'Two bookings on the same team whose times overlap. A clash that repeats (two regulars whose spots overlap every cycle) is one entry with all its dates: fix it once in MaidCentral.' },
+              { label: 'No time to drive', value: tight.length, hint: `${d.tight} dates`, help: 'Back-to-back bookings where the gap is shorter than the drive between the two homes (real road times).' },
+              { label: 'Checked up to', value: shortDate(d.to), hint: `from ${shortDate(d.from)} · read ${new Date(d.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` },
+            ]}
+          />
+          <h3 className="section-title">Double bookings</h3>
+          {overlaps.length ? <div className="slot-list">{overlaps.map(card)}</div> : <Empty icon="check" title="No double bookings">No two bookings overlap on any team in these weeks.</Empty>}
+          <h3 className="section-title">
+            No time to drive between
+            <button className="btn ghost sm" onClick={() => setShowTight(!showTight)}>{showTight ? 'Hide' : `Show ${tight.length}`}</button>
+          </h3>
+          {showTight && (tight.length ? <div className="slot-list">{tight.map(card)}</div> : <Empty icon="check" title="Nothing too tight">Every back-to-back booking leaves time for the drive.</Empty>)}
+          <p className="muted small">To fix one, move a booking in MaidCentral; this list updates within a few minutes (or press Refresh).</p>
+        </>
+      )}
     </>
   );
 }

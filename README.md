@@ -145,6 +145,12 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
     regular's first visit rolls on to the next open date (into later cycles if needed),
     and Reschedule doesn't move anyone onto a closed day. The 4-week plan colours booked jobs by area (MaidCentral's Zone
     colours) and shows each home's ZIP.
+  - Double bookings (`server/src/conflicts.js`, Openings › Double bookings tab,
+    `/api/conflicts`): two real bookings on the same team whose times overlap, and
+    back-to-back bookings with less time between them than the drive (road times). Read
+    from the shared Dispatch Board for 4 weeks to 6 months ahead (default 12 weeks);
+    skipped, moved and cancelled bookings don't count. A clash that repeats every cycle is
+    one entry with all its dates. Overlapping jobs are outlined in red on the 4-week plan.
   - Drive times (`server/src/routing.js`, `osrm/`): real road times from our own routing
     service, OSRM (open source) on OpenStreetMap roads cut to the Spokane area, deployed as
     a second Railway service from `osrm/` (built at deploy time; no API key, no per-query
