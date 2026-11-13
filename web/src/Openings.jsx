@@ -218,7 +218,7 @@ function CyclePlan({ data, highlight, onClear }) {
                                     style={{ left: `${pct(g.s)}%`, width: `${pct(g.e) - pct(g.s)}%` }}
                                     title={g.fit === 'One-time'
                                       ? `Free ${hhmm(g.s)}–${hhmm(g.e)} on this date only (one-time clean)\n${g.why || ''}`
-                                      : `Open ${hhmm(g.s)}–${hhmm(g.e)}: good for a new ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 ? `\nAlso free ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')}` : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}
+                                      : `Open ${hhmm(g.s)}–${hhmm(g.e)}: good for a new ${plainFreq(g.fit).toLowerCase()} customer${g.weeks === 2 && g.pairs.filter((x) => x !== dt).length ? `\nAlso free ${g.pairs.filter((x) => x !== dt).map(shortDate).join(', ')}` : ''}${(g.takenDates || []).length ? `\nTaken ${g.takenDates.map((t) => `${shortDate(t.date)}${t.by.length ? ` by ${t.by.join(', ')}` : ''}`).join(', ')}` : ''}${g.area || g.zone ? `\nArea: ${g.area || g.zone}` : ''}`}
                                   >
                                     <span>{FIT_SHORT[g.fit]}</span>
                                   </div>
@@ -674,7 +674,13 @@ function PlaceCustomer({ from, zones, onError, onOpen }) {
           <p className="muted small">
             Best openings for <b>{result.target.label}</b>, ranked by extra driving, {result.frequency === 0 ? 'how soon' : 'frequency'} and length. Times include driving from the job before, and to the next job or back to the office by {result.returnBy}.
             {result.frequency !== 0 && result.lookahead && <> Checked against moved and one-time bookings already in MaidCentral through {shortDate(result.lookahead.until)}.</>}
+            {result.checkedLive && <> Each first visit was re-checked live in MaidCentral just now.</>}
           </p>
+          {result.justBooked?.length > 0 && (
+            <div className="callout warn small">
+              <Icon name="alert" size={15} /> Booked since the plan was last read, so not offered: {result.justBooked.map((x) => `${x.team} ${shortDate(x.date)} ${x.label}${x.by.length ? ` (${x.by.join(', ')})` : ''}`).join('; ')}.
+            </div>
+          )}
           {!result.results.length && <Empty icon="calendar" title="No opening fits">Try another frequency, a shorter job, more days{result.maxDrive ? ' or more extra driving' : ''}.</Empty>}
           <PlaceResults result={result} onOpen={onOpen} onFillIn={result.frequency !== 0 ? fillIn : null} fillFor={fill?.for.id} />
           {fill && (

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 // One refresh signal for the whole app, so every screen updates together: the Refresh
-// button (which also clears the server's copies), and automatically every 5 minutes
-// while the page is on screen (or when coming back to it after 5 minutes away).
-const AUTO_MS = 5 * 60_000;
+// button (which also clears the server's copies), and automatically every 2 minutes
+// while the page is on screen (or when coming back to it after 2 minutes away).
+const AUTO_MS = 2 * 60_000;
 const listeners = new Set();
 let lastRefresh = Date.now();
 

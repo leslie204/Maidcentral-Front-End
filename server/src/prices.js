@@ -160,7 +160,7 @@ export async function boardRows(mc, from, to, { maxAge = Infinity, fresh = false
   for (let w = weekStart(from); w <= to; w = addDays(w, 7)) starts.push(w);
   const ttlOf = (w) => {
     if (fresh) return 0;
-    const base = addDays(w, 6) < addDays(today, -7) ? FRESH.past : w > addDays(today, 28) ? FRESH.farAhead : FRESH.fourWeeks;
+    const base = addDays(w, 6) < addDays(today, -7) ? FRESH.past : w > addDays(today, 28) ? FRESH.farAhead : FRESH.board;
     return Math.min(base, maxAge);
   };
   const out = new Array(starts.length);

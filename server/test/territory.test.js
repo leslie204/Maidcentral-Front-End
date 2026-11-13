@@ -255,6 +255,35 @@ test('closed days and past dates are never a first visit or a one-time slot', as
   }
 });
 
+test('placing re-reads the first visit date live: a spot booked since the openings were read is dropped', async () => {
+  let booked = false;
+  const live = {
+    ...mc,
+    host: 'live.maidcentral.com',
+    async getJson(path, q) {
+      const r = await mc.getJson(path, q);
+      // Someone books Red's 1-3 PM on 11/9 after the openings were built.
+      if (booked && path === '/Job/ReadJobs' && q.date === '11/9/2026') return [...r, { JobInformationId: 99, TeamID: 2, Title: 'New Home - Just Booked', Start: at('2026-11-09', '13:00'), End: at('2026-11-09', '15:00') }];
+      return r;
+    },
+  };
+  const before = await placeCustomer(live, { from: MONDAYS[0], zip: '99203', frequency: '2', hours: 2 });
+  assert.ok(before.checkedLive);
+  const red = before.results.find((r) => r.team === 'Red' && r.firstDate === '2026-11-09' && r.arriveMin < 15 * 60 && r.doneMin > 13 * 60);
+  assert.ok(red, 'Red 1-3 PM on 11/9 is offered');
+  booked = true;
+  const after = await placeCustomer(live, { from: MONDAYS[0], zip: '99203', frequency: '2', hours: 2 });
+  assert.ok(!after.results.some((r) => r.id === red.id), 'no longer offered');
+  assert.deepEqual(after.justBooked.map((x) => [x.team, x.date, x.by]), [['Red', '2026-11-09', ['Just Booked']]]);
+});
+
+test('the 4-week plan: an opening\'s other dates leave out the ones already taken', async () => {
+  const o = await openings(mc, { from: MONDAYS[0], minHours: 1.5 });
+  const g = o.cycle.teams.find((t) => t.name === 'Green').days['2026-11-30'].open.find((x) => x.fit === 'Every 2 weeks' && x.s < 11 * 60);
+  assert.deepEqual(g.pairs, ['2026-11-30'], '11/16 is taken, so it is not "also free"');
+  assert.deepEqual(g.takenDates, [{ date: '2026-11-16', by: ['Moe Moved'] }]);
+});
+
 test('place a one-time clean: single dates, no frequency language', async () => {
   const once = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '0', hours: 2 });
   assert.ok(once.results.length > 0);

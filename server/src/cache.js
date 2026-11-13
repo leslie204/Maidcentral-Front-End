@@ -23,7 +23,7 @@ export function forget(mc) {
 // want the same report at the same moment). Returns cached(mc, key, ttl, fn).
 export function keyed({ max = 800 } = {}) {
   const store = perSession();
-  return function cached(mc, key, ttl, fn) {
+  const cached = function (mc, key, ttl, fn) {
     if (!store.has(mc)) store.set(mc, new Map());
     const m = store.get(mc);
     const hit = m.get(key);
@@ -52,6 +52,8 @@ export function keyed({ max = 800 } = {}) {
     m.set(key, { pending });
     return pending;
   };
+  cached.forget = (mc, key) => store.get(mc)?.delete(key);
+  return cached;
 }
 
 // How long a copy is used before MaidCentral is read again.
@@ -59,8 +61,10 @@ export const FRESH = {
   schedule: 2 * 60_000, // today and future days: jobs, teams, shifts
   past: 6 * 60 * 60_000, // days already gone don't change
   report: 2 * 60_000, // Dispatch Board (prices)
-  fourWeeks: 5 * 60_000, // views built from 4 weeks of schedule (openings, optimization)
-  fourWeeksMax: 10 * 60_000, // ...shown while a newer one is being built, never older than this
+  fourWeeks: 2 * 60_000, // views built from 4 weeks of schedule (openings, optimization)
+  fourWeeksMax: 4 * 60_000, // ...shown while a newer one is being built, never older than this
+  board: 5 * 60_000, // Dispatch Board weeks within the 4 weeks (statuses, prices)
+  locations: 10 * 60_000, // customer homes and areas (a home moved in MaidCentral shows within 10 min)
   farAhead: 30 * 60_000, // bookings more than 4 weeks out (only checked for later clashes)
   reference: 60 * 60_000, // customer locations, areas, frequency legend
 };

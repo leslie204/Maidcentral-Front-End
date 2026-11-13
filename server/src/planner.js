@@ -92,6 +92,19 @@ async function employeesFor(mc, date, iso, shifts) {
 // day's list although it has jobs that day, which showed as "Team 4804".
 const teamsSeen = perSession(); // McSession -> Map(teamId -> team)
 
+// The jobs on these days, read from MaidCentral now (not from the copy kept for a few
+// minutes), and the kept copies replaced so every screen sees the change.
+export async function freshJobs(mc, isos) {
+  const out = new Map();
+  await Promise.all(
+    [...new Set(isos)].map(async (iso) => {
+      cached.forget(mc, `jobs:${iso}`);
+      out.set(iso, await cached(mc, `jobs:${iso}`, FRESH.schedule, () => mc.getJson('/Job/ReadJobs', { date: mcDay(iso), view: 'HalfHourView' })));
+    }),
+  );
+  return out;
+}
+
 // One day as MaidCentral's schedule screens show it. Past days are cached for hours,
 // today and later for a few minutes.
 export async function dayData(mc, dayMs, { jobsOnly = false } = {}) {

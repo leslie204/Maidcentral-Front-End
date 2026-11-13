@@ -1025,3 +1025,4 @@ a.brand-item:hover { background: var(--panel-2); }
 .dbl-pair .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
 .section-title { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 18px 0 10px; }
 @media (max-width: 900px) { .slot.dbl { grid-template-columns: 1fr; } .dbl-pair { grid-template-columns: 1fr; } }
+.callout.warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin: 0 0 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); }

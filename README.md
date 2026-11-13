@@ -245,9 +245,11 @@ browser ── /auth/*, /api/* ──> server (Express) ── your MaidCentral 
 - **Freshness (one rule for every screen, `server/src/cache.js`):** today's and future
   days' schedule is re-read after 2 minutes (past days after 6 hours); Dispatch Board
   prices after 2 minutes; views built from 4 weeks of schedule (Openings, Optimization)
-  after 5 minutes, never shown more than 10 minutes old (kept warm every 4 minutes for
-  people who used the app in the last 30 minutes); customer locations, areas and the frequency legend after 1
-  hour. Every open screen updates itself every 5 minutes while visible (Team Monitor
+  after 2 minutes, never shown more than 4 minutes old (rebuilt every 2 minutes for
+  people who used the app in the last 30 minutes); Dispatch Board weeks within the 4 weeks
+  after 5 minutes; customer locations and areas after 10 minutes; the frequency legend
+  after 1 hour. Place a customer re-reads each result's first visit date live from
+  MaidCentral before showing it and drops any spot booked in the meantime. Every open screen updates itself every 2 minutes while visible (Team Monitor
   every minute for today). The sidebar shows when data was last read and a Refresh
   button that clears every copy kept for that person (`POST /api/refresh`) so all
   screens read MaidCentral again together. What the office entered for past days

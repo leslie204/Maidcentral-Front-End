@@ -268,7 +268,7 @@ function Freshness() {
     setBusy(false);
   };
   return (
-    <div className="freshness" title="Every screen reads MaidCentral again every 5 minutes while it's open. Refresh reads everything now.">
+    <div className="freshness" title="Every screen updates itself every 2 minutes while it's open. Refresh reads everything now.">
       <span className="label">
         <b>{busy ? 'Refreshing…' : mins < 1 ? 'Up to date' : `Updated ${mins} min ago`}</b>
         <span>{new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · from MaidCentral</span>

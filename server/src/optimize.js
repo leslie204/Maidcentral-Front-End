@@ -79,7 +79,7 @@ async function dataset(mc, from) {
   if (!datasets.has(mc)) datasets.set(mc, new Map());
   const m = datasets.get(mc);
   const hit = m.get(from);
-  if (hit?.value && Date.now() - hit.at < FRESH.fourWeeks) return hit.value;
+  if (hit?.value && Date.now() - hit.at < FRESH.board) return hit.value;
   if (hit?.pending) return hit.pending;
   const pending = load(mc, from).then(
     (value) => (m.set(from, { at: Date.now(), value }), value),

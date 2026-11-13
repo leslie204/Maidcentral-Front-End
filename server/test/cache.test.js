@@ -21,7 +21,8 @@ test('forget clears every store for that person only', () => {
 
 test('schedule data is never kept long', () => {
   assert.ok(FRESH.schedule <= 2 * 60_000);
-  assert.ok(FRESH.fourWeeksMax <= 10 * 60_000);
+  assert.ok(FRESH.fourWeeksMax <= 4 * 60_000);
+  assert.ok(FRESH.locations <= 10 * 60_000);
   assert.ok(FRESH.report <= 2 * 60_000);
 });
 

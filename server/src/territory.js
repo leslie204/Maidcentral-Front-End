@@ -11,7 +11,8 @@
 // customer on the other weeks); free one week in four → every 4 weeks. Its area comes
 // from the homes the team cleans just before and after the window.
 import { root, tables } from './extract.js';
-import { dayData, analyseDay, parseDay } from './planner.js';
+import { dayData, analyseDay, parseDay, freshJobs } from './planner.js';
+import { mcDate } from './mc.js';
 import { McError } from './mc.js';
 import { office, returnBy, leaveAt } from './office.js';
 import { areaNames, areaKey } from './areas.js';
@@ -48,7 +49,7 @@ export const active = (homes) => homes.filter((h) => !h.paused);
 
 // Every active service set with its location (the Customer Efficiency Map report).
 export async function book(mc) {
-  return cached(mc, 'book', FRESH.reference, async () => {
+  return cached(mc, 'book', FRESH.locations, async () => {
     const t = tables(await mc.getHtml('/Report/CustomerEfficiencyMap'))[0];
     if (!t?.headers.includes('Latitude')) throw new McError('upstream', 'The Customer Efficiency Map report did not return the expected table');
     const col = (h) => t.headers.indexOf(h);
@@ -78,7 +79,7 @@ export async function book(mc) {
 
 // Zones from MaidCentral's settings: name, colour, ZIP codes.
 export async function zones(mc) {
-  return cached(mc, 'zones', FRESH.reference, async () => {
+  return cached(mc, 'zones', FRESH.locations, async () => {
     const r = root(await mc.getHtml('/Zone'));
     const t = tables(r)[0];
     if (!t) return [];
@@ -187,7 +188,7 @@ const progress = new WeakMap(); // McSession -> { done, total, startedAt }
 
 // The recurring pattern (MaidCentral's Master Schedule), shared by openings and optimization.
 export function masterSchedule(mc) {
-  return cached(mc, 'master', FRESH.fourWeeks, async () => parseMaster(await mc.getHtml('/Report/MasterSchedule')));
+  return cached(mc, 'master', FRESH.board, async () => parseMaster(await mc.getHtml('/Report/MasterSchedule')));
 }
 
 export function openingsStatus(mc) {
@@ -664,7 +665,7 @@ async function computeOpenings(mc, { from, dayStart, dayEnd }) {
   for (const o of out) for (const d of o.dates) {
     const k = `${o.teamId}|${d}`;
     if (!fitsByTeamDate.has(k)) fitsByTeamDate.set(k, []);
-    fitsByTeamDate.get(k).push({ s: o.start, e: o.end, fit: o.fit, weeks: o.weeks, pairs: o.dates, id: o.id, zone: o.area.zone, area: o.area.name, taken: o.takenOn.find((t) => t.date === d)?.by || null, why: o.why || null });
+    fitsByTeamDate.get(k).push({ s: o.start, e: o.end, fit: o.fit, weeks: o.weeks, pairs: o.dates.filter((x) => !o.takenOn.some((t) => t.date === x)), takenDates: o.takenOn.filter((t) => o.dates.includes(t.date)).map((t) => ({ date: t.date, by: t.by.map(who) })), id: o.id, zone: o.area.zone, area: o.area.name, taken: o.takenOn.find((t) => t.date === d)?.by || null, why: o.why || null });
   }
   const cycle = {
     weeks: [0, 1, 2, 3].map((w) => ({ label: `Week ${w + 1}`, from: analysed[w * 7].date, to: analysed[w * 7 + 6].date })),
@@ -948,5 +949,24 @@ export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeC
     .filter((x) => !limitDrive || x.extraDriveMin <= limitDrive)
     .sort((a, b) => b.score - a.score)
     .slice(0, 40);
-  return { target: { ...target, label }, frequency: want, hours: need / 60, returnBy: hhmm(back), office: { address: base.address, located: Boolean(base.lat) }, before: want === 0 && before ? before : null, maxDrive: limitDrive, lookahead: o.lookahead, results: ranked };
+  // Live check: the openings are built from a copy up to a few minutes old, so the first
+  // visit date of every result is read from MaidCentral again now. A spot booked in the
+  // meantime is dropped (and the kept copy of that day is replaced, so the 4-week plan
+  // catches up on its next refresh).
+  const firstOf = (r) => (r.weeks === 0 ? r.dates[0] : r.firstDate);
+  let live = null;
+  let dropped = [];
+  const verified = await freshJobs(mc, ranked.map(firstOf).filter(Boolean)).catch((e) => {
+    if (e.code === 'expired') throw e;
+    return null;
+  });
+  if (verified) {
+    const minuteOf = (v) => Math.round((mcDate(v) % DAY) / MIN);
+    const clashWith = (r) => (verified.get(firstOf(r)) || []).filter((j) => j.TeamID === r.teamId && minuteOf(j.Start) < r.doneMin && minuteOf(j.End) > r.arriveMin);
+    dropped = ranked.filter((r) => clashWith(r).length).map((r) => ({ id: r.id, team: r.team, date: firstOf(r), label: `${r.arrive} – ${r.done}`, by: clashWith(r).map((j) => who(String(j.Title || '').trim())) }));
+    live = new Date().toISOString();
+    if (dropped.length) results.get(mc)?.clear(); // the 4-week plan is rebuilt on its next read
+  }
+  const kept = ranked.filter((r) => !dropped.some((x) => x.id === r.id)).slice(0, 25);
+  return { target: { ...target, label }, frequency: want, hours: need / 60, returnBy: hhmm(back), office: { address: base.address, located: Boolean(base.lat) }, before: want === 0 && before ? before : null, maxDrive: limitDrive, lookahead: o.lookahead, checkedLive: live, justBooked: dropped, results: kept };
 }
