@@ -295,7 +295,9 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
     for (let k = 0; k < 26; k++) {
       const d = addDays(x.firstDate, k * 7 * weeks);
       if (d > to) return null;
-      if (d >= from && d > today() && !taken.has(d)) return d;
+      // The engine's first date is already the first free one from tomorrow (the ops portal
+      // shows the same); only the asked-for window applies here.
+      if (d >= from && !taken.has(d)) return d;
     }
     return null;
   };
@@ -314,6 +316,7 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
       ...(s.w ? { pattern: { weeks: s.w, weekday: weekdayOf(s.d), label: PATTERN[s.w](weekdayOf(s.d)) } } : {}),
       first_visit: s.d,
       ...(x.next ? { next_visit: x.next } : {}),
+      ...(x.free ? { free_window: x.free } : {}),
       ...(x.area ? { area: x.area } : {}),
       ...(Number.isFinite(x.extra) ? { extra_drive_minutes: Math.max(0, Math.round(x.extra)) } : {}),
       reasons: x.reasons || [],
@@ -361,8 +364,8 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
       const d = dateIn(x, from, to, weeks);
       if (!d) continue;
       const taken = new Set((x.takenOn || []).map((t) => t.date));
-      let next = null;
-      if (weeks) for (let k = 1; k < 8 && !next; k++) { const n = addDays(d, k * 7 * weeks); if (!taken.has(n)) next = n; }
+      // The next visit after this one, exactly as the ops portal shows it ("first visit …, then …").
+      const next = weeks ? (x.dates || []).filter((n) => n > d && !taken.has(n))[0] || null : null;
       const reasons = (x.reasons || []).map((r) => (typeof r === 'string' ? { text: r, tone: 'neutral' } : { text: String(r.text || ''), tone: tone(r.tone) })).filter((r) => r.text);
       const s = {
         q: q.id, o: x.id, t: x.teamId, n: x.team, d, s: x.arriveMin, e: x.doneMin, w: weeks, f,
@@ -370,6 +373,7 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
         x: {
           rank: 0,
           next,
+          free: x.label ? String(x.label) : null,
           color: x.color || null,
           area: x.area?.name ? { name: String(x.area.name), ...(x.area.zip ? { zip: String(x.area.zip) } : {}) } : null,
           extra: x.extraDriveMin,
@@ -432,5 +436,20 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
     throw new PlacementError(501, 'not_supported', 'Clean Bee books in MaidCentral for now: book the held time there, then mark the lead booked in the Hub.');
   }
 
-  return { health, catalog, quote, availability, hold, release, book, searchPlaces, searchHomes };
+  /**
+   * The Sales Hub's holds on the ops portal's own Place a customer results, so a time a rep is
+   * holding shows there as held (not offered twice). Matches like availability: the same
+   * opening, or the same team, day and overlapping time.
+   */
+  async function heldOn(results) {
+    const held = await store.openHolds(now());
+    if (!held.length) return results;
+    return results.map((r) => {
+      const day = r.weeks === 0 ? r.dates?.[0] : r.firstDate;
+      const h = held.find((x) => x.openingId === r.id || (x.teamId === String(r.teamId) && x.day === day && x.startMin < r.doneMin && x.endMin > r.arriveMin));
+      return h ? { ...r, heldBy: { until: new Date(h.expiresAt).toISOString(), by: h.placedBy?.display_name || h.placedBy?.id || 'a rep' } } : r;
+    });
+  }
+
+  return { health, catalog, quote, availability, hold, release, book, searchPlaces, searchHomes, heldOn };
 }

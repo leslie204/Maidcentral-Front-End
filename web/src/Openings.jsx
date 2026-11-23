@@ -548,6 +548,7 @@ function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
             </div>
             <div className="slot-reasons">
               <span className="freq" style={{ '--freq': FIT_COLOR[r.fit] }}><i />{r.weeks === 0 ? 'One-time clean' : plainFreq(r.fit)}</span>
+              {r.heldBy && <span className="pill bad" title="A rep is holding this time in the Sales Hub while they book it">Held in the Sales Hub by {r.heldBy.by} until {new Date(r.heldBy.until).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
               {r.reasons.map((x, n) => <span key={n} className={`pill ${x.tone === 'good' ? 'ok' : x.tone === 'warn' ? 'warn' : ''}`}>{x.text}</span>)}
               {r.route && (
                 <span className="route-line small">

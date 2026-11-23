@@ -663,6 +663,7 @@ components:
             label: { type: string, description: 'e.g. "Every other Tuesday"' }
         first_visit: { type: string, format: date }
         next_visit: { type: string, format: date }
+        free_window: { type: string, description: 'The whole free window the visit sits in, e.g. "11:15 AM – 4:43 PM"' }
         area:
           type: object
           required: [name]

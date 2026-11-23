@@ -240,7 +240,11 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
   api.get('/conflicts', handle((req) => doubleBookings(req.mc, req.query)));
   api.get('/places/search', handle((req) => searchAddress(req.query.q)));
   api.get('/places/homes', handle((req) => searchHomes(req.mc, req.query.q)));
-  api.get('/openings/place', handle((req) => placeCustomer(req.mc, req.query)));
+  api.get('/openings/place', handle(async (req) => {
+    const r = await placeCustomer(req.mc, req.query);
+    // Times a Sales Hub rep is holding show as held here too (placement/service.js heldOn).
+    return placement?.service ? { ...r, results: await placement.service.heldOn(r.results) } : r;
+  }));
   api.get('/openings/status', handle(async (req) => ({ progress: openingsStatus(req.mc) })));
   api.get('/callouts/roster', handle((req) => roster(req.mc, req.query)));
   api.get('/callouts/plan', handle((req) => callOutScenarios(req.mc, req.query)));

@@ -12,9 +12,27 @@ export function perSession() {
   return m;
 }
 
-// Clears everything kept for this person.
+// One copy per MaidCentral company (its portal host), shared by everyone reading it: the
+// 4-week openings plan, so the ops portal's Place a customer and the Sales Hub (which reads as
+// its own MaidCentral user) rank from the same snapshot and can't disagree.
+const companyStores = new Set();
+export const companyOf = (mc) => mc?.host || mc;
+export function perCompany() {
+  const m = new Map();
+  companyStores.add(m);
+  return {
+    has: (mc) => m.has(companyOf(mc)),
+    get: (mc) => m.get(companyOf(mc)),
+    set: (mc, v) => m.set(companyOf(mc), v),
+    delete: (mc) => m.delete(companyOf(mc)),
+  };
+}
+
+// Clears everything kept for this person (and the company-wide copies, so Refresh reads
+// MaidCentral again for everyone).
 export function forget(mc) {
   for (const m of stores) m.delete(mc);
+  for (const m of companyStores) m.delete(companyOf(mc));
 }
 
 // A per-person cache of reads, keyed by name. One request per key is ever in flight: a

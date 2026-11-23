@@ -81,7 +81,7 @@ if (tokens.length) {
       signingKey: createHash('sha256').update(`placement-slots:${process.env.SESSION_KEY || Math.random()}`).digest(),
     },
   });
-  placement = { ...placement, router: createPlacementRouter({ placement: service, config: { tokens, production: process.env.NODE_ENV === 'production' }, log }) };
+  placement = { ...placement, service, router: createPlacementRouter({ placement: service, config: { tokens, production: process.env.NODE_ENV === 'production' }, log }) };
   console.log(`Placement API on for ${placement.brand} (callers: ${placement.callers.join(', ')})`);
 }
 await hubUser.init().catch((e) => console.warn('placement: Hub user:', e.message));

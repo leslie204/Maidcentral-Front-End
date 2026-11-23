@@ -364,3 +364,62 @@ test('placement API through the real engine: quote by ZIP, area or home, ranked 
   const h = await service.hold({ slot_token: south.slots[0].slot_token, placed_by: { kind: 'system', id: 't' } });
   assert.equal(h.kind, 'local');
 });
+
+// The Sales Hub and the ops portal must never disagree: the same search, made as the portal
+// makes it and as the Hub makes it (through the placement API), gives the same openings in
+// the same order with the same times, teams, areas, reasons and dates.
+test('parity: the Sales Hub gets exactly the ops portal’s Place a customer results', async () => {
+  const { createPlacement } = await import('../src/placement/service.js');
+  const { MemoryPlacementStore } = await import('../src/placement/store.js');
+  const service = createPlacement({
+    store: new MemoryPlacementStore(),
+    hubUser: { status: () => ({ state: 'signed_in' }), use: async (fn) => fn(mc) },
+    config: { brand: 'cleanbee', timezone: 'America/Los_Angeles', currency: 'USD', rateRecurring: 122, rateOneTime: 130, signingKey: Buffer.alloc(32, 2) },
+    places: async () => ({ results: [] }),
+    today: () => MONDAYS[0],
+  });
+  const cases = [
+    [{ kind: 'zip', zip: '99203' }, { zip: '99203' }, 'biweekly', '2', {}],
+    [{ kind: 'zip', zip: '99208' }, { zip: '99208' }, 'weekly', '1', { part: 'morning' }],
+    [{ kind: 'area', area: 'north' }, { zone: 'north' }, 'every_4_weeks', '4', {}],
+    [{ kind: 'point', lat: 47.731, lng: -117.409, label: '1 Test Ave' }, { lat: 47.731, lng: -117.409, address: '1 Test Ave' }, 'biweekly', '2', { days: 'Monday,Tuesday' }],
+    [{ kind: 'zip', zip: '99203' }, { zip: '99203' }, 'one_time', '0', { max_extra_drive: '30' }],
+  ];
+  for (const [place, portalWhere, frequency, weeks, filters] of cases) {
+    const portalFilters = { ...(filters.part ? { part: filters.part } : {}), ...(filters.days ? { days: filters.days } : {}), ...(filters.max_extra_drive ? { maxDrive: filters.max_extra_drive } : {}) };
+    const portal = await placeCustomer(mc, { from: MONDAYS[0], ...portalWhere, frequency: weeks, hours: 2, ...portalFilters });
+    const q = await service.quote({ brand: 'cleanbee', place, service_code: 'standard', frequency, minutes: 120 }, 'sales-hub');
+    const hub = await service.availability({ quote_id: q.quote_id, from: MONDAYS[0], to: '2027-02-07', limit: 25, ...filters });
+    const portalView = portal.results.map((r) => {
+      const first = r.weeks === 0 ? r.dates[0] : r.firstDate;
+      const taken = new Set((r.takenOn || []).map((t) => t.date));
+      return { team: r.team, first, next: r.weeks === 0 ? null : r.dates.filter((d) => d > first && !taken.has(d))[0] || null, time: [r.arriveMin, r.doneMin], free: r.label, area: r.area?.name || null, reasons: r.reasons.map((x) => x.text) };
+    });
+    const hubView = hub.slots.map((s) => {
+      const [h1, m1] = s.start.slice(11, 16).split(':').map(Number);
+      const [h2, m2] = s.end.slice(11, 16).split(':').map(Number);
+      return { team: s.team.name, first: s.first_visit, next: s.next_visit || null, time: [h1 * 60 + m1, h2 * 60 + m2], free: s.free_window, area: s.area?.name || null, reasons: s.reasons.map((x) => x.text) };
+    });
+    assert.ok(portalView.length, `${frequency} ${JSON.stringify(place)}: the portal finds openings`);
+    assert.deepEqual(hubView, portalView, `${frequency} ${JSON.stringify(place)} ${JSON.stringify(filters)}`);
+  }
+});
+
+test('parity: a time held in the Sales Hub shows as held in the ops portal', async () => {
+  const { createPlacement } = await import('../src/placement/service.js');
+  const { MemoryPlacementStore } = await import('../src/placement/store.js');
+  const service = createPlacement({
+    store: new MemoryPlacementStore(),
+    hubUser: { status: () => ({ state: 'signed_in' }), use: async (fn) => fn(mc) },
+    config: { brand: 'cleanbee', timezone: 'America/Los_Angeles', currency: 'USD', rateRecurring: 122, rateOneTime: 130, signingKey: Buffer.alloc(32, 3) },
+    today: () => MONDAYS[0],
+  });
+  const q = await service.quote({ brand: 'cleanbee', place: { kind: 'zip', zip: '99203' }, service_code: 'standard', frequency: 'biweekly', minutes: 120 }, 'sales-hub');
+  const [first] = (await service.availability({ quote_id: q.quote_id, from: MONDAYS[0], to: '2027-02-07' })).slots;
+  await service.hold({ slot_token: first.slot_token, placed_by: { kind: 'sales_rep', id: 'ana@hub.test', display_name: 'Ana' } });
+  const portal = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '2', hours: 2 });
+  const marked = await service.heldOn(portal.results);
+  assert.equal(marked[0].team, first.team.name);
+  assert.equal(marked[0].heldBy.by, 'Ana');
+  assert.equal(marked.filter((r) => r.heldBy).length, 1);
+});

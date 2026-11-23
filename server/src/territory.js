@@ -17,7 +17,7 @@ import { McError } from './mc.js';
 import { office, returnBy, leaveAt, minGap } from './office.js';
 import { areaNames, areaKey } from './areas.js';
 import { localToday, mondayOf, geocode } from './geo.js';
-import { perSession, keyed, FRESH } from './cache.js';
+import { perCompany, keyed, FRESH } from './cache.js';
 import { parseMaster, weekOfDate } from './master.js';
 import { boardRows, isVisit } from './prices.js';
 import { findConflicts } from './conflicts.js';
@@ -179,11 +179,13 @@ const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pa
 //   early shift doesn't show up as a 5 AM opening.
 //   Everyone must be back at the office by returnBy() (default 4:45 PM): the last gap of a
 //   day ends early enough to drive back from where the team is.
-// Results are cached per person (never shared: each sees only what MaidCentral shows
-// them). Fresh for 10 minutes; up to an hour old they're returned at once and refreshed in
+// Results are cached once per company (shared by the ops portal and the Sales Hub's own
+// MaidCentral user, which both have schedule access). Fresh for a few minutes; up to an hour old they're returned at once and refreshed in
 // the background. Computed once at the shortest length and filtered per request, so every
 // view (plan, sell, place, any minimum length) reuses the same work.
-const results = perSession(); // McSession -> Map(key -> { at, value, pending })
+// The plan is shared by everyone in the company (cache.js perCompany): the ops portal and the
+// Sales Hub see the same snapshot, so their openings are the same.
+const results = perCompany(); // company -> Map(key -> { at, value, pending })
 const progress = new WeakMap(); // McSession -> { done, total, startedAt }
 
 // The recurring pattern (MaidCentral's Master Schedule), shared by openings and optimization.
