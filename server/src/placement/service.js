@@ -5,7 +5,7 @@
 // books the held time in MaidCentral and marks the lead booked in the Hub).
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { placeCustomer as realPlace, searchHomes as realHomes, zones as realZones } from '../territory.js';
-import { geocode as realGeocode, searchAddress as realPlaces, localToday } from '../geo.js';
+import { geocode as realGeocode, searchAddress as realPlaces, localToday, mondayOf } from '../geo.js';
 import { areaNames, areaKey } from '../areas.js';
 
 export const CONTRACT_VERSION = '1.3.0';
@@ -268,7 +268,8 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
   // The openings engine's suggestions for a quote, best first.
   async function suggestions(q, f = {}) {
     const d = q.data;
-    const params = { frequency: String(d.weeks), hours: d.minutes / 60 };
+    // The 4-week plan from this Monday: the engine needs its start, and this is the one kept warm.
+    const params = { from: mondayOf(today()), frequency: String(d.weeks), hours: d.minutes / 60 };
     const w = d.where;
     if (w.kind === 'zone') params.zone = w.zone;
     else if (w.kind === 'home') Object.assign(params, w.home);

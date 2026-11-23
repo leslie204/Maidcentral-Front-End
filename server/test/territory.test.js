@@ -327,3 +327,40 @@ test('openings are cached per person and filtered by length without re-reading M
   const blueMonday = (o) => o.cycle.teams.find((t) => t.name === 'Blue').days['2026-11-09'].open.length;
   assert.ok(blueMonday(b) <= blueMonday(a), 'board filtered too');
 });
+
+// The placement API (what the Sales Hub calls) through the real openings engine on this
+// fixture, so the API and the engine can't drift apart (e.g. a parameter the engine needs).
+test('placement API through the real engine: quote by ZIP, area or home, ranked slots, hold', async () => {
+  const { createPlacement } = await import('../src/placement/service.js');
+  const { MemoryPlacementStore } = await import('../src/placement/store.js');
+  const { validateResponse } = await import('placement-contract');
+  const service = createPlacement({
+    store: new MemoryPlacementStore(),
+    hubUser: { status: () => ({ state: 'signed_in' }), use: async (fn) => fn(mc) },
+    config: { brand: 'cleanbee', timezone: 'America/Los_Angeles', currency: 'USD', rateRecurring: 122, rateOneTime: 130, signingKey: Buffer.alloc(32, 1) },
+    places: async () => ({ results: [] }),
+    today: () => MONDAYS[0],
+  });
+  const quote = (place, frequency = 'biweekly') => service.quote({ brand: 'cleanbee', place, service_code: 'standard', frequency, minutes: 120 }, 'sales-hub');
+  const slots = async (q, extra = {}) => service.availability({ quote_id: q.quote_id, from: MONDAYS[0], to: '2027-01-31', ...extra });
+
+  const south = await slots(await quote({ kind: 'zip', zip: '99203' }));
+  assert.ok(south.slots.length, 'openings come back');
+  assert.equal(south.slots[0].team.name, 'Red');
+  assert.equal(south.slots[0].rank, 1);
+  assert.match(south.slots[0].pattern.label, /^Every other /);
+  assert.deepEqual(validateResponse('getAvailability', 200, south), []);
+
+  const north = await slots(await quote({ kind: 'area', area: 'north' }, 'weekly'));
+  assert.equal(north.slots[0].team.name, 'Blue');
+
+  const { homes } = await service.searchHomes('cleanbee', 'north');
+  const near = await slots(await quote({ kind: 'home', home_ref: homes.find((h) => h.customer === 'Ann North').home_ref }));
+  assert.ok(near.slots.length);
+
+  const morning = await slots(await quote({ kind: 'zip', zip: '99203' }), { part: 'morning', days: 'Monday,Tuesday' });
+  assert.ok(morning.slots.every((s) => ['Monday', 'Tuesday'].includes(s.pattern.weekday)));
+
+  const h = await service.hold({ slot_token: south.slots[0].slot_token, placed_by: { kind: 'system', id: 't' } });
+  assert.equal(h.kind, 'local');
+});

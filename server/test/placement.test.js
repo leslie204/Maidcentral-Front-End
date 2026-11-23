@@ -118,14 +118,14 @@ test('quote: an address not on the map is placed near its ZIP, and says so', asy
   const q = await service.quote({ ...QUOTE, address: { ...ADDRESS, line1: '9 Unknown Ln' } }, 'sales-hub');
   assert.match(q.message, /near its ZIP code/);
   await service.availability({ quote_id: q.quote_id, from: TODAY, to: '2026-12-06' });
-  assert.deepEqual(calls.at(-1), { frequency: '2', hours: 2.5, zip: '99202' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '2', hours: 2.5, zip: '99202' });
 });
 
 test('availability: the engine’s openings as slots, in Pacific time, with the reasons for the rep', async () => {
   const { service, calls } = setup();
   const q = await service.quote(QUOTE, 'sales-hub');
   const a = await service.availability({ quote_id: q.quote_id, from: TODAY, to: '2026-12-06' });
-  assert.deepEqual(calls.at(-1), { frequency: '2', hours: 2.5, lat: 47.67, lng: -117.4, address: '623 N HOGAN ST, SPOKANE, WA, 99202' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '2', hours: 2.5, lat: 47.67, lng: -117.4, address: '623 N HOGAN ST, SPOKANE, WA, 99202' });
   assert.deepEqual(a.slots.map((s) => [s.start, s.end, s.team.name]), [
     ['2026-11-24T09:00:00-08:00', '2026-11-24T11:30:00-08:00', 'Team Blue'],
     ['2026-12-03T13:00:00-08:00', '2026-12-03T15:30:00-08:00', 'Team Gold'],
@@ -222,15 +222,15 @@ test('quote by place: a picked address, a ZIP, an area or an existing home each 
     return q;
   };
   await run({ kind: 'point', lat: 47.66, lng: -117.39, label: '623 N Hogan St' });
-  assert.deepEqual(calls.at(-1), { frequency: '1', hours: 2, lat: 47.66, lng: -117.39, address: '623 N Hogan St' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '1', hours: 2, lat: 47.66, lng: -117.39, address: '623 N Hogan St' });
   await run({ kind: 'zip', zip: '99223' });
-  assert.deepEqual(calls.at(-1), { frequency: '1', hours: 2, zip: '99223' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '1', hours: 2, zip: '99223' });
   await run({ kind: 'area', area: 'north' });
-  assert.deepEqual(calls.at(-1), { frequency: '1', hours: 2, zone: 'north' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '1', hours: 2, zone: 'north' });
   const { homes } = await service.searchHomes('cleanbee', 'lee');
   const byHome = await run({ kind: 'home', home_ref: homes[0].home_ref });
   assert.equal(byHome.service_area, 'Bo Lee, Main');
-  assert.deepEqual(calls.at(-1), { frequency: '1', hours: 2, homeName: 'Main', homeCustomer: 'Bo Lee', homeStreet: '12 S Elm St', homeCity: 'Spokane', homeZip: '99203' });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '1', hours: 2, homeName: 'Main', homeCustomer: 'Bo Lee', homeStreet: '12 S Elm St', homeCity: 'Spokane', homeZip: '99203' });
   const far = await run({ kind: 'zip', zip: '10001' });
   assert.deepEqual([far.serviceable, far.message], [false, 'Clean Bee doesn’t serve ZIP 10001.']);
 });
@@ -239,7 +239,7 @@ test('availability: filters reach the engine, and the hold re-checks with the sa
   const { service, calls } = setup();
   const q = await service.quote(QUOTE, 'sales-hub');
   const a = await service.availability({ quote_id: q.quote_id, from: TODAY, to: '2026-12-06', days: 'Tuesday,Thursday', part: 'morning', max_extra_drive: '20' });
-  assert.deepEqual(calls.at(-1), { frequency: '2', hours: 2.5, lat: 47.67, lng: -117.4, address: '623 N HOGAN ST, SPOKANE, WA, 99202', days: 'Tuesday,Thursday', part: 'morning', maxDrive: 20 });
+  assert.deepEqual(calls.at(-1), { from: TODAY, frequency: '2', hours: 2.5, lat: 47.67, lng: -117.4, address: '623 N HOGAN ST, SPOKANE, WA, 99202', days: 'Tuesday,Thursday', part: 'morning', maxDrive: 20 });
   await service.hold({ slot_token: a.slots[0].slot_token, placed_by: { kind: 'system', id: 't' } });
   assert.equal(calls.at(-1).maxDrive, 20);
   await assert.rejects(service.availability({ quote_id: q.quote_id, from: TODAY, to: '2026-12-06', days: 'Funday' }), /Unknown weekday/);
