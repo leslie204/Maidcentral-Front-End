@@ -2,6 +2,8 @@
 // anti-forgery field, server-rendered pages, JSON XHRs, an HTML partial, tabs, a modal,
 // and plenty of things the crawler must NOT do (log out, delete, cancel, run payroll,
 // post on page load). Every request it receives is logged for the test to check.
+// With { twoFactor: true }, login is followed by a MaidCentral-style 2FA page: "Send Code",
+// a code box and "Remember this browser".
 import http from 'node:http';
 
 const PEOPLE = { 101: 'Jane Doe', 102: 'John Roe', 103: 'Ali Khan' };
@@ -12,7 +14,10 @@ ${body}
 <div id="modal" style="display:none" class="modal"><form method="post" action="/Clients/Create"><input name="__RequestVerificationToken" type="hidden" value="tok"><input name="Client.FirstName"><button type="submit">Save</button></form><button data-dismiss="modal" onclick="document.getElementById('modal').style.display='none'">Close</button></div>
 <script>${script}</script></body></html>`;
 
-export function startFakePortal() {
+export const TWO_FACTOR_CODE = '246810';
+
+export function startFakePortal({ twoFactor = false } = {}) {
+  let codeSent = false;
   const log = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
@@ -39,8 +44,30 @@ export function startFakePortal() {
     }
     if (p === '/Account/Login' && req.method === 'POST') {
       const f = new URLSearchParams(body);
-      if (f.get('Email') === 'test@example.com' && f.get('Password') === 'pw') return redirect(res, '/Dashboard', { 'set-cookie': 'session=ok; HttpOnly; Path=/' });
+      if (f.get('Email') === 'test@example.com' && f.get('Password') === 'pw') {
+        const trusted = /TwoFactorRememberBrowser=1/.test(req.headers.cookie || '');
+        if (twoFactor && !trusted) return redirect(res, '/Account/VerifyCode', { 'set-cookie': 'mfa=pending; HttpOnly; Path=/' });
+        return redirect(res, '/Dashboard', { 'set-cookie': ['session=ok; HttpOnly; Path=/', '.AspNet.ApplicationCookie=x; HttpOnly; Path=/'] });
+      }
       return redirect(res, '/Account/Login');
+    }
+    if (twoFactor && p === '/Account/VerifyCode' && req.method === 'GET') {
+      return send(res, 200, `<!doctype html><title>Verify</title>
+        <form method="post" action="/Account/SendCode"><button type="submit">Send Code</button></form>
+        <form method="post" action="/Account/VerifyCode"><input name="Code" autocomplete="off">
+        <input type="checkbox" id="RememberBrowser" name="RememberBrowser"><label for="RememberBrowser">Remember this browser</label>
+        <button type="submit">Verify</button></form>`);
+    }
+    if (twoFactor && p === '/Account/SendCode' && req.method === 'POST') {
+      codeSent = true;
+      return redirect(res, '/Account/VerifyCode');
+    }
+    if (twoFactor && p === '/Account/VerifyCode' && req.method === 'POST') {
+      const f = new URLSearchParams(body);
+      if (!codeSent || f.get('Code') !== TWO_FACTOR_CODE) return redirect(res, '/Account/VerifyCode');
+      const cookies = ['session=ok; HttpOnly; Path=/', '.AspNet.ApplicationCookie=x; HttpOnly; Path=/'];
+      if (f.get('RememberBrowser') === 'on') cookies.push('TwoFactorRememberBrowser=1; HttpOnly; Path=/; Max-Age=2592000');
+      return redirect(res, '/Dashboard', { 'set-cookie': cookies });
     }
     if (!loggedIn) return redirect(res, `/Account/Login?ReturnUrl=${encodeURIComponent(p)}`);
 
@@ -48,8 +75,16 @@ export function startFakePortal() {
     if (p === '/Dashboard') {
       return send(res, 200, layout('Dashboard', '<h1>Dashboard</h1><div id="stats"></div>', `
         fetch('/api/dashboard/stats').then(r => r.json()).then(s => document.getElementById('stats').textContent = s.jobsToday);
-        fetch('/api/activity/seen', { method: 'POST', headers: { 'content-type': 'application/json', RequestVerificationToken: 'tok' }, body: JSON.stringify({ page: 'dashboard' }) });`));
+        fetch('/api/activity/seen', { method: 'POST', headers: { 'content-type': 'application/json', RequestVerificationToken: 'tok' }, body: JSON.stringify({ page: 'dashboard' }) });
+        fetch('/Dashboard/GetPipelineData', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ StartDate: '11/02/2026' }) });
+        fetch('/Job/MonthlyData', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'start=1761955200' });
+        fetch('/Company/BroadcastMessage', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'Message=hello' });`));
     }
+    if (p === '/Dashboard/GetPipelineData' && req.method === 'POST') return send(res, 200, [{ LeadId: 4, Name: 'Jane Doe', Total: 180.25 }], 'application/json');
+    if (p === '/Job/MonthlyData' && req.method === 'POST') return send(res, 200, { events: [{ JobId: 7, Title: 'John Roe - 12 Elm Street' }] }, 'application/json');
+    if (p === '/Job/ReadJobs') return send(res, 200, [{ JobInformationId: 7, TeamID: 1, Title: 'Jane Doe - Weekly', Start: '/Date(1793610000000)/', End: '/Date(1793617200000)/', AllowedTime: 2, JobStatusId: 2, IsRecurringEvent: true, FrequencyColor: '#005960' }], 'application/json');
+    if (p === '/Job/Schedule') return send(res, 200, layout('Job Schedule', '<h4>Job Schedule Key</h4><ul><li><span class="label" style="background:#92B558;">Every Week</span></li><li><span class="label" style="background:#005960;">Every Two Weeks</span></li><li><span class="label" style="background:#d2691e;">Single</span></li><li><span class="label" style="background:#d91e18;">0 - We are Considering Another Company</span></li></ul>'));
+    if (p === '/Job/TeamMonitorTeams') return send(res, 200, [{ TeamID: 1, TeamName: 'Team A', RgbBackgroundColor: '#ffcc00', CountJobs: 1 }], 'application/json');
     if (p === '/api/dashboard/stats') return send(res, 200, { jobsToday: 12, revenueToday: 1840.5, topClient: 'Jane Doe' }, 'application/json');
     if (p === '/Clients') {
       const rows = Object.entries(PEOPLE).map(([id, n]) => `<tr><td><a href="/Clients/Details/${id}">${n}</a></td><td><a href="/Clients/Delete/${id}">Delete</a></td></tr>`).join('');

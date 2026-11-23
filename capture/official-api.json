@@ -1,17 +1,37 @@
 {
-  "_comment": "The official MaidCentral API, transcribed from the docs. Fill in during Phase 0: one entry per documented endpoint. 'verified' = called successfully by npm run probe. Response shapes come from capture/output/official-probe.jsonl, not from here.",
+  "_comment": "The official MaidCentral API, transcribed from the docs (support.maidcentral.com/llms.txt, section 'v1-api'). One entry per documented endpoint. 'verified' = called successfully by npm run probe. Response shapes come from capture/output/official-probe.jsonl, not from here. 'query' lists documented query parameters (* = required).",
   "docs": "https://support.maidcentral.com/apidocs",
   "production": "https://api.maidcentral.com",
   "sandbox": "https://api.maidcentral.net",
-  "status": "Docs not yet read: support.maidcentral.com was blocked by the cloud session's network policy on 2026-11-02. Only /token is listed, from a public search result.",
-  "auth": "POST /token with username, password and grant_type (password or refresh_token); then Authorization: Bearer <token>.",
+  "status": "Docs read end to end on 2026-11-02: 23 endpoints including /token, all under /api/Lead and /api/Note. The API covers the online-booking funnel (leads, quotes, pricing, availability, booking) plus notes and a few lookups. It has no endpoints for existing clients, jobs, the schedule, employees, payroll or invoices. Not probed yet (no API user in the session).",
+  "auth": "POST /token (form-encoded) with username and password (grant_type=password), or refresh_token (grant_type=refresh_token); then Authorization: Bearer <token>. Credentials come from an API User (Company > Settings > General > Integrations > API Users).",
+  "envelope": "Every /api response is { IsSuccess, Message, Result, InnerException, StatusCode }.",
   "endpoints": [
-    {
-      "method": "POST",
-      "path": "/token",
-      "purpose": "Get a bearer token for the API user (grant_type=password) or refresh it (grant_type=refresh_token)",
-      "capability": "auth",
-      "verified": false
-    }
+    { "method": "POST", "path": "/token", "purpose": "Get a bearer token for the API user (grant_type=password) or refresh it (grant_type=refresh_token)", "capability": "auth", "verified": false },
+
+    { "method": "POST", "path": "/api/Lead/CreateOrUpdate", "purpose": "Create or update a lead (contact details, postal code, source, tags)", "capability": "leads-quotes", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Lead", "purpose": "Get a lead", "query": ["leadId*"], "capability": "leads-quotes", "verified": false },
+    { "method": "POST", "path": "/api/Lead/CreateOrUpdateQuote", "purpose": "Create or update a quote for a lead (home, scopes, answers, rate modifications)", "capability": "leads-quotes", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Quote", "purpose": "Get a quote", "query": ["quoteId* (uuid)"], "capability": "leads-quotes", "verified": false },
+    { "method": "POST", "path": "/api/Lead/BookQuote", "purpose": "Book a quote (turns it into scheduled service). Card details only as a CardConnect iFrame token; Stripe and Authorize.Net not supported", "capability": "leads-quotes", "verified": false },
+    { "method": "POST", "path": "/api/Lead/Utm", "purpose": "Attach UTM data to a lead or quote", "capability": "leads-quotes", "verified": false },
+    { "method": "POST", "path": "/api/Lead/CalculatePrice", "purpose": "Calculate a price without creating a lead", "capability": "pricing", "verified": false },
+
+    { "method": "GET", "path": "/api/Lead/ScopeGroups", "purpose": "Scope groups (service categories), with their scopes and frequencies", "capability": "pricing", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Scopes", "purpose": "Scopes (services) in a scope group", "query": ["scopeGroupId*"], "capability": "pricing", "verified": false },
+    { "method": "GET", "path": "/api/Lead/ScopeFrequencies", "purpose": "Frequency options for a scope", "query": ["scopeId*"], "capability": "pricing", "verified": false },
+    { "method": "GET", "path": "/api/Lead/RateModifications", "purpose": "Rate modifications (extras, add-ons) for a scope group", "query": ["scopeGroupId*"], "capability": "pricing", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Questions", "purpose": "Booking and pricing questions for one or more scopes", "query": ["scopeIds* (array)"], "capability": "pricing", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Availability", "purpose": "Available job dates for a scope group (hours or amount required)", "query": ["scopeGroupId*", "hours", "amount", "startDate (default today)", "endDate (default +1 month)"], "capability": "scheduling", "verified": false },
+    { "method": "GET", "path": "/api/Lead/PostalCodes", "purpose": "Serviceable postal codes by home zone", "capability": "settings", "verified": false },
+    { "method": "GET", "path": "/api/Lead/CustomerSources", "purpose": "Customer sources (lookup)", "capability": "settings", "verified": false },
+    { "method": "GET", "path": "/api/Lead/BillingTerms", "purpose": "Billing terms (lookup)", "capability": "settings", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Tags", "purpose": "Tags with their categories (lookup)", "capability": "settings", "verified": false },
+    { "method": "GET", "path": "/api/Lead/Teams", "purpose": "Teams (lookup)", "capability": "teams", "verified": false },
+
+    { "method": "POST", "path": "/api/Note/Create", "purpose": "Create a note for a customer, quote or employee", "capability": "notes-messages", "verified": false },
+    { "method": "GET", "path": "/api/Note/Types", "purpose": "Note types (lookup)", "capability": "notes-messages", "verified": false },
+    { "method": "GET", "path": "/api/Note/EntityTypes", "purpose": "Note entity types (lookup)", "capability": "notes-messages", "verified": false },
+    { "method": "GET", "path": "/api/Note/CommunicationDirections", "purpose": "Note communication directions (lookup)", "capability": "notes-messages", "verified": false }
   ]
 }

@@ -9,3 +9,6 @@ capture/output/
 capture/.auth/
 *.tsbuildinfo
 .data/
+
+# Local scratch scripts that run against the real portal
+server/_*.mjs
