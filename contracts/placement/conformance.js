@@ -70,10 +70,21 @@ export async function runConformance({ baseUrl, token, brand, quoteRequest, days
     return expect(operationId, res, [status], [codes.includes(code) ? null : `expected error ${codes.join(' or ')}, got ${code ?? 'none'}`]);
   }
 
+  let capabilities = {};
   await check('health: valid and serves the brand', async () => {
     const res = await call('GET', '/health');
+    capabilities = res.body?.capabilities || {};
     return expect('getHealth', res, [200], [res.body?.brands?.includes(brand) ? null : `brands does not include ${brand}`]);
   });
+
+  // 1.3: location search, for apps that offer it.
+  const locations = capabilities.locations || ['address'];
+  if (capabilities.locations?.includes('address')) {
+    await check('places: address suggestions are a valid list', async () => expect('searchPlaces', await call('GET', `/places?brand=${encodeURIComponent(brand)}&q=${encodeURIComponent('100 Main')}`), [200]));
+  }
+  if (locations.includes('home')) {
+    await check('homes: existing homes are a valid list', async () => expect('searchHomes', await call('GET', `/homes?brand=${encodeURIComponent(brand)}&q=ab`), [200]));
+  }
 
   await check('auth: missing token is 401', async () => {
     const res = await call('GET', `/catalog?brand=${encodeURIComponent(brand)}`, { auth: false });
@@ -127,8 +138,9 @@ export async function runConformance({ baseUrl, token, brand, quoteRequest, days
     return expectError('getAvailability', res, 400, ['invalid_request']);
   });
 
-  await check('availability: more than 31 days is invalid_request', async () => {
-    const far = new Date(from.getTime() + 40 * DAY);
+  const maxDays = capabilities.ranked ? 92 : 31;
+  await check(`availability: more than ${maxDays} days is invalid_request`, async () => {
+    const far = new Date(from.getTime() + (maxDays + 9) * DAY);
     const res = await call('GET', `/availability?quote_id=${encodeURIComponent(quote.quote_id)}&from=${isoDate(from)}&to=${isoDate(far)}`);
     return expectError('getAvailability', res, 400, ['invalid_request']);
   });

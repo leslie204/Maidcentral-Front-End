@@ -56,6 +56,16 @@ export function createPlacementRouter({ placement, config, log = { warn() {}, in
     return [200, await placement.catalog(String(req.query.brand))];
   }));
 
+  r.get('/places', handle('searchPlaces', async (req) => {
+    if (!req.query.brand || !String(req.query.q || '').trim()) throw new PlacementError(400, 'invalid_request', 'brand and q are required.');
+    return [200, await placement.searchPlaces(String(req.query.brand), String(req.query.q).slice(0, 150))];
+  }));
+
+  r.get('/homes', handle('searchHomes', async (req) => {
+    if (!req.query.brand || String(req.query.q || '').trim().length < 2) throw new PlacementError(400, 'invalid_request', 'brand and q (2 or more characters) are required.');
+    return [200, await placement.searchHomes(String(req.query.brand), String(req.query.q).trim().slice(0, 80))];
+  }));
+
   r.post('/quote', handle('createQuote', async (req) => [200, await placement.quote(req.body, req.caller)]));
 
   r.get('/availability', handle('getAvailability', async (req) => {
@@ -63,7 +73,9 @@ export function createPlacementRouter({ placement, config, log = { warn() {}, in
     if (!quoteId || !DATE.test(String(from || '')) || !DATE.test(String(to || ''))) throw new PlacementError(400, 'invalid_request', 'quote_id, from and to (YYYY-MM-DD) are required.');
     const limit = req.query.limit === undefined ? 50 : Number(req.query.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new PlacementError(400, 'invalid_request', 'limit must be 1 to 200.');
-    return [200, await placement.availability({ quote_id: String(quoteId), from: String(from), to: String(to), limit })];
+    const extra = {};
+    for (const k of ['days', 'part', 'max_extra_drive', 'before']) if (req.query[k] !== undefined) extra[k] = String(req.query[k]);
+    return [200, await placement.availability({ quote_id: String(quoteId), from: String(from), to: String(to), limit, ...extra })];
   }));
 
   r.post('/holds', handle('createHold', async (req) => [201, await placement.hold(req.body)]));

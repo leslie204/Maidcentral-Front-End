@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Placement contract
-  version: 1.2.0
+  version: 1.3.0
   summary: How the Sales Hub (and the public booking forms) place a customer through a brand's front end app.
   description: |
     Every front end app (Launch27, MaidCentral, BookingKoala) implements this API. The app
@@ -20,6 +20,15 @@ info:
     1.2.0 (additive): health `capabilities.bookings`. "manual" means the app finds and holds
     times but doesn't write bookings yet: the rep books the held time in the platform's own
     admin and marks the lead booked in the hub. POST /bookings then answers 501 not_supported.
+
+    1.3.0 (additive): finding where the customer is and ranked openings, for apps that know
+    their teams' routes (health `capabilities.locations`, `ranked`, `filters`):
+    GET /places (address suggestions) and GET /homes (existing customers' homes); quote
+    `place` (a picked address, ZIP, area or existing home) instead of `address`; catalog
+    `areas`; availability filters `days`, `part`, `max_extra_drive`, `before`, and up to 92 days
+    when ranked; slots with `rank`, `pattern`, `first_visit`, `next_visit`, `area`, `reasons`,
+    `route`, `extra_drive_minutes`; availability `target_label`, `checked_live_at`,
+    `just_booked`, `return_by`, `lookahead_until`.
 servers:
   - url: https://{app-host}/api/placement/v1
     variables:
@@ -57,6 +66,42 @@ paths:
               schema: { $ref: '#/components/schemas/Catalog' }
               examples:
                 residential: { $ref: '#/components/examples/Catalog' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /places:
+    get:
+      operationId: searchPlaces
+      summary: Address suggestions while the rep types (apps with capabilities.locations including "address")
+      parameters:
+        - $ref: '#/components/parameters/Brand'
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 150 }
+      responses:
+        '200':
+          description: Up to 10 suggestions, best first. An empty list is a normal answer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaceList' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /homes:
+    get:
+      operationId: searchHomes
+      summary: Existing customers' homes by name, past or present (apps with capabilities.locations including "home")
+      parameters:
+        - $ref: '#/components/parameters/Brand'
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 80 }
+      responses:
+        '200':
+          description: Up to 30 homes, regular customers first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HomeList' }
         default: { $ref: '#/components/responses/Error' }
 
   /quote:
@@ -100,13 +145,33 @@ paths:
         - name: to
           in: query
           required: true
-          description: Last date, inclusive. At most 31 days after `from`.
+          description: Last date, inclusive. At most 31 days after `from` (92 for apps with capabilities.ranked).
           schema: { type: string, format: date }
         - name: limit
           in: query
           required: false
           description: Most slots to return, best first. Default 50.
           schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: days
+          in: query
+          required: false
+          description: Weekdays the customer can do, comma-separated (e.g. "Tuesday,Thursday"). Apps with capabilities.filters including "days".
+          schema: { type: string, maxLength: 80 }
+        - name: part
+          in: query
+          required: false
+          description: Time of day. Apps with capabilities.filters including "part".
+          schema: { type: string, enum: [any, morning, afternoon] }
+        - name: max_extra_drive
+          in: query
+          required: false
+          description: Leave out times that add more driving than this, in minutes. Apps with capabilities.filters including "max_extra_drive".
+          schema: { type: integer, minimum: 1, maximum: 240 }
+        - name: before
+          in: query
+          required: false
+          description: One-time visits only, before this date (to fit a clean in before a regular customer's first visit). Apps with capabilities.filters including "before".
+          schema: { type: string, format: date }
       responses:
         '200':
           description: Open slots, best first. An empty list is a normal answer.
@@ -299,6 +364,17 @@ components:
                 platform (the default when absent) = POST /bookings writes the booking.
                 manual = the app doesn't write bookings yet (POST /bookings is 501 not_supported):
                 the rep books the held time in the platform's admin, then marks the lead booked.
+            locations:
+              type: array
+              description: How the rep can say where the customer is (default ["address"]). "address" with suggestions from GET /places; "home" from GET /homes; "zip"; "area" from the catalog's areas.
+              items: { type: string, enum: [address, zip, area, home] }
+            ranked:
+              type: boolean
+              description: Availability is a ranked list of openings (best first, rank 1 first) with routes and reasons, not just open times. Callers show it in rank order.
+            filters:
+              type: array
+              description: The availability filters the app understands
+              items: { type: string, enum: [days, part, max_extra_drive, before] }
         checked_at: { type: string, format: date-time }
         message: { type: string }
 
@@ -357,6 +433,20 @@ components:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/Frequency' }
+        areas:
+          type: array
+          description: The brand's service areas (for quotes by area, capabilities.locations "area")
+          items:
+            type: object
+            required: [code, name]
+            additionalProperties: false
+            properties:
+              code: { type: string, minLength: 1 }
+              name: { type: string, minLength: 1 }
+              color: { type: string }
+              zips:
+                type: array
+                items: { type: string }
         questions:
           type: array
           description: |
@@ -403,13 +493,69 @@ components:
           description: true/false for checkbox, text for text
           type: [string, boolean]
 
+    PlaceChoice:
+      type: object
+      description: Where the customer is, as the rep picked it (apps with capabilities.locations)
+      required: [kind]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [point, zip, area, home] }
+        lat: { type: number, description: point }
+        lng: { type: number, description: point }
+        label: { type: string, description: 'point: the address as picked from GET /places' }
+        zip: { type: string, description: zip }
+        area: { type: string, description: "area: the catalog area's code" }
+        home_ref: { type: string, description: 'home: the ref from GET /homes' }
+
+    PlaceList:
+      type: object
+      required: [places]
+      additionalProperties: false
+      properties:
+        places:
+          type: array
+          items:
+            type: object
+            required: [label, lat, lng]
+            additionalProperties: false
+            properties:
+              label: { type: string }
+              lat: { type: number }
+              lng: { type: number }
+              zip: { type: string }
+
+    HomeList:
+      type: object
+      required: [homes]
+      additionalProperties: false
+      properties:
+        homes:
+          type: array
+          items:
+            type: object
+            required: [home_ref, customer]
+            additionalProperties: false
+            properties:
+              home_ref: { type: string, minLength: 1 }
+              customer: { type: string }
+              home: { type: string }
+              address: { type: string }
+              zip: { type: string }
+              area: { type: string }
+              area_color: { type: string }
+              regular: { type: boolean, description: A current regular customer }
+
     QuoteRequest:
       type: object
-      required: [brand, address, service_code, frequency]
+      required: [brand, service_code, frequency]
+      anyOf:
+        - required: [address]
+        - required: [place]
       additionalProperties: false
       properties:
         brand: { $ref: '#/components/schemas/BrandKey' }
         address: { $ref: '#/components/schemas/Address' }
+        place: { $ref: '#/components/schemas/PlaceChoice' }
         service_code: { type: string, minLength: 1 }
         frequency: { $ref: '#/components/schemas/Frequency' }
         minutes:
@@ -500,10 +646,50 @@ components:
           properties:
             id: { type: string }
             name: { type: string }
+            color: { type: string }
         notes:
           type: array
           description: Why the app ranked this slot where it did, for the rep (e.g. "Team already nearby")
           items: { type: string }
+        rank: { type: integer, minimum: 1, description: "1 = the best (ranked apps)" }
+        pattern:
+          type: object
+          description: For a regular customer, the spot that repeats (e.g. every other Tuesday)
+          required: [weeks, weekday, label]
+          additionalProperties: false
+          properties:
+            weeks: { type: integer, minimum: 1, description: Weeks between visits }
+            weekday: { type: string }
+            label: { type: string, description: 'e.g. "Every other Tuesday"' }
+        first_visit: { type: string, format: date }
+        next_visit: { type: string, format: date }
+        area:
+          type: object
+          required: [name]
+          additionalProperties: false
+          properties:
+            name: { type: string }
+            zip: { type: string }
+        extra_drive_minutes: { type: integer, minimum: 0 }
+        reasons:
+          type: array
+          items:
+            type: object
+            required: [text, tone]
+            additionalProperties: false
+            properties:
+              text: { type: string }
+              tone: { type: string, enum: [good, neutral, warn] }
+        route:
+          type: object
+          description: The drive in and out on the first visit
+          required: [from, from_minutes, to, to_minutes]
+          additionalProperties: false
+          properties:
+            from: { type: string }
+            from_minutes: { type: integer, minimum: 0 }
+            to: { type: string }
+            to_minutes: { type: integer, minimum: 0 }
 
     Availability:
       type: object
@@ -516,6 +702,19 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Slot' }
         generated_at: { type: string, format: date-time }
+        target_label: { type: string, description: 'Where the app placed the customer, in words' }
+        checked_live_at: { type: string, format: date-time, description: When the first visits were re-checked in the platform }
+        return_by: { type: string, description: 'When teams must be back at the office, e.g. "4:45 PM"' }
+        lookahead_until: { type: string, format: date, description: Recurring times were checked against existing bookings until this date }
+        just_booked:
+          type: array
+          description: Times taken in the platform since the app last read it, so not offered
+          items:
+            type: object
+            required: [label]
+            additionalProperties: false
+            properties:
+              label: { type: string }
 
     HoldRequest:
       type: object
