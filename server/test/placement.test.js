@@ -124,7 +124,7 @@ test('availability: the engine’s openings as slots, in Pacific time, with the 
     ['2026-11-24T09:00:00-08:00', '2026-11-24T11:30:00-08:00', 'Team Blue'],
     ['2026-12-03T13:00:00-08:00', '2026-12-03T15:30:00-08:00', 'Team Gold'],
   ]);
-  assert.equal(a.slots[0].notes[0], 'Every other week, Tuesdays 9:00 AM – 11:30 AM, from 2026-11-24');
+  assert.equal(a.slots[0].notes[0], 'Every other Tuesday');
   assert.equal(a.slots[0].notes[1], 'On the team’s way (4 min extra driving)');
   // A later window: the every-other-week spot's next visit.
   const later = await service.availability({ quote_id: q.quote_id, from: '2026-12-07', to: '2026-12-20' });

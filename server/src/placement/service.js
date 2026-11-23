@@ -24,11 +24,11 @@ export class PlacementError extends Error {
 
 // Contract frequency -> the openings engine's (weeks between visits; 0 = one time).
 const WEEKS = { one_time: 0, weekly: 1, biweekly: 2, every_4_weeks: 4, monthly: 4 };
-const FIT_WORDS = { 1: 'Every week', 2: 'Every other week', 4: 'Every 4 weeks' };
+// "Every other Tuesday": the pattern, for the rep (the slot's own times give the date and hours).
+const PATTERN = { 1: (wd) => `Every ${wd}`, 2: (wd) => `Every other ${wd}`, 4: (wd) => `Every 4th ${wd}` };
 const DAY_MS = 86_400_000;
 
 const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
-const hhmm = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
 const weekdayOf = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
 
 /** "2026-12-01", 540 minutes, "America/Los_Angeles" -> "2026-12-01T09:00:00-08:00". */
@@ -231,7 +231,7 @@ export function createPlacement({ store, hubUser, config, place = realPlace, geo
       const s = {
         q: q.id, o: x.id, t: x.teamId, n: x.team, d, s: x.arriveMin, e: x.doneMin, w: weeks,
         notes: [
-          weeks ? `${FIT_WORDS[weeks]}, ${weekdayOf(d)}s ${hhmm(x.arriveMin)} – ${hhmm(x.doneMin)}, from ${d}` : `One time, ${weekdayOf(d)} ${d}`,
+          weeks ? PATTERN[weeks](weekdayOf(d)) : 'One time',
           ...(x.reasons || []).map((r) => (typeof r === 'string' ? r : r.text)).filter(Boolean),
         ].slice(0, 6),
       };
