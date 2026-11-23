@@ -33,7 +33,7 @@ const CODE_MS = 10 * 60 * 1000; // waiting for a 2FA code
 const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000; // MaidCentral's "remember this browser"
 const COOKIE = 'mcfe_sid';
 
-export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir, store = new MemoryStore(), warm = true } = {}) {
+export function createApp({ portalUrl, allowedEmails = [], secureCookies = true, fetchImpl, staticDir, store = new MemoryStore(), warm = true, placement = null } = {}) {
   const app = express();
   const cache = new Map(); // sidHash -> { hash, mc, email, expiresAt, saved, touchedAt }; the store is the source of truth
   const attempts = new Map(); // ip -> [timestamps]
@@ -169,6 +169,10 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
     res.json(s?.mc.signedIn ? { email: s.email, portal: new URL(portalUrl).host } : { email: null });
   });
 
+  // The placement API for the Sales Hub: its own service tokens, not a staff session
+  // (placement/api.js). Mounted before /api so the staff sign-in check doesn't apply.
+  if (placement?.router) app.use('/api/placement/v1', placement.router);
+
   // Everything under /api needs a signed-in session.
   const api = express.Router();
   api.use(async (req, res, next) => {
@@ -282,6 +286,37 @@ export function createApp({ portalUrl, allowedEmails = [], secureCookies = true,
       mcUrl: `/Customer/Details/${id}?cid=${id}`,
     };
   }));
+
+  // Sales Hub connection: the Hub's own MaidCentral user (placement/hub-user.js), signed in
+  // by someone signed in here. Its password is used once and never stored.
+  if (placement?.hubUser) {
+    const hub = placement.hubUser;
+    const view = () => ({ ...hub.status(), callers: placement.callers || [], badTokens: placement.badTokens || [], brand: placement.brand });
+    // The Hub user's wrong password or code is not this person's session ending: answer 400.
+    const asInput = async (fn) => {
+      try {
+        return await fn();
+      } catch (e) {
+        if (e instanceof McError && ['credentials', 'code', 'expired'].includes(e.code)) throw new McError('input', e.message);
+        throw e;
+      }
+    };
+    api.get('/hub-connection', handle(async () => view()));
+    api.post('/hub-connection/sign-in', sameOrigin, handle(async (req) => {
+      if (tooMany(req.ip)) throw new McError('input', 'Too many attempts. Try again in 15 minutes.');
+      const r = await asInput(() => hub.signIn(req.body?.email, String(req.body?.password || '')));
+      return { ...view(), sentTo: r.sentTo };
+    }));
+    api.post('/hub-connection/code', sameOrigin, handle(async (req) => {
+      if (tooMany(req.ip)) throw new McError('input', 'Too many attempts. Try again in 15 minutes.');
+      await asInput(() => hub.code(req.body?.code));
+      return view();
+    }));
+    api.post('/hub-connection/sign-out', sameOrigin, handle(async () => {
+      await hub.signOut();
+      return view();
+    }));
+  }
 
   app.use('/api', api);
 

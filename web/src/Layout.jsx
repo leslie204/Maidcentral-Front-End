@@ -25,6 +25,10 @@ export const NAV = [
       { path: '/scorecards', label: 'Scorecards', icon: 'star' },
     ],
   },
+  {
+    section: 'Connections',
+    items: [{ path: '/sales-hub', label: 'Sales Hub connection', icon: 'external' }],
+  },
 ];
 
 const isActive = (pathname, path) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`) || (path === '/search' && pathname.startsWith('/customers')));

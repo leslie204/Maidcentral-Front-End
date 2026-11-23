@@ -20,7 +20,8 @@
     "dev": "npm run dev -w server",
     "build": "npm run build -w web",
     "start": "node server/src/index.js",
-    "conformance": "npm run conformance -w contracts/placement --"
+    "conformance": "npm run conformance -w contracts/placement --",
+    "placement-token": "npm run placement-token -w server --"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

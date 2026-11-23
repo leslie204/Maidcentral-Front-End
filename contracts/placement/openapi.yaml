@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Placement contract
-  version: 1.1.0
+  version: 1.2.0
   summary: How the Sales Hub (and the public booking forms) place a customer through a brand's front end app.
   description: |
     Every front end app (Launch27, MaidCentral, BookingKoala) implements this API. The app
@@ -16,6 +16,10 @@ info:
 
     1.1.0 (additive): hourly services (catalog `hourly`, quote `minutes`) and booking
     questions (catalog `questions`, booking `answers`).
+
+    1.2.0 (additive): health `capabilities.bookings`. "manual" means the app finds and holds
+    times but doesn't write bookings yet: the rep books the held time in the platform's own
+    admin and marks the lead booked in the hub. POST /bookings then answers 501 not_supported.
 servers:
   - url: https://{app-host}/api/placement/v1
     variables:
@@ -210,7 +214,7 @@ components:
         Every error uses this body. Status codes: 400 invalid_request, 401 unauthorized,
         403 forbidden, 404 not_found / hold_not_found / quote_not_found,
         409 slot_unavailable / idempotency_conflict, 410 quote_expired / hold_expired,
-        422 brand_not_served, 502/503 platform_unavailable, 500 internal.
+        422 brand_not_served, 501 not_supported, 502/503 platform_unavailable, 500 internal.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -288,6 +292,13 @@ components:
                 platform = the booking platform itself reserves the slot.
                 local = the app keeps the hold in its own database and hides held slots from its
                 own availability; bookings made directly in the platform's admin can still take it.
+            bookings:
+              type: string
+              enum: [platform, manual]
+              description: |
+                platform (the default when absent) = POST /bookings writes the booking.
+                manual = the app doesn't write bookings yet (POST /bookings is 501 not_supported):
+                the rep books the held time in the platform's admin, then marks the lead booked.
         checked_at: { type: string, format: date-time }
         message: { type: string }
 
@@ -603,6 +614,7 @@ components:
                 - hold_expired
                 - idempotency_conflict
                 - platform_unavailable
+                - not_supported
                 - internal
             message: { type: string }
             retryable: { type: boolean }

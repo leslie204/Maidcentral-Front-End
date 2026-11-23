@@ -14,6 +14,7 @@ import Optimize from './Optimize.jsx';
 import Reschedule from './Reschedule.jsx';
 import Prices from './Prices.jsx';
 import Scorecards from './Scorecards.jsx';
+import HubConnection from './HubConnection.jsx';
 import { BrandMark } from './Layout.jsx';
 import { CURRENT } from './brands.js';
 
@@ -62,6 +63,7 @@ export default function App() {
   else if (pathname === '/callouts') page = <Callouts onError={onError} />;
   else if (pathname === '/scorecards') page = <Scorecards onError={onError} />;
   else if (pathname === '/prices') page = <Prices onError={onError} />;
+  else if (pathname === '/sales-hub') page = <HubConnection />;
   else if (pathname === '/reschedule') page = <Reschedule onError={onError} />;
   else if (pathname === '/optimize') page = <Optimize onError={onError} go={go} />;
   else if (pathname === '/monitor') page = <Monitor onError={onError} />;

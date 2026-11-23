@@ -22,6 +22,7 @@ adapted to MaidCentral, which has an official API as well as its admin portal:
 | 2. Verify writes | Not started |
 | 3. App skeleton | **Proof of concept** (read-only): sign-in with your own MaidCentral login (2FA relayed), Schedule, Team Monitor, Search, Customer jobs. Deployed to Railway |
 | 4. Pages | Not started |
+| Placement API (Sales Hub) | **Built** (`server/src/placement/`, contract 1.2.0): the Hub prices, finds open times and holds them for Clean Bee leads through this app's openings engine; bookings are made in MaidCentral by the rep for now. See [docs/placement.md](docs/placement.md#clean-bee-maidcentral-front-end) |
 
 ## Decisions so far
 

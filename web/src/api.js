@@ -54,6 +54,10 @@ export const api = {
   searchHomes: (q) => call('GET', `/api/places/homes?${new URLSearchParams({ q })}`),
   cleaners: () => call('GET', '/api/cleaners'),
   cleaner: (id) => call('GET', `/api/cleaners/${encodeURIComponent(id)}`),
+  hubConnection: () => call('GET', '/api/hub-connection'),
+  hubSignIn: (email, password) => call('POST', '/api/hub-connection/sign-in', { email, password }),
+  hubCode: (code) => call('POST', '/api/hub-connection/code', { code }),
+  hubSignOut: () => call('POST', '/api/hub-connection/sign-out', {}),
   customerJobs: (id) => call('GET', `/api/customers/${encodeURIComponent(id)}/jobs`),
 };
 

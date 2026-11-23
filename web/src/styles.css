@@ -1026,3 +1026,10 @@ a.brand-item:hover { background: var(--panel-2); }
 .section-title { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 18px 0 10px; }
 @media (max-width: 900px) { .slot.dbl { grid-template-columns: 1fr; } .dbl-pair { grid-template-columns: 1fr; } }
 .callout.warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin: 0 0 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); }
+
+/* Sales Hub connection */
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.hub-rows { display: grid; gap: 12px; }
+.hub-rows p, .hub-rows ol { margin: 0; }
+.hub-rows ol { padding-left: 18px; display: grid; gap: 6px; }
+.row-gap { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -5,11 +5,13 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=../.env --watch src/index.js",
-    "test": "node --test 'test/*.test.js'"
+    "test": "node --test 'test/*.test.js'",
+    "placement-token": "node scripts/placement-token.js"
   },
   "dependencies": {
     "express": "^5.1.0",
     "node-html-parser": "^9.0.0",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "placement-contract": "*"
   }
 }

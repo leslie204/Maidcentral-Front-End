@@ -105,7 +105,7 @@ test company.
 | App | State |
 | --- | --- |
 | Launch27 front end (UrbanMop) | Implemented on `feature/placement-api`: passes every conformance check, booking included, against its synthetic Launch27. Brand keys `urbanmop-residential` (served) and `urbanmop-commercial` (not yet). See that repo's `docs/placement.md` |
-| MaidCentral front end (Clean Bee) | Not started: needs Phase 0 recon first |
+| MaidCentral front end (Clean Bee) | Implemented in this repo (`server/src/placement/`), contract 1.2.0: price, open times from the openings engine, local holds; bookings `manual` for now (see [Clean Bee](#clean-bee-maidcentral-front-end)). Passes every conformance check, holds included, against a stub MaidCentral |
 | BookingKoala front end | Not started |
 
 ## Where the contract lives
@@ -125,3 +125,29 @@ version.
   availability calculated by the app. Confirm once Phase 0 recon is unblocked.
 - **Brands sharing an area.** If two brands serve the same postal codes, the hub picks the brand from
   the lead, not from the address. The apps never need to decide.
+
+## Clean Bee (MaidCentral front end)
+
+How this app answers the contract for brand `cleanbee`:
+
+| Endpoint | What it does |
+| --- | --- |
+| health | `ok` while the Hub's MaidCentral user is signed in, else `down` with what to do. Capabilities: `holds: local`, `bookings: manual` |
+| catalog | One service, `standard` (house cleaning by a two-person team), sold by time: 1 to 8 hours on site in half hours. One-time, weekly, every other week, every 4 weeks |
+| quote | Finds the address (US Census geocoder; if not found, near its ZIP). Price = hours on site × the hourly rate: `CB_RATE_RECURRING` (default $122) or `CB_RATE_ONE_TIME` (default $130), before tax |
+| availability | The openings engine (`territory.js` `placeCustomer`): the recurring pattern, the team's route and drive times, the right frequency, and a live re-check of the first visit date in MaidCentral. Each slot's notes say why it fits ("Every other week, Tuesdays 9:00 AM – 11:30 AM", "On the team's way (4 min extra driving)") |
+| holds | 15 minutes, kept in this app's database. A held spot (the whole recurring series) is hidden from every other quote. Holding re-checks MaidCentral; a time taken since it was offered is `slot_unavailable` |
+| bookings | `501 not_supported`: MaidCentral stays read-only for now. The rep books the held time in MaidCentral and marks the lead booked in the Hub. Next: the Hub creates the MaidCentral quote through the official API and the office finishes it (card step) |
+
+**The Hub's MaidCentral user.** The Hub reads MaidCentral as its own user, never as a rep. Someone
+signed in to this app opens **Sales Hub connection** and signs that user in (its password is used
+once and never stored; MaidCentral's code is asked for the first time). Its cookies are stored
+encrypted like any session; it's used every 10 minutes so MaidCentral doesn't end it, and while
+the Hub is placing customers the openings stay warm (every 2 minutes) so times come back at once.
+Optional `MC_HUB_EMAIL` / `MC_HUB_PASSWORD` let it sign back in by itself.
+
+**Connecting the Hub.**
+1. `npm run placement-token -- sales-hub` (on your computer) prints a token and an entry.
+2. The token goes in the Hub's `PLACEMENT_TOKEN_CLEANBEE`, this app's address in its `PLACEMENT_URL_CLEANBEE`.
+3. The entry (`sales-hub:sha256:…`, a fingerprint, not a secret) goes in this app's `PLACEMENT_TOKENS`.
+4. Sign in the Hub's MaidCentral user on **Sales Hub connection**.
