@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './hooks.js';
 import { teamColor } from './teamColor.js';
@@ -529,14 +529,23 @@ function HomeSearch({ value, onPick }) {
   );
 }
 
+const OFTEN = { 1: 'every week', 2: 'every other week', 4: 'every 4 weeks' };
+
 function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
+  const firstOther = result.results.findIndex((r) => r.exact === false);
   return (
     <div className="slot-list">
+      {result.results.length > 0 && firstOther === 0 && result.frequency > 0 && (
+        <div className="place-divider">No free {OFTEN[result.frequency]} spot fits. These are more frequent spots this customer could take (the other weeks stay open):</div>
+      )}
       {result.results.map((r, i) => {
         const c = teamColor({ name: r.team, color: r.color });
+        const divider = i > 0 && i === firstOther ? <div key={`d${i}`} className="place-divider">More frequent spots (only if none of the above work: the other weeks stay open)</div> : null;
         const later = r.firstDate && r.weeks > 0 ? Math.round((Date.parse(`${r.firstDate}T00:00:00Z`) - Date.now()) / 86_400_000) : 0;
         return (
-          <div key={r.id} className={`slot place clickable ${i === 0 ? 'best' : ''} ${fillFor === r.id ? 'filling' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
+          <Fragment key={r.id}>
+          {divider}
+          <div className={`slot place clickable ${i === 0 ? 'best' : ''} ${r.exact === false ? 'other' : ''} ${fillFor === r.id ? 'filling' : ''}`} onClick={() => onOpen(r)} title="Open in the 4-week plan">
             <div className="slot-when">
               <b>{r.weeks === 0 ? `${r.weekday.slice(0, 3)} ${shortDate(r.dates[0])}` : `${r.weekday}s`}</b>
               <span>{r.arrive} – {r.done}</span>
@@ -565,6 +574,7 @@ function PlaceResults({ result, onOpen, onFillIn, fillFor }) {
               )}
             </span>
           </div>
+          </Fragment>
         );
       })}
     </div>

@@ -287,6 +287,14 @@ test('the 4-week plan: an opening\'s other dates leave out the ones already take
   assert.deepEqual(g.takenDates, [{ date: '2026-11-16', by: ['Moe Moved'] }]);
 });
 
+test('an every-4-weeks customer sees every every-4-weeks spot before any every-other-week one', async () => {
+  for (const [freq, weeks] of [['4', 4], ['2', 2]]) {
+    const r = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: freq, hours: 1.5 });
+    const firstOther = r.results.findIndex((x) => !x.exact);
+    assert.ok(r.results.every((x, i) => (firstOther < 0 || i < firstOther ? x.weeks === weeks : x.weeks !== weeks)), `frequency ${freq}: exact matches first, then the rest`);
+  }
+});
+
 test('place a one-time clean: single dates, no frequency language', async () => {
   const once = await placeCustomer(mc, { from: MONDAYS[0], zip: '99203', frequency: '0', hours: 2 });
   assert.ok(once.results.length > 0);

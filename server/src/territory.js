@@ -954,7 +954,11 @@ export async function placeCustomer(mc, { from, zip, zone, home, homeName, homeC
     })
     .filter((x) => x.score > -100)
     .filter((x) => !limitDrive || x.extraDriveMin <= limitDrive)
-    .sort((a, b) => b.score - a.score)
+    // Spots of exactly the customer's frequency first (an every-4-weeks customer sees every
+    // free every-4-weeks spot before any every-other-week one), so a more frequent spot is
+    // only given up when nothing that fits exactly is left. Best first within each group.
+    .map((x) => ({ ...x, exact: want === 0 || x.weeks === want }))
+    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score)
     .slice(0, 40);
   // Live check: the openings are built from a copy up to a few minutes old, so the first
   // visit date of every result is read from MaidCentral again now. A spot booked in the
